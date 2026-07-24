@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/feemanagement",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\FeeManagement\\": "app/",
+            "Modules\\FeeManagement\\Database\\Factories\\": "database/factories/",
+            "Modules\\FeeManagement\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\FeeManagement\\Tests\\": "tests/"
+        }
+    }
+}

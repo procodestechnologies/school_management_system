@@ -1,4 +1,10 @@
 {
     "Student": true,
-    "Institution": true
+    "Institution": true,
+    "Parent": true,
+    "Teacher": true,
+    "Attendance": true,
+    "FeeManagement": true,
+    "Examinations": true,
+    "Timetable": true
 }

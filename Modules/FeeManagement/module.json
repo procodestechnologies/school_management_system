@@ -1,0 +1,11 @@
+{
+    "name": "FeeManagement",
+    "alias": "feemanagement",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\FeeManagement\\Providers\\FeeManagementServiceProvider"
+    ],
+    "files": []
+}
