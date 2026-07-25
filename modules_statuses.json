@@ -6,5 +6,7 @@
     "Attendance": true,
     "FeeManagement": true,
     "Examinations": true,
-    "Timetable": true
+    "Timetable": true,
+    "Library": true,
+    "Curriculum": true
 }
