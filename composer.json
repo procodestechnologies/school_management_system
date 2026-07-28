@@ -10,6 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "athwari/laravel-zkteco-adms": "@dev",
+        "itsmurumba/laravel-hostpinnacle": "@dev",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
@@ -120,6 +122,19 @@
             "wikimedia/composer-merge-plugin": true
         }
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/laravel-zkteco-adms"
+        },
+        {
+            "type": "path",
+            "url": "packages/laravel-hostpinnacle",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }

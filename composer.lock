@@ -4,8 +4,89 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "999a53b69e101954239b031781d5c9a4",
+    "content-hash": "2e3eb8f50a5b58a47c1698723867de1d",
     "packages": [
+        {
+            "name": "athwari/laravel-zkteco-adms",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/laravel-zkteco-adms",
+                "reference": "2ffe76f80896282bf92ebfc9a08b8ad3a8173c57"
+            },
+            "require": {
+                "illuminate/database": "^13.0",
+                "illuminate/http": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.24",
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^12.0",
+                "rector/rector": "^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Athwari\\LaravelZktecoAdms\\LaravelZktecoAdmsServiceProvider"
+                    ],
+                    "aliases": {
+                        "ZktecoAdms": "Athwari\\LaravelZktecoAdms\\Facades\\ZktecoAdms"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Athwari\\LaravelZktecoAdms\\": "src/",
+                    "Athwari\\LaravelZktecoAdms\\Database\\Factories\\": "database/factories/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Athwari\\LaravelZktecoAdms\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "pest"
+                ],
+                "test-coverage": [
+                    "pest --coverage"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "format": [
+                    "pint"
+                ],
+                "refactor": [
+                    "rector"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Laravel package implementing the ZKTeco ADMS protocol for biometric attendance devices.",
+            "keywords": [
+                "adms",
+                "athwari",
+                "attendance",
+                "biometric",
+                "fingerprint",
+                "iclock",
+                "laravel",
+                "zkteco"
+            ],
+            "transport-options": {
+                "relative": true
+            }
+        },
         {
             "name": "bacon/bacon-qr-code",
             "version": "v3.1.1",
@@ -1209,6 +1290,94 @@
                 }
             ],
             "time": "2026-07-17T13:53:03+00:00"
+        },
+        {
+            "name": "itsmurumba/laravel-hostpinnacle",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/laravel-hostpinnacle",
+                "reference": "89a27d2995194a254014754942b1935de10d048c"
+            },
+            "require": {
+                "illuminate/http": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^7.1|^8.0|^8.1|^8.2|^8.3"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^4.0|^5.0|^6.0|^7.0|^8.0|^9.0|^10.0",
+                "pestphp/pest": "^2.0",
+                "pestphp/pest-plugin-laravel": "^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Itsmurumba\\Hostpinnacle\\HostpinnacleServiceProvider"
+                    ],
+                    "aliases": {
+                        "Hostpinnacle": "Itsmurumba\\Hostpinnacle\\Facades\\Hostpinnacle"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Itsmurumba\\Hostpinnacle\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Itsmurumba\\Hostpinnacle\\Tests\\": "tests",
+                    "Workbench\\App\\": "workbench/app/",
+                    "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+                    "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "vendor/bin/pest"
+                ],
+                "test:coverage": [
+                    "mkdir -p build/coverage && vendor/bin/pest --coverage"
+                ],
+                "post-autoload-dump": [
+                    "@clear",
+                    "@prepare"
+                ],
+                "clear": [
+                    "@php vendor/bin/testbench package:purge-skeleton --ansi"
+                ],
+                "prepare": [
+                    "@php vendor/bin/testbench package:discover --ansi"
+                ],
+                "build": [
+                    "@php vendor/bin/testbench workbench:build --ansi"
+                ],
+                "serve": [
+                    "Composer\\Config::disableProcessTimeout",
+                    "@build",
+                    "@php vendor/bin/testbench serve --ansi"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "ItsMurumba",
+                    "email": "kevmurumba@gmail.com"
+                }
+            ],
+            "description": "Laravel Package for Hostpinnacle SMS API",
+            "keywords": [
+                "hostpinnacle",
+                "itsmurumba",
+                "laravel"
+            ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "laravel/chisel",
@@ -11747,7 +11916,10 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "athwari/laravel-zkteco-adms": 20,
+        "itsmurumba/laravel-hostpinnacle": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
