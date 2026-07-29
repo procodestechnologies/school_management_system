@@ -23,19 +23,22 @@
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
             </flux:sidebar.group>
-            <flux:sidebar.group icon="rectangle-stack" :heading="__('Modules')" class="grid" expandable
-                :expanded="request()->routeIs('admin.modules*')">
-                <flux:sidebar.item icon="eye" :href="route('admin.modules.index')"
-                    :current="request()->routeIs('admin.modules.index')" wire:navigate>
-                    {{ __('View All') }}
-                </flux:sidebar.item>
-                <flux:sidebar.item icon="plus" :href="route('admin.modules.create')"
-                    :current="request()->routeIs('admin.modules.create')" wire:navigate>
-                    {{ __('Create Module') }}
-                </flux:sidebar.item>
-            </flux:sidebar.group>
-            @if (auth()->user()->role('Director'))
-                @foreach (Module::allEnabled() as $module)
+            @hasrole('Admin')
+                <flux:sidebar.group icon="rectangle-stack" :heading="__('Modules')" class="grid" expandable
+                    :expanded="request()->routeIs('admin.modules*')">
+                    <flux:sidebar.item icon="eye" :href="route('admin.modules.index')"
+                        :current="request()->routeIs('admin.modules.index')" wire:navigate>
+                        {{ __('View All') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="plus" :href="route('admin.modules.create')"
+                        :current="request()->routeIs('admin.modules.create')" wire:navigate>
+                        {{ __('Create Module') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+            @endhasrole
+            
+            @foreach (Module::allEnabled() as $module)
+            @can('view '. strtolower($module->getName()))
                     @php
                         $icon = '';
                         if ($module->getName() === '') {
@@ -74,14 +77,12 @@
                                 break;
                         }
                     @endphp
-                    <flux:sidebar.item icon="{{ $icon }}"
-                        :href="route(strtolower($module->getName()) . '.index')"
+                    <flux:sidebar.item icon="{{ $icon }}" :href="route(strtolower($module->getName()) . '.index')"
                         :current="request()->routeIs(strtolower($module->getName()).'.index')" wire:navigate>
                         {{ __($module->getName()) }}
                     </flux:sidebar.item>
+                    @endcan
                 @endforeach
-
-            @endif
         </flux:sidebar.nav>
 
         <flux:spacer />

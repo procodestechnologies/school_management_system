@@ -297,19 +297,19 @@ class AdmsController extends Controller
                 $record->timestamp->format('d M Y, h:i:s A'),
                 $verifyMode
             );
-            try {
-                $this->smsService->send(
-                    254725996394,
-                    $smsMessage
-                );
-                Log::info('SMS request completed');
-            } catch (\Throwable $e) {
+            // try {
+            //     $this->smsService->send(
+            //         254759900802,
+            //         $smsMessage
+            //     );
+            //     Log::info('SMS request completed');
+            // } catch (\Throwable $e) {
 
-                Log::error('SMS failed', [
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-            }
+            //     Log::error('SMS failed', [
+            //         'message' => $e->getMessage(),
+            //         'trace' => $e->getTraceAsString(),
+            //     ]);
+            // }
         }
         // foreach ($records as $record) {
 

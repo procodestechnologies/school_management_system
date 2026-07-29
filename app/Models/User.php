@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Modules\Institution\Models\Institution;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -34,7 +35,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable,HasRoles;
+    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable, HasRoles;
 
     /**
      * Get the attributes that should be cast.
@@ -57,7 +58,11 @@ class User extends Authenticatable implements PasskeyUser
         $initials = Str::initials($this->name, true);
 
         return Str::length($initials) > 1
-            ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
+            ? Str::substr($initials, 0, 1) . Str::substr($initials, -1)
             : $initials;
+    }
+    public function institution()
+    {
+        return $this->hasMany(Institution::class);
     }
 }
