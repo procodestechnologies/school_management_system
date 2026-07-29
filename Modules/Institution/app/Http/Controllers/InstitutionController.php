@@ -9,7 +9,6 @@ use Flux\Flux;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
