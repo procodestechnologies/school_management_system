@@ -1,8 +1,5 @@
 <x-layouts::app :title="__('Edit Institution')">
     <div class="p-4">
-        @if (session('update.inst'))
-            <flux:toast>success</flux:toast>
-        @endif
         <div class="bg-white rounded-lg shadow-sm border border-gray-200">
             {{-- Header --}}
             <div
@@ -68,12 +65,12 @@
                             <div>
                                 <flux:select name="curriculum" label="Curriculum *"
                                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <flux:select.option value="">Select Curriculum</flux:select.option>
+                                    <option value="">Select Curriculum</option>
                                     @foreach ($curricula as $curriculum)
-                                        <flux:select.option value="{{ $curriculum->id }}"
+                                        <option value="{{ $curriculum->id }}"
                                             {{ old('curriculum', $institution->curriculum) == $curriculum->id ? 'selected' : '' }}>
                                             {{ $curriculum->name }}
-                                        </flux:select.option>
+                                        </option>
                                     @endforeach
                                 </flux:select>
                                 @error('curriculum')
@@ -84,18 +81,18 @@
                             <div>
                                 <flux:select name="type" label="Institution Type *"
                                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    <flux:select.option value="School"
+                                    <option value="School"
                                         {{ old('type', $institution->type) == 'School' ? 'selected' : '' }}>School
-                                    </flux:select.option>
-                                    <flux:select.option value="College"
+                                    </option>
+                                    <option value="College"
                                         {{ old('type', $institution->type) == 'College' ? 'selected' : '' }}>College
-                                    </flux:select.option>
-                                    <flux:select.option value="University"
+                                    </option>
+                                    <option value="University"
                                         {{ old('type', $institution->type) == 'University' ? 'selected' : '' }}>
-                                        University</flux:select.option>
-                                    <flux:select.option value="Training Centre"
+                                        University</option>
+                                    <option value="Training Centre"
                                         {{ old('type', $institution->type) == 'Training Centre' ? 'selected' : '' }}>
-                                        Training Centre</flux:select.option>
+                                        Training Centre</option>
                                 </flux:select>
                                 @error('type')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
