@@ -4,6 +4,7 @@ namespace Modules\Parent\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ParentController extends Controller
 {
@@ -12,6 +13,8 @@ class ParentController extends Controller
      */
     public function index()
     {
+        $user = Auth::user();
+        // $parents = $user->institution->first();        
         return view('parent::index');
     }
 

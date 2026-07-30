@@ -30,11 +30,11 @@
                                 </flux:badge>
                             </flux:table.cell>
                             <flux:table.cell>
-                                <flux:button href="{{ route('student.show', $student->student_id) }}" icon="eye"
+                                <flux:button href="{{ route('student.show', $student->id) }}" icon="eye"
                                     variant="primary" color="emerald">
                                     view
                                 </flux:button>
-                                <flux:button href="{{ route('student.edit', $student->student_id) }}" icon="pencil"
+                                <flux:button href="{{ route('student.edit', $student->id) }}" icon="pencil"
                                     variant="primary" color="yellow">
                                     edit
                                 </flux:button>

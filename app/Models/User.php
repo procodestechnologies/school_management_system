@@ -81,6 +81,17 @@ class User extends Authenticatable implements PasskeyUser
             'parent_id'           // Local key on intermediate model (StudentDetails.institution_id)
         );
     }
+    public function parentInstitution()
+{
+    return $this->hasOneThrough(
+        Institution::class,
+        StudentDetails::class,
+        'parent_id',        // Foreign key on student_details (parent user id)
+        'id',               // Foreign key on institutions (institution id)
+        'id',               // Local key on users (parent user id)
+        'institution_id'    // Local key on student_details (institution id)
+    );
+}
     public function studentParent()
     {
         return $this->hasOneThrough(
