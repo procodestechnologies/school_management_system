@@ -14,6 +14,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Modules\Institution\Models\Institution;
+use Modules\Student\Models\StudentDetails;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -63,5 +64,9 @@ class User extends Authenticatable implements PasskeyUser
     public function institution()
     {
         return $this->hasMany(Institution::class);
+    }
+    public function studentUserDetails()
+    {
+        return $this->hasOne(StudentDetails::class);
     }
 }

@@ -36,53 +36,55 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             @endhasrole
-            
-            @foreach (Module::allEnabled() as $module)
-            @can('view '. strtolower($module->getName()))
-                    @php
-                        $icon = '';
-                        if ($module->getName() === '') {
-                        }
-                        switch ($module->getName()) {
-                            case 'Curriculum':
-                                $icon = 'queue-list';
-                                break;
-                            case 'Attendance':
-                                $icon = 'clock';
-                                break;
-                            case 'Examinations':
-                                $icon = 'book-open';
-                                break;
-                            case 'FeeManagement':
-                                $icon = 'document-currency-dollar';
-                                break;
-                            case 'Institution':
-                                $icon = 'building-library';
-                                break;
-                            case 'Parent':
-                                $icon = 'user';
-                                break;
-                            case 'Teacher':
-                                $icon = 'users';
-                                break;
-                            case 'Student':
-                                $icon = 'user-group';
-                                break;
-                            case 'Timetable':
-                                $icon = 'calendar-days';
-                                break;
+            @if (hasInstitutions())
+                @foreach (Module::allEnabled() as $module)
+                    @can('view ' . strtolower($module->getName()))
+                        @php
+                            $icon = '';
+                            if ($module->getName() === '') {
+                            }
+                            switch ($module->getName()) {
+                                case 'Curriculum':
+                                    $icon = 'queue-list';
+                                    break;
+                                case 'Attendance':
+                                    $icon = 'clock';
+                                    break;
+                                case 'Examinations':
+                                    $icon = 'book-open';
+                                    break;
+                                case 'FeeManagement':
+                                    $icon = 'document-currency-dollar';
+                                    break;
+                                case 'Institution':
+                                    $icon = 'building-library';
+                                    break;
+                                case 'Parent':
+                                    $icon = 'user';
+                                    break;
+                                case 'Teacher':
+                                    $icon = 'users';
+                                    break;
+                                case 'Student':
+                                    $icon = 'user-group';
+                                    break;
+                                case 'Timetable':
+                                    $icon = 'calendar-days';
+                                    break;
 
-                            default:
-                                # code...
-                                break;
-                        }
-                    @endphp
-                    <flux:sidebar.item icon="{{ $icon }}" :href="route(strtolower($module->getName()) . '.index')"
-                        :current="request()->routeIs(strtolower($module->getName()).'.index')" wire:navigate>
-                        {{ __($module->getName()) }}
-                    </flux:sidebar.item>
+                                default:
+                                    # code...
+                                    break;
+                            }
+                        @endphp
+                        <flux:sidebar.item icon="{{ $icon }}"
+                            :href="route(strtolower($module->getName()) . '.index')"
+                            :current="request()->routeIs(strtolower($module->getName()).'.index')" wire:navigate>
+                            {{ __($module->getName()) }}
+                        </flux:sidebar.item>
                     @endcan
                 @endforeach
+            @endif
         </flux:sidebar.nav>
 
         <flux:spacer />

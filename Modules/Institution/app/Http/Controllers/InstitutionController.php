@@ -151,7 +151,7 @@ class InstitutionController extends Controller
 
             // Flash success message
             session()->flash('update.inst', 'Institution updated successfully!');
-            
+
             // Redirect to show page with success message
             return redirect()->route('institution.edit', $institution->id)
                 ->with('success', 'Institution "' . $institution->name . '" has been updated successfully.');
@@ -177,6 +177,7 @@ class InstitutionController extends Controller
      */
     public function destroy(Institution $institution)
     {
-        dd($institution);
+        $institution->delete();
+        return redirect()->route('institution.index');
     }
 }

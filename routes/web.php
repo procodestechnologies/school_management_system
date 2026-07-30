@@ -1,14 +1,14 @@
 <?php
 
 use App\Http\Controllers\ModuleController;
+use App\Http\Middleware\HasInstitution;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Nwidart\Modules\Facades\Module;
 use Spatie\Permission\Models\Permission;
 
 Route::view('/', 'welcome')->name('home');
 
-Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
+Route::middleware(['auth', 'verified', HasInstitution::class])->prefix('dashboard')->group(function () {
     Route::get('', function () {
         return view('dashboard');
     })->name('dashboard');
@@ -19,6 +19,5 @@ Route::get('as', function () {
 
     Auth::user()->givePermissionTo($permissions);
 });
-
 
 require __DIR__ . '/settings.php';
