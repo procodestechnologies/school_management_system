@@ -14,6 +14,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Modules\Institution\Models\Institution;
+use Modules\Parent\Models\ParentDetails;
 use Modules\Student\Models\StudentDetails;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -67,6 +68,43 @@ class User extends Authenticatable implements PasskeyUser
     }
     public function studentUserDetails()
     {
-        return $this->hasOne(StudentDetails::class);
+        return $this->hasOne(StudentDetails::class, 'user_id');
+    }
+    public function parentUserDetails()
+    {
+        return $this->hasOneThrough(
+            ParentDetails::class,        // Final model
+            StudentDetails::class,     // Intermediate model
+            'student_id',              // Foreign key on intermediate model (StudentDetails.student_id)
+            'id',                      // Foreign key on final model (Institution.id)
+            'id',                      // Local key on current model (User.id)
+            'parent_id'           // Local key on intermediate model (StudentDetails.institution_id)
+        );
+    }
+    public function studentParent()
+    {
+        return $this->hasOneThrough(
+            User::class,           // Final model (Parent User)
+            StudentDetails::class, // Intermediate model
+            'student_id',          // Foreign key on intermediate model (StudentDetails.student_id) - matches users.id
+            'id',                  // Foreign key on final model (User.id) - matches StudentDetails.parent_id
+            'id',                  // Local key on current model (User.id)
+            'parent_id'            // Local key on intermediate model (StudentDetails.parent_id)
+        );
+    }
+    public function studentInstitution()
+    {
+        return $this->hasOneThrough(
+            Institution::class,        // Final model
+            StudentDetails::class,     // Intermediate model
+            'student_id',              // Foreign key on intermediate model (StudentDetails.student_id)
+            'id',                      // Foreign key on final model (Institution.id)
+            'id',                      // Local key on current model (User.id)
+            'institution_id'           // Local key on intermediate model (StudentDetails.institution_id)
+        );
+    }
+    public function parent()
+    {
+        return $this->hasOne(ParentDetails::class, 'parent_id');
     }
 }
