@@ -6,7 +6,13 @@ use App\Models\Devices;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Classes\Models\SchoolClass;
+use Modules\Curriculum\Models\Curriculum;
+use Modules\FeeManagement\Models\Fee;
 use Modules\Student\Models\StudentDetails;
+use Modules\Examinations\Models\Examination;
+use Modules\Teacher\Models\TeacherDetails;
+use Modules\Timetable\Models\TimetableEntry;
 
 // use Modules\Institution\Database\Factories\InstitutionFactory;
 
@@ -93,5 +99,29 @@ class Institution extends Model
         )->whereHas('roles', function ($query) {
             $query->where('name', 'Parent'); // Only get users with Parent role
         });
+    }
+    public function fees()
+    {
+        return $this->hasMany(Fee::class);
+    }
+    public function curriculum()
+    {
+        return $this->belongsTo(Curriculum::class, 'curriculum');
+    }
+    public function teachers()
+    {
+        return $this->hasManyThrough(User::class, TeacherDetails::class, 'institution_id', 'id', 'id', 'teacher_id');
+    }
+    public function timetableEntries()
+    {
+        return $this->hasMany(TimetableEntry::class);
+    }
+    public function examinations()
+    {
+        return $this->hasMany(Examination::class);
+    }
+    public function classes()
+    {
+        return $this->hasMany(SchoolClass::class);
     }
 }

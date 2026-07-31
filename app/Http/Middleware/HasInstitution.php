@@ -20,12 +20,21 @@ class HasInstitution
             return redirect()->route('login');
         }
 
-        // Allow admins through
+        // Admins own the platform, not a school - nothing to onboard.
         if (isAdmin()) {
             return $next($request);
         }
 
-        // If user has no institution, redirect them to create one
+        // Parents, Students, Teachers and Accountants are attached to a
+        // school by someone else (a Director) - they never own an
+        // institution themselves, so they must never be forced through
+        // onboarding.
+        if ($user->hasAnyRole(['Parent', 'Student', 'Teacher', 'Accountant'])) {
+            return $next($request);
+        }
+
+        // Anyone else without an institution yet (a brand new sign-up, or a
+        // Director who hasn't registered their school) is sent to onboard.
         if ($user->institution()->count() === 0) {
             return redirect()->route('institution.create');
         }

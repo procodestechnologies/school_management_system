@@ -13,9 +13,11 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
 use Modules\Parent\Models\ParentDetails;
 use Modules\Student\Models\StudentDetails;
+use Modules\Teacher\Models\TeacherDetails;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -121,5 +123,17 @@ class User extends Authenticatable implements PasskeyUser
     public function parent()
     {
         return $this->hasOne(ParentDetails::class, 'parent_id');
+    }
+    public function fees()
+    {
+        return $this->hasMany(Fee::class, 'student_id');
+    }
+    public function childFees()
+    {
+        return $this->hasMany(Fee::class, 'parent_id');
+    }
+    public function teacherUserDetails()
+    {
+        return $this->hasOne(TeacherDetails::class, 'teacher_id');
     }
 }

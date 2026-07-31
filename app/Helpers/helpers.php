@@ -28,8 +28,15 @@ if (!function_exists('hasInstitutions')) {
             return false;
         }
 
-        // Admins always have access
+        // Admins own the platform, not a school.
         if (isAdmin()) {
+            return true;
+        }
+
+        // Parents, Students, Teachers and Accountants belong to a school
+        // without ever owning one themselves - they always have access to
+        // its data.
+        if ($user->hasAnyRole(['Parent', 'Student', 'Teacher', 'Accountant'])) {
             return true;
         }
 

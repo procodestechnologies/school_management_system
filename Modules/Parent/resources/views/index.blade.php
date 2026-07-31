@@ -42,8 +42,8 @@
 
                                     <!-- Contact -->
                                     <flux:table.cell>
-                                        <div class="text-sm">{{ $parent->parentDetails->parent_phone ?? 'N/A' }}</div>
-                                        <div class="text-xs text-gray-500">{{ $parent->parentDetails->parent_occupation ?? 'N/A' }}</div>
+                                        <div class="text-sm">{{ $parent->parent->parent_phone ?? 'No phone' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $parent->parent->parent_occupation ?? 'N/A' }}</div>
                                     </flux:table.cell>
 
                                     <!-- Students -->

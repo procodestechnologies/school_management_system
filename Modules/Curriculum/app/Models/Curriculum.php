@@ -4,6 +4,7 @@ namespace Modules\Curriculum\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Modules\Institution\Models\Institution;
 // use Modules\Curriculum\Database\Factories\CurriculumFactory;
 
 class Curriculum extends Model
@@ -19,4 +20,9 @@ class Curriculum extends Model
     // {
     //     // return CurriculumFactory::new();
     // }
+
+    public function institutions()
+    {
+        return $this->hasMany(Institution::class, 'curriculum');
+    }
 }

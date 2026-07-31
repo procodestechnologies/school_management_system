@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Devices;
 use Athwari\LaravelZktecoAdms\Models\ZktecoAttendanceLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Modules\Institution\Models\Institution;
 
 class AttendanceController extends Controller
@@ -15,6 +16,8 @@ class AttendanceController extends Controller
      */
     public function institutionAttendance(Request $request, int $institution)
     {
+        abort_unless(Auth::check() && Auth::user()->can('view attendance'), 403);
+
         $institution = Institution::findOrFail($institution);
 
         $deviceIds = Devices::whereInstitutionId($institution->id)
@@ -69,6 +72,8 @@ class AttendanceController extends Controller
      */
     public function index()
     {
+        abort_unless(Auth::user()->can('view attendance'), 403);
+
         return view('attendance::index');
     }
 
@@ -77,19 +82,26 @@ class AttendanceController extends Controller
      */
     public function create()
     {
+        abort_unless(Auth::user()->can('create attendance'), 403);
+
         return view('attendance::create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request)
+    {
+        abort_unless(Auth::user()->can('create attendance'), 403);
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
+        abort_unless(Auth::user()->can('view attendance'), 403);
+
         return view('attendance::show');
     }
 
@@ -98,16 +110,24 @@ class AttendanceController extends Controller
      */
     public function edit($id)
     {
+        abort_unless(Auth::user()->can('edit attendance'), 403);
+
         return view('attendance::edit');
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id)
+    {
+        abort_unless(Auth::user()->can('update attendance'), 403);
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id)
+    {
+        abort_unless(Auth::user()->can('delete attendance'), 403);
+    }
 }

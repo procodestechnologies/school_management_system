@@ -22,9 +22,13 @@ class StudentController extends Controller
      */
     public function index()
     {
+        abort_unless(Auth::user()->can('view student'), 403);
+
         $query = StudentDetails::with(['student', 'institution']);
 
-        if (!isAdmin()) {
+        if (Auth::user()->hasRole('Parent')) {
+            $query->where('parent_id', Auth::id());
+        } elseif (!isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
@@ -37,6 +41,8 @@ class StudentController extends Controller
      */
     public function create()
     {
+        abort_unless(Auth::user()->can('create student'), 403);
+
         $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
 
         return view('student::create', compact('institutions'));
@@ -47,6 +53,8 @@ class StudentController extends Controller
      */
     public function store(Request $request)
     {
+        abort_unless(Auth::user()->can('create student'), 403);
+
         $validated = $request->validate([
             // Account
             'name' => 'required|string|max:255',
@@ -107,7 +115,7 @@ class StudentController extends Controller
                         'parent_phone' => $validated['parent_phone'] ?? null,
                         'parent_occupation' => $validated['parent_occupation'] ?? null,
                     ];
-                    $parent->parentUserDetails()->create($parentDetails);
+                    ParentDetails::create($parentDetails);
                 }
 
                 // 2. Create Student User
@@ -171,6 +179,8 @@ class StudentController extends Controller
      */
     public function show(User $student)
     {
+        abort_unless(Auth::user()->can('view student'), 403);
+
         return view('student::show', compact('student'));
     }
 
@@ -179,6 +189,8 @@ class StudentController extends Controller
      */
     public function edit($id)
     {
+        abort_unless(Auth::user()->can('edit student'), 403);
+
         $institutions = Institution::all();
         $student = User::whereId($id)->with('studentParent', 'studentUserDetails', 'studentInstitution')->first();
 
@@ -190,6 +202,8 @@ class StudentController extends Controller
      */
     public function update(Request $request, $id)
     {
+        abort_unless(Auth::user()->can('update student'), 403);
+
         // Validate the request
         $validated = $request->validate([
             // Personal
@@ -335,6 +349,8 @@ class StudentController extends Controller
      */
     public function destroy(int $id)
     {
+        abort_unless(Auth::user()->can('delete student'), 403);
+
         $user = User::findOrFail($id);
         $user->studentParent->delete();
         $user->delete();

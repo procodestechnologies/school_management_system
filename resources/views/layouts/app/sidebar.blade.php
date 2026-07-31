@@ -61,9 +61,9 @@
                             case 'Examinations':
                                 $icon = 'book-open';
                                 $canAccess =
-                                    auth()->user()->can('view examinations') ||
-                                    auth()->user()->can('edit examinations') ||
-                                    auth()->user()->can('create examinations');
+                                    auth()->user()->can('view examination') ||
+                                    auth()->user()->can('edit examination') ||
+                                    auth()->user()->can('create examination');
                                 break;
                             case 'FeeManagement':
                                 $icon = 'document-currency-dollar';
@@ -106,6 +106,20 @@
                                     auth()->user()->can('view timetable') ||
                                     auth()->user()->can('edit timetable') ||
                                     auth()->user()->can('create timetable');
+                                break;
+                            case 'Report':
+                                $icon = 'chart-bar';
+                                $canAccess =
+                                    auth()->user()->can('view report') ||
+                                    auth()->user()->can('create report') ||
+                                    auth()->user()->can('export report');
+                                break;
+                            case 'Classes':
+                                $icon = 'rectangle-group';
+                                $canAccess =
+                                    auth()->user()->can('view classes') ||
+                                    auth()->user()->can('edit classes') ||
+                                    auth()->user()->can('create classes');
                                 break;
                             default:
                                 $icon = 'folder';

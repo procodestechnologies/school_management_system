@@ -41,6 +41,7 @@ class PermissionSeeder extends Seeder
             'examination' => ['view', 'create', 'edit', 'update', 'delete'],
             'feemanagement' => ['view', 'create', 'edit', 'update', 'delete'],
             'timetable' => ['view', 'create', 'edit', 'update', 'delete'],
+            'classes' => ['view', 'create', 'edit', 'update', 'delete'],
             'user' => ['view', 'create', 'edit', 'update', 'delete'],
             'role' => ['view', 'create', 'edit', 'update', 'delete'],
             'permission' => ['view', 'create', 'edit', 'update', 'delete'],
@@ -63,62 +64,51 @@ class PermissionSeeder extends Seeder
     }
 
     /**
-     * Create roles and assign permissions
+     * Create roles and assign permissions.
+     *
+     * Role model:
+     * - Admin: owns the application/platform itself. Full access to
+     *   everything, including onboarding/removing schools (institutions) and
+     *   managing users, roles, permissions and system settings.
+     * - Director: represents a single school. Fully manages that school's
+     *   day-to-day data (students, parents, teachers, curriculum,
+     *   attendance, examinations, fees, timetable, finance/accounts,
+     *   reports), but can only view/edit their own institution's profile —
+     *   creating or deleting a school is an Admin-only, platform-level
+     *   action.
+     * - Accountant: finance-focused subset of a Director's access.
+     * - Parent/Student: read-only access scoped to their own records.
      */
     private function createRolesAndAssignPermissions(): void
     {
-        // 1. Admin Role (Full access - all permissions)
+        // 1. Admin Role (System owner - full access to everything)
         $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $admin->syncPermissions(Permission::all());
 
-        // 2. Director Role (Management access - view and edit most things)
+        // 2. Director Role (Manages a single school end-to-end)
         $director = Role::firstOrCreate(['name' => 'Director', 'guard_name' => 'web']);
         $directorPermissions = Permission::whereIn('name', [
-            // View permissions
-            'view parent',
-            'view student',
-            'view teacher',
+            // Their school's profile: view/edit only, not create/delete
             'view institution',
-            'view curriculum',
-            'view attendance',
-            'view examination',
-            'view feemanagement',
-            'view timetable',
+            'edit institution',
+            'update institution',
+
+            // Full CRUD over everything that makes up "their school"
+            'view parent', 'create parent', 'edit parent', 'update parent', 'delete parent',
+            'view student', 'create student', 'edit student', 'update student', 'delete student',
+            'view teacher', 'create teacher', 'edit teacher', 'update teacher', 'delete teacher',
+            'view curriculum', 'create curriculum', 'edit curriculum', 'update curriculum', 'delete curriculum',
+            'view attendance', 'create attendance', 'edit attendance', 'update attendance', 'delete attendance',
+            'view examination', 'create examination', 'edit examination', 'update examination', 'delete examination',
+            'view feemanagement', 'create feemanagement', 'edit feemanagement', 'update feemanagement', 'delete feemanagement',
+            'view timetable', 'create timetable', 'edit timetable', 'update timetable', 'delete timetable',
+            'view classes', 'create classes', 'edit classes', 'update classes', 'delete classes',
+            'view account', 'create account', 'edit account', 'update account',
+            'view finance', 'create finance', 'edit finance', 'update finance',
+
+            // Reporting and their own dashboard
+            'view report', 'create report', 'export report',
             'view dashboard',
-            'view report',
-            'view account',
-            'view finance',
-
-            // Edit/Update permissions
-            'edit parent',
-            'update parent',
-            'edit student',
-            'update student',
-            'edit teacher',
-            'update teacher',
-            'edit curriculum',
-            'update curriculum',
-            'edit attendance',
-            'update attendance',
-            'edit examination',
-            'update examination',
-            'edit feemanagement',
-            'update feemanagement',
-            'edit timetable',
-            'update timetable',
-
-            // Create permissions (limited)
-            'create parent',
-            'create student',
-            'create teacher',
-            'create curriculum',
-            'create attendance',
-            'create examination',
-            'create timetable',
-
-            // Report permissions
-            'create report',
-            'export report',
         ])->get();
         $director->syncPermissions($directorPermissions);
 
@@ -154,6 +144,7 @@ class PermissionSeeder extends Seeder
             'view attendance',
             'view examination',
             'view timetable',
+            'view classes',
             'view feemanagement',
             'view dashboard',
             'view report',
@@ -166,8 +157,24 @@ class PermissionSeeder extends Seeder
             'view attendance',
             'view examination',
             'view timetable',
+            'view classes',
             'view dashboard',
+            'view report',
         ])->get();
         $student->syncPermissions($studentPermissions);
+
+        // 6. Teacher Role (View their school's academic data, no management)
+        $teacher = Role::firstOrCreate(['name' => 'Teacher', 'guard_name' => 'web']);
+        $teacherPermissions = Permission::whereIn('name', [
+            'view student',
+            'view attendance',
+            'view examination',
+            'view timetable',
+            'view classes',
+            'view curriculum',
+            'view dashboard',
+            'view report',
+        ])->get();
+        $teacher->syncPermissions($teacherPermissions);
     }
 }
