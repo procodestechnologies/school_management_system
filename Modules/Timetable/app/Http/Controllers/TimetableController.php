@@ -9,29 +9,125 @@ use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 use Modules\Timetable\Models\TimetableEntry;
+use Modules\Timetable\Services\TimetableImportService;
 
 class TimetableController extends Controller
 {
     private const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource: pick a class, see its timetable as
+     * a day-by-period grid.
      */
-    public function index()
+    public function index(Request $request)
     {
         abort_unless(Auth::user()->can('view timetable'), 403);
 
-        $query = TimetableEntry::with(['institution', 'teacher', 'schoolClass']);
-        $this->scopeToViewer($query);
+        $classes = $this->scopedClasses();
 
-        $dayOrder = array_flip(self::DAYS);
+        $selectedClass = null;
+        $grid = null;
+        $periods = collect();
+        $days = self::DAYS;
 
-        $entries = $query->orderBy('start_time')
-            ->get()
-            ->sortBy(fn (TimetableEntry $entry) => $dayOrder[$entry->day_of_week] ?? 99)
-            ->values();
+        $classId = $request->integer('class_id') ?: $classes->first()?->id;
 
-        return view('timetable::index', compact('entries'));
+        if ($classId) {
+            $selectedClass = $classes->firstWhere('id', $classId);
+        }
+
+        if ($selectedClass) {
+            $entries = TimetableEntry::with(['teacher'])
+                ->where('class_id', $selectedClass->id)
+                ->get();
+
+            $periods = $entries
+                ->map(fn (TimetableEntry $e) => $e->start_time?->format('H:i') . '-' . $e->end_time?->format('H:i'))
+                ->unique()
+                ->sort()
+                ->values();
+
+            $grid = [];
+            foreach ($entries as $entry) {
+                $periodKey = $entry->start_time?->format('H:i') . '-' . $entry->end_time?->format('H:i');
+                $grid[$entry->day_of_week][$periodKey] = $entry;
+            }
+        }
+
+        return view('timetable::index', compact('classes', 'selectedClass', 'grid', 'periods', 'days'));
+    }
+
+    /**
+     * Show the form for importing a class's timetable from a CSV/XLS file.
+     */
+    public function import()
+    {
+        abort_unless(Auth::user()->can('create timetable'), 403);
+
+        $classes = $this->scopedClasses();
+
+        return view('timetable::import', compact('classes'));
+    }
+
+    /**
+     * Handle the uploaded file and merge it into the selected class's
+     * timetable.
+     */
+    public function importStore(Request $request, TimetableImportService $importer)
+    {
+        abort_unless(Auth::user()->can('create timetable'), 403);
+
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'file' => 'required|file|mimes:csv,txt,xls,xlsx|max:5120',
+        ]);
+
+        $class = $this->scopedClasses()->firstWhere('id', $validated['class_id']);
+        abort_unless($class, 403);
+
+        $result = $importer->import($request->file('file'), $class);
+
+        if ($result['created'] === 0) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Import failed: ' . implode(' ', $result['errors']));
+        }
+
+        $message = "Imported {$result['created']} timetable entries for {$class->name}.";
+        if ($result['skipped'] > 0) {
+            $message .= " Skipped {$result['skipped']} break/lunch row(s).";
+        }
+        if (!empty($result['errors'])) {
+            $message .= ' ' . count($result['errors']) . ' row(s) had errors: ' . implode(' ', $result['errors']);
+        }
+        if (!empty($result['warnings'])) {
+            $message .= ' ' . implode(' ', $result['warnings']);
+        }
+
+        return redirect()->route('timetable.index', ['class_id' => $class->id])->with('success', $message);
+    }
+
+    /**
+     * Download a blank CSV template for the import.
+     */
+    public function importTemplate()
+    {
+        abort_unless(Auth::user()->can('create timetable'), 403);
+
+        $rows = [
+            ['Day', 'Start Time', 'End Time', 'Subject', 'Teacher Email', 'Room'],
+            ['Monday', '08:20', '08:55', 'MATHS', '', ''],
+            ['Monday', '08:55', '09:30', 'PHE', '', ''],
+            ['Monday', '09:50', '10:25', 'ENG', '', ''],
+        ];
+
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, 'timetable-import-template.csv', ['Content-Type' => 'text/csv']);
     }
 
     /**
