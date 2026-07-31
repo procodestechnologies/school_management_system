@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Device;
-use App\Models\User;
 use Athwari\LaravelZktecoAdms\Models\ZktecoUser;
 use Athwari\LaravelZktecoAdms\Services\DeviceManager;
 use Athwari\LaravelZktecoAdms\Services\CommandManager;
@@ -93,6 +91,7 @@ class ZKTecoUserSyncService
                     'name' => $userData['name'],
                     'card_number' => $userData['card'] ?? null,
                     'privilege' => (int) ($userData['privilege'] ?? 0),
+                    'app_user_id' => $userData['app_user_id'] ?? null,
                 ]
             );
 

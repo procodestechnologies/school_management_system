@@ -50,8 +50,8 @@ public function syncStudent(Request $request, $studentId)
         'privilege' => 0, // Normal user
         'card' => $studentDetails?->student_number ?? '', // Card number (RFID)
         'password' => $studentDetails?->admission_number ?? '', // Password = admission_number
+        'app_user_id' => $student->id,
     ];
-    dd($deviceUserData['password']);
     Log::debug("Manual sync data", [
         'student_id' => $student->id,
         'pin' => $deviceUserData['pin'],
@@ -168,6 +168,7 @@ public function syncStudent(Request $request, $studentId)
             'privilege' => 0,
             'card' => $studentDetails?->student_number ?? '',
             'password' => $studentDetails?->admission_number ?? '',
+            'app_user_id' => $student->id,
         ];
 
         try {
