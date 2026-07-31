@@ -12,14 +12,16 @@
                     </small>
                 </div>
                 <div class="flex gap-2">
-                    <a href="{{ route('institution.edit', $institution->id) }}"
-                        class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition duration-150">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit
-                    </a>
+                    @if (institutionOwner($institution->owner->id))
+                        <a href="{{ route('institution.edit', $institution->id) }}"
+                            class="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition duration-150">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit
+                        </a>
+                    @endif
                     <a href="{{ route('institution.index') }}"
                         class="inline-flex items-center px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-md transition duration-150">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,19 +285,22 @@
 
             {{-- Footer Actions --}}
             <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                <form action="{{ route('institution.destroy', $institution->id) }}" method="POST" class="inline">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit"
-                        onclick="return confirm('Are you sure you want to delete this institution? This action cannot be undone.')"
-                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition duration-150">
-                        Delete Institution
-                    </button>
-                </form>
-                <a wire:navigate href="{{ route('institution.edit', $institution->id) }}"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition duration-150">
-                    Edit Institution
-                </a>
+                @if (institutionOwner($institution->owner->id))
+                    <form action="{{ route('institution.destroy', $institution->id) }}" method="POST"
+                        class="inline">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit"
+                            onclick="return confirm('Are you sure you want to delete this institution? This action cannot be undone.')"
+                            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition duration-150">
+                            Delete Institution
+                        </button>
+                    </form>
+                    <a wire:navigate href="{{ route('institution.edit', $institution->id) }}"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition duration-150">
+                        Edit Institution
+                    </a>
+                @endif
             </div>
         </div>
 

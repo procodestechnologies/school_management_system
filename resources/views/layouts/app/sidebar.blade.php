@@ -36,53 +36,116 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             @endhasrole
-            
-            @foreach (Module::allEnabled() as $module)
-            @can('view '. strtolower($module->getName()))
+            @if (hasInstitutions())
+                @foreach (Module::allEnabled() as $module)
                     @php
+                        $moduleName = strtolower($module->getName());
                         $icon = '';
-                        if ($module->getName() === '') {
-                        }
+                        $canAccess = false;
+
                         switch ($module->getName()) {
                             case 'Curriculum':
                                 $icon = 'queue-list';
+                                $canAccess =
+                                    auth()->user()->can('view curriculum') ||
+                                    auth()->user()->can('edit curriculum') ||
+                                    auth()->user()->can('create curriculum');
                                 break;
                             case 'Attendance':
                                 $icon = 'clock';
+                                $canAccess =
+                                    auth()->user()->can('view attendance') ||
+                                    auth()->user()->can('edit attendance') ||
+                                    auth()->user()->can('create attendance');
                                 break;
                             case 'Examinations':
                                 $icon = 'book-open';
+                                $canAccess =
+                                    auth()->user()->can('view examination') ||
+                                    auth()->user()->can('edit examination') ||
+                                    auth()->user()->can('create examination');
                                 break;
                             case 'FeeManagement':
                                 $icon = 'document-currency-dollar';
+                                $canAccess =
+                                    auth()->user()->can('view feemanagement') ||
+                                    auth()->user()->can('edit feemanagement') ||
+                                    auth()->user()->can('create feemanagement');
                                 break;
                             case 'Institution':
                                 $icon = 'building-library';
+                                $canAccess =
+                                    auth()->user()->can('view institution') ||
+                                    auth()->user()->can('edit institution') ||
+                                    auth()->user()->can('create institution');
                                 break;
                             case 'Parent':
                                 $icon = 'user';
+                                $canAccess =
+                                    auth()->user()->can('view parent') ||
+                                    auth()->user()->can('edit parent') ||
+                                    auth()->user()->can('create parent');
                                 break;
                             case 'Teacher':
                                 $icon = 'users';
+                                $canAccess =
+                                    auth()->user()->can('view teacher') ||
+                                    auth()->user()->can('edit teacher') ||
+                                    auth()->user()->can('create teacher');
                                 break;
                             case 'Student':
                                 $icon = 'user-group';
+                                $canAccess =
+                                    auth()->user()->can('view student') ||
+                                    auth()->user()->can('edit student') ||
+                                    auth()->user()->can('create student');
                                 break;
                             case 'Timetable':
                                 $icon = 'calendar-days';
+                                $canAccess =
+                                    auth()->user()->can('view timetable') ||
+                                    auth()->user()->can('edit timetable') ||
+                                    auth()->user()->can('create timetable');
                                 break;
-
+                            case 'Report':
+                                $icon = 'chart-bar';
+                                $canAccess =
+                                    auth()->user()->can('view report') ||
+                                    auth()->user()->can('create report') ||
+                                    auth()->user()->can('export report');
+                                break;
+                            case 'Classes':
+                                $icon = 'rectangle-group';
+                                $canAccess =
+                                    auth()->user()->can('view classes') ||
+                                    auth()->user()->can('edit classes') ||
+                                    auth()->user()->can('create classes');
+                                break;
                             default:
-                                # code...
+                                $icon = 'folder';
+                                $canAccess =
+                                    auth()
+                                        ->user()
+                                        ->can('view ' . $moduleName) ||
+                                    auth()
+                                        ->user()
+                                        ->can('edit ' . $moduleName) ||
+                                    auth()
+                                        ->user()
+                                        ->can('create ' . $moduleName);
                                 break;
                         }
                     @endphp
-                    <flux:sidebar.item icon="{{ $icon }}" :href="route(strtolower($module->getName()) . '.index')"
-                        :current="request()->routeIs(strtolower($module->getName()).'.index')" wire:navigate>
-                        {{ __($module->getName()) }}
-                    </flux:sidebar.item>
-                    @endcan
+
+                    @if ($canAccess)
+                        <flux:sidebar.item icon="{{ $icon }}" :href="route($moduleName.
+                            '.index')"
+                            :current="request()->routeIs($moduleName . '.index')" wire:navigate>
+                            {{ __($module->getName()) }}
+                        </flux:sidebar.item>
+                    @endif
                 @endforeach
+            @endif
         </flux:sidebar.nav>
 
         <flux:spacer />

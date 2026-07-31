@@ -26,21 +26,30 @@ class InstitutionController extends Controller
     }
     public function index()
     {
+        abort_unless($this->user->can('view institution'), 403);
 
-        if ($this->user->hasRole("Director")) {
-            $institution = $this->user->institution;
-            return view('institution::index', compact('institution'));
-        } else if ($this->user->hasRole("Admin")) {
+        if (isAdmin()) {
             $institution = Institution::with('owner')->get();
             return view('institution::index', compact('institution'));
         }
+
+        $institution = $this->user->institution;
+        return view('institution::index', compact('institution'));
     }
 
     /**
      * Show the form for creating a new resource.
+     *
+     * Institution creation is the self-service "onboard my school" flow: any
+     * authenticated user without an institution yet may reach it (this is
+     * how a Director account comes into being). Once a user owns a school
+     * they can no longer create another one unless they're an Admin, who
+     * owns the platform and may onboard schools on a client's behalf.
      */
     public function create()
     {
+        abort_if(!isAdmin() && $this->user->institution()->exists(), 403);
+
         $curricula = Curriculum::all();
         return view('institution::create', compact('curricula'));
     }
@@ -50,7 +59,8 @@ class InstitutionController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request->all());
+        abort_if(!isAdmin() && $this->user->institution()->exists(), 403);
+
         $data = $request->validate([
             "name" => "required|string",
             "curriculum" => "required|int",
@@ -67,8 +77,15 @@ class InstitutionController extends Controller
             "physical_address" => "required",
         ]);
         $user = $request->user();
-        // $data
         $user->institution()->create($data);
+
+        // Owning a school makes this user its Director, unless they already
+        // hold a higher-privilege role (e.g. Admin creating it on their
+        // behalf).
+        if (!$user->hasAnyRole(['Admin', 'Director'])) {
+            $user->assignRole('Director');
+        }
+
         return redirect()->route('institution.index')->with('success', 'Institution created successfully!');
     }
 
@@ -77,6 +94,11 @@ class InstitutionController extends Controller
      */
     public function show(Institution $institution)
     {
+        abort_unless(
+            $this->user->can('view institution') && (isAdmin() || $institution->user_id === $this->user->id),
+            403
+        );
+
         return view('institution::show', compact('institution'));
     }
 
@@ -86,6 +108,12 @@ class InstitutionController extends Controller
     public function edit(int $id)
     {
         $institution = Institution::whereId($id)->first();
+
+        abort_unless(
+            $this->user->can('edit institution') && (isAdmin() || $institution?->user_id === $this->user->id),
+            403
+        );
+
         $curricula = Curriculum::all();
         return view('institution::edit', compact('curricula', 'institution'));
     }
@@ -95,6 +123,13 @@ class InstitutionController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $existing = Institution::find($id);
+
+        abort_unless(
+            $this->user->can('update institution') && (isAdmin() || $existing?->user_id === $this->user->id),
+            403
+        );
+
         // Validate the request
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -151,7 +186,7 @@ class InstitutionController extends Controller
 
             // Flash success message
             session()->flash('update.inst', 'Institution updated successfully!');
-            
+
             // Redirect to show page with success message
             return redirect()->route('institution.edit', $institution->id)
                 ->with('success', 'Institution "' . $institution->name . '" has been updated successfully.');
@@ -177,6 +212,10 @@ class InstitutionController extends Controller
      */
     public function destroy(Institution $institution)
     {
-        dd($institution);
+        // Only the platform owner may de-register a school.
+        abort_unless(isAdmin() && $this->user->can('delete institution'), 403);
+
+        $institution->delete();
+        return redirect()->route('institution.index');
     }
 }

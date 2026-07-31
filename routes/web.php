@@ -1,24 +1,16 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ModuleController;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\SyncStudentToDeviceController;
+use App\Http\Middleware\HasInstitution;
 use Illuminate\Support\Facades\Route;
-use Nwidart\Modules\Facades\Module;
-use Spatie\Permission\Models\Permission;
 
 Route::view('/', 'welcome')->name('home');
 
-Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
-    Route::get('', function () {
-        return view('dashboard');
-    })->name('dashboard');
+Route::middleware(['auth', 'verified', HasInstitution::class])->prefix('dashboard')->group(function () {
+    Route::get('', DashboardController::class)->name('dashboard');
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
 });
-Route::get('as', function () {
-    $permissions = Permission::all();
-
-    Auth::user()->givePermissionTo($permissions);
-});
-
-
+Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
 require __DIR__ . '/settings.php';

@@ -3,7 +3,14 @@
 namespace Modules\Teacher\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Modules\Institution\Models\Institution;
+use Modules\Teacher\Models\TeacherDetails;
 
 class TeacherController extends Controller
 {
@@ -12,7 +19,17 @@ class TeacherController extends Controller
      */
     public function index()
     {
-        return view('teacher::index');
+        abort_unless(Auth::user()->can('view teacher'), 403);
+
+        $query = TeacherDetails::with(['teacher', 'institution']);
+
+        if (!isAdmin()) {
+            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+        }
+
+        $teachers = $query->latest()->get();
+
+        return view('teacher::index', compact('teachers'));
     }
 
     /**
@@ -20,20 +37,76 @@ class TeacherController extends Controller
      */
     public function create()
     {
-        return view('teacher::create');
+        abort_unless(Auth::user()->can('create teacher'), 403);
+
+        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+
+        return view('teacher::create', compact('institutions'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {}
+    public function store(Request $request)
+    {
+        abort_unless(Auth::user()->can('create teacher'), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8',
+            'institution_id' => 'required|exists:institutions,id',
+            'phone' => 'nullable|string|max:20',
+            'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number',
+            'department' => 'nullable|string|max:255',
+            'qualification' => 'nullable|string|max:255',
+            'hire_date' => 'nullable|date',
+            'address' => 'nullable|string',
+            'status' => 'nullable|in:active,on_leave,suspended,resigned,terminated',
+            'notes' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $validated) {
+                $teacher = User::create([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                ]);
+                $teacher->syncRoles('Teacher');
+
+                $teacherData = collect($validated)
+                    ->except(['name', 'email', 'password'])
+                    ->toArray();
+                $teacherData['teacher_id'] = $teacher->id;
+                $teacherData['is_active'] = $request->boolean('is_active', true);
+
+                $teacher->teacherUserDetails()->create($teacherData);
+            });
+
+            return redirect()->route('teacher.index')->with('success', 'Teacher created successfully!');
+        } catch (\Exception $e) {
+            Log::error('Teacher creation failed: ' . $e->getMessage());
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create teacher: ' . $e->getMessage());
+        }
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
-        return view('teacher::show');
+        abort_unless(Auth::user()->can('view teacher'), 403);
+
+        $teacherDetails = TeacherDetails::with(['teacher', 'institution'])->where('teacher_id', $id)->firstOrFail();
+
+        $this->authorizeAccessTo($teacherDetails);
+
+        return view('teacher::show', compact('teacherDetails'));
     }
 
     /**
@@ -41,16 +114,96 @@ class TeacherController extends Controller
      */
     public function edit($id)
     {
-        return view('teacher::edit');
+        abort_unless(Auth::user()->can('edit teacher'), 403);
+
+        $teacherDetails = TeacherDetails::with('teacher')->where('teacher_id', $id)->firstOrFail();
+
+        $this->authorizeAccessTo($teacherDetails);
+
+        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+
+        return view('teacher::edit', compact('teacherDetails', 'institutions'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id)
+    {
+        abort_unless(Auth::user()->can('update teacher'), 403);
+
+        $teacherDetails = TeacherDetails::where('teacher_id', $id)->firstOrFail();
+
+        $this->authorizeAccessTo($teacherDetails);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email,' . $id,
+            'institution_id' => 'required|exists:institutions,id',
+            'phone' => 'nullable|string|max:20',
+            'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number,' . $teacherDetails->id,
+            'department' => 'nullable|string|max:255',
+            'qualification' => 'nullable|string|max:255',
+            'hire_date' => 'nullable|date',
+            'address' => 'nullable|string',
+            'status' => 'nullable|in:active,on_leave,suspended,resigned,terminated',
+            'notes' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request, $validated, $teacherDetails, $id) {
+                $teacherDetails->teacher->update([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                ]);
+
+                $teacherData = collect($validated)->except(['name', 'email'])->toArray();
+                $teacherData['is_active'] = $request->boolean('is_active');
+
+                $teacherDetails->update($teacherData);
+            });
+
+            return redirect()->route('teacher.show', $id)->with('success', 'Teacher updated successfully!');
+        } catch (\Exception $e) {
+            Log::error('Teacher update failed: ' . $e->getMessage());
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update teacher: ' . $e->getMessage());
+        }
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id)
+    {
+        abort_unless(Auth::user()->can('delete teacher'), 403);
+
+        $teacherDetails = TeacherDetails::where('teacher_id', $id)->firstOrFail();
+
+        $this->authorizeAccessTo($teacherDetails);
+
+        $teacher = User::findOrFail($id);
+        $teacherDetails->delete();
+        $teacher->delete();
+
+        return redirect()->route('teacher.index')->with('success', 'Teacher removed successfully!');
+    }
+
+    /**
+     * Ensure a non-admin viewer only manages teachers from their own
+     * institution(s).
+     */
+    private function authorizeAccessTo(TeacherDetails $teacherDetails): void
+    {
+        if (isAdmin()) {
+            return;
+        }
+
+        $institutionIds = Auth::user()->institution()->pluck('id');
+
+        abort_unless($institutionIds->contains($teacherDetails->institution_id), 403);
+    }
 }
