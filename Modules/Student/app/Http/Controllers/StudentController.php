@@ -29,7 +29,6 @@ class StudentController extends Controller
         }
 
         $students = $query->latest()->get();
-
         return view('student::index', compact('students'));
     }
 

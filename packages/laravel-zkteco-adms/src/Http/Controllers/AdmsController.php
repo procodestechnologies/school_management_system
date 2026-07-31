@@ -158,8 +158,10 @@ class AdmsController extends Controller
 
         if ((string) $body !== '') {
             Log::debug('registry body', ['preview' => AttendanceParser::bodyPreview($body)]);
-
             $info = $this->parser->parseKVPairs($body, ',', AttendanceParser::trimTildePrefix(...));
+            Log::debug('registry info', [
+                'info' => $info
+            ]);
             $this->deviceManager->updateDeviceOptions($serialNumber, $info);
 
             if (config('zkteco-adms.events.dispatch_device_registered', true)) {

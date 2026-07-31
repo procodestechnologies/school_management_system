@@ -2,6 +2,7 @@
 
 namespace Modules\Institution\Models;
 
+use App\Models\Devices;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -69,5 +70,9 @@ class Institution extends Model
     public function owner()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+    public function devices()
+    {
+        return $this->hasMany(Devices::class);
     }
 }

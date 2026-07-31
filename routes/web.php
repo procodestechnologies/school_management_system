@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\SyncStudentToDevice;
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\SyncStudentToDeviceController;
 use App\Http\Middleware\HasInstitution;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -14,10 +16,6 @@ Route::middleware(['auth', 'verified', HasInstitution::class])->prefix('dashboar
     })->name('dashboard');
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
 });
-Route::get('as', function () {
-    $permissions = Permission::all();
-
-    Auth::user()->givePermissionTo($permissions);
-});
+Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
 
 require __DIR__ . '/settings.php';
