@@ -56,18 +56,27 @@ class ZKTecoUserSyncService
             ];
 
             // Add Card if provided
-            // if (!empty($userData['card'])) {
-            //     $paramParts[] = sprintf("Card=%s", (string) $userData['card']);
-            // }
+            if (!empty($userData['card'])) {
+                $paramParts[] = sprintf("Card=%s", (string) $userData['card']);
+            }
 
-            // Add Password if provided
-            // Add Password ONLY if it is filled out, preserving leading zeros safely as a string
+            // Add Password if provided. The ZKTeco push protocol field for the
+            // verification password is "Passwd" (not "Password") -- devices
+            // silently ignore unrecognized fields and still ACK the command,
+            // which is why a wrong field name here looks like a successful sync
+            // even though the password was never actually written to the device.
             if (isset($userData['password']) && $userData['password'] !== '') {
-                // Optional: Validate for K40 Pro limits (1-6 digits)
+                // K40 Pro (and most ZKTeco keypad devices) only accept a numeric
+                // password of up to 6 digits, so non-digit characters are stripped.
                 $cleanPassword = substr(preg_replace('/\D/', '', $userData['password']), 0, 6);
 
                 if (!empty($cleanPassword)) {
-                    $paramParts[] = sprintf("Password=%s", $cleanPassword);
+                    $paramParts[] = sprintf("Passwd=%s", $cleanPassword);
+                } else {
+                    Log::warning("Password could not be synced to device: no digits found after cleaning", [
+                        'device' => $deviceSerial,
+                        'pin' => $userData['pin'],
+                    ]);
                 }
             }
             // FIX: Put a SPACE after the action verb, and separate parameters with tabs (\t)

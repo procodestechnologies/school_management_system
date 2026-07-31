@@ -257,7 +257,7 @@ class AttendanceParser
                 name: $fields['Name'] ?? '',
                 privilege: $privilege,
                 card: $fields['Card'] ?? '',
-                password: $fields['Password'] ?? '',
+                password: $fields['Passwd'] ?? $fields['Password'] ?? '',
             );
         }
 
