@@ -17,7 +17,7 @@ class AttendanceController extends Controller
     {
         $institution = Institution::findOrFail($institution);
 
-        $deviceIds = Devices::where('institution_id', $institution->id)
+        $deviceIds = Devices::whereInstitutionId($institution->id)
             ->when($request->filled('device_id'), fn ($q) => $q->where('id', $request->integer('device_id')))
             ->whereNotNull('zkteco_device_id')
             ->pluck('zkteco_device_id');

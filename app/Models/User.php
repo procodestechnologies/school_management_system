@@ -62,6 +62,10 @@ class User extends Authenticatable implements PasskeyUser
             ? Str::substr($initials, 0, 1) . Str::substr($initials, -1)
             : $initials;
     }
+    public function children()
+    {
+        return $this->hasMany(StudentDetails::class, 'parent_id');
+    }
     public function institution()
     {
         return $this->hasMany(Institution::class);
@@ -82,16 +86,16 @@ class User extends Authenticatable implements PasskeyUser
         );
     }
     public function parentInstitution()
-{
-    return $this->hasOneThrough(
-        Institution::class,
-        StudentDetails::class,
-        'parent_id',        // Foreign key on student_details (parent user id)
-        'id',               // Foreign key on institutions (institution id)
-        'id',               // Local key on users (parent user id)
-        'institution_id'    // Local key on student_details (institution id)
-    );
-}
+    {
+        return $this->hasOneThrough(
+            Institution::class,
+            StudentDetails::class,
+            'parent_id',        // Foreign key on student_details (parent user id)
+            'id',               // Foreign key on institutions (institution id)
+            'id',               // Local key on users (parent user id)
+            'institution_id'    // Local key on student_details (institution id)
+        );
+    }
     public function studentParent()
     {
         return $this->hasOneThrough(

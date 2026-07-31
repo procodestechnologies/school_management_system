@@ -3,6 +3,7 @@
 namespace Modules\Parent\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,8 +15,41 @@ class ParentController extends Controller
     public function index()
     {
         $user = Auth::user();
-        // $parents = $user->institution->first();        
-        return view('parent::index');
+
+        // Check if user is admin
+        if (isAdmin()) {
+            // Admin gets all parents from all institutions
+            $parents = User::role("Parent")
+                ->with(['children' => function ($query) {
+                    $query->with('student', 'institution');
+                }])
+                ->get();
+
+            $institution = null;
+
+            return view('parent::index', compact('parents', 'institution'));
+        }
+
+        // Regular user - get parents from their institution
+        $institution = $user->institution()->first();
+
+        // Handle case where user has no institution
+        if (!$institution) {
+            return view('parent::index', [
+                'parents' => collect(),
+                'institution' => null
+            ])->with('error', 'No institution found for this user.');
+        }
+
+        // Get parents with their students (children) eager loaded
+        $parents = $institution->parents()
+            ->with(['children' => function ($query) use ($institution) {
+                $query->where('institution_id', $institution->id)
+                    ->with('student'); // Load the student user details
+            }])
+            ->get();
+
+        return view('parent::index', compact('parents', 'institution'));
     }
 
     /**
