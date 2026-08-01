@@ -23,7 +23,7 @@ class TeacherController extends Controller
 
         $query = TeacherDetails::with(['teacher', 'institution']);
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
@@ -87,11 +87,11 @@ class TeacherController extends Controller
 
             return redirect()->route('teacher.index')->with('success', 'Teacher created successfully!');
         } catch (\Exception $e) {
-            Log::error('Teacher creation failed: ' . $e->getMessage());
+            Log::error('Teacher creation failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create teacher: ' . $e->getMessage());
+                ->with('error', 'Failed to create teacher: '.$e->getMessage());
         }
     }
 
@@ -138,10 +138,10 @@ class TeacherController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $id,
+            'email' => 'required|email|max:255|unique:users,email,'.$id,
             'institution_id' => 'required|exists:institutions,id',
             'phone' => 'nullable|string|max:20',
-            'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number,' . $teacherDetails->id,
+            'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number,'.$teacherDetails->id,
             'department' => 'nullable|string|max:255',
             'qualification' => 'nullable|string|max:255',
             'hire_date' => 'nullable|date',
@@ -152,7 +152,7 @@ class TeacherController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($request, $validated, $teacherDetails, $id) {
+            DB::transaction(function () use ($request, $validated, $teacherDetails) {
                 $teacherDetails->teacher->update([
                     'name' => $validated['name'],
                     'email' => $validated['email'],
@@ -166,11 +166,11 @@ class TeacherController extends Controller
 
             return redirect()->route('teacher.show', $id)->with('success', 'Teacher updated successfully!');
         } catch (\Exception $e) {
-            Log::error('Teacher update failed: ' . $e->getMessage());
+            Log::error('Teacher update failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update teacher: ' . $e->getMessage());
+                ->with('error', 'Failed to update teacher: '.$e->getMessage());
         }
     }
 

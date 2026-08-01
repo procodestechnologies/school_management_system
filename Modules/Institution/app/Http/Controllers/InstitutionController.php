@@ -5,7 +5,6 @@ namespace Modules\Institution\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Carbon\Carbon;
-use Flux\Flux;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -19,21 +18,26 @@ class InstitutionController extends Controller
      * Display a listing of the resource.
      */
     public User $user;
+
     public array $institution;
+
     public function __construct()
     {
         $this->user = Auth::user();
     }
+
     public function index()
     {
         abort_unless($this->user->can('view institution'), 403);
 
         if (isAdmin()) {
             $institution = Institution::with('owner')->get();
+
             return view('institution::index', compact('institution'));
         }
 
         $institution = $this->user->institution;
+
         return view('institution::index', compact('institution'));
     }
 
@@ -48,9 +52,10 @@ class InstitutionController extends Controller
      */
     public function create()
     {
-        abort_if(!isAdmin() && $this->user->institution()->exists(), 403);
+        abort_if(! isAdmin() && $this->user->institution()->exists(), 403);
 
         $curricula = Curriculum::all();
+
         return view('institution::create', compact('curricula'));
     }
 
@@ -59,22 +64,22 @@ class InstitutionController extends Controller
      */
     public function store(Request $request)
     {
-        abort_if(!isAdmin() && $this->user->institution()->exists(), 403);
+        abort_if(! isAdmin() && $this->user->institution()->exists(), 403);
 
         $data = $request->validate([
-            "name" => "required|string",
-            "curriculum" => "required|int",
-            "code" => "required",
-            "type" => "required",
-            "email" => "required",
-            "phone" => "required",
-            "alternate_phone" => "nullable",
-            "website" => "nullable",
-            "country" => "nullable",
-            "county" => "required",
-            "city" => "required",
-            "postal_address" => "required",
-            "physical_address" => "required",
+            'name' => 'required|string',
+            'curriculum' => 'required|int',
+            'code' => 'required',
+            'type' => 'required',
+            'email' => 'required',
+            'phone' => 'required',
+            'alternate_phone' => 'nullable',
+            'website' => 'nullable',
+            'country' => 'nullable',
+            'county' => 'required',
+            'city' => 'required',
+            'postal_address' => 'required',
+            'physical_address' => 'required',
         ]);
         $user = $request->user();
         $user->institution()->create($data);
@@ -82,7 +87,7 @@ class InstitutionController extends Controller
         // Owning a school makes this user its Director, unless they already
         // hold a higher-privilege role (e.g. Admin creating it on their
         // behalf).
-        if (!$user->hasAnyRole(['Admin', 'Director'])) {
+        if (! $user->hasAnyRole(['Admin', 'Director'])) {
             $user->assignRole('Director');
         }
 
@@ -115,6 +120,7 @@ class InstitutionController extends Controller
         );
 
         $curricula = Curriculum::all();
+
         return view('institution::edit', compact('curricula', 'institution'));
     }
 
@@ -133,14 +139,14 @@ class InstitutionController extends Controller
         // Validate the request
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:institutions,code,' . $id,
+            'code' => 'required|string|max:50|unique:institutions,code,'.$id,
             'type' => 'required|string|in:School,College,University,Training Centre',
             'curriculum' => 'required|exists:curricula,id',
             'education_level' => 'nullable|string|max:100',
             'timezone' => 'required|string|max:50',
 
             // Contact Information
-            'email' => 'required|email|max:255|unique:institutions,email,' . $id,
+            'email' => 'required|email|max:255|unique:institutions,email,'.$id,
             'phone' => 'required|string|max:20',
             'alternate_phone' => 'nullable|string|max:20',
             'website' => 'nullable|url|max:255',
@@ -189,7 +195,7 @@ class InstitutionController extends Controller
 
             // Redirect to show page with success message
             return redirect()->route('institution.edit', $institution->id)
-                ->with('success', 'Institution "' . $institution->name . '" has been updated successfully.');
+                ->with('success', 'Institution "'.$institution->name.'" has been updated successfully.');
         } catch (ModelNotFoundException $e) {
             // Institution not found
             return redirect()->route('institution.index')
@@ -198,7 +204,7 @@ class InstitutionController extends Controller
             // Database error
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Database error: ' . $e->getMessage());
+                ->with('error', 'Database error: '.$e->getMessage());
         } catch (\Exception $e) {
             // General error
             return redirect()->back()
@@ -216,6 +222,7 @@ class InstitutionController extends Controller
         abort_unless(isAdmin() && $this->user->can('delete institution'), 403);
 
         $institution->delete();
+
         return redirect()->route('institution.index');
     }
 }

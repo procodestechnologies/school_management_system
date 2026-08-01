@@ -163,7 +163,7 @@ class ClassesController extends Controller
     {
         $query = User::role('Teacher')->with('teacherUserDetails');
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $institutionIds = Auth::user()->institution()->pluck('id');
             $query->whereHas('teacherUserDetails', fn ($q) => $q->whereIn('institution_id', $institutionIds));
         }

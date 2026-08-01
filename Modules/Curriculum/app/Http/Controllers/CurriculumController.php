@@ -3,7 +3,6 @@
 namespace Modules\Curriculum\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Flux\Flux;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Curriculum\Models\Curriculum;
@@ -18,6 +17,7 @@ class CurriculumController extends Controller
         abort_unless(Auth::user()->can('view curriculum'), 403);
 
         $curricula = Curriculum::all();
+
         return view('curriculum::index', compact('curricula'));
     }
 
@@ -43,6 +43,7 @@ class CurriculumController extends Controller
             'status' => 'required|in:active,dismissed',
         ]);
         Curriculum::create($data);
+
         return redirect()->route('curriculum.index')->with('success', 'Curriculum created successfully!');
     }
 
@@ -80,6 +81,7 @@ class CurriculumController extends Controller
             'status' => 'required|in:active,dismissed',
         ]);
         $curriculum->update($data);
+
         return redirect()->route('curriculum.index')->with('success', 'Curriculum updated!');
     }
 
@@ -91,6 +93,7 @@ class CurriculumController extends Controller
         abort_unless(Auth::user()->can('delete curriculum'), 403);
 
         Curriculum::destroy($curriculum);
+
         return back()->with('success', 'Curriculum deleted successfully!');
     }
 }

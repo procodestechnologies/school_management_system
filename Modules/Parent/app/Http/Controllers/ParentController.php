@@ -26,7 +26,7 @@ class ParentController extends Controller
         // Check if user is admin
         if (isAdmin()) {
             // Admin gets all parents from all institutions
-            $parents = User::role("Parent")
+            $parents = User::role('Parent')
                 ->with(['children' => function ($query) {
                     $query->with('student', 'institution');
                 }, 'parent'])
@@ -41,10 +41,10 @@ class ParentController extends Controller
         $institution = $user->institution()->first();
 
         // Handle case where user has no institution
-        if (!$institution) {
+        if (! $institution) {
             return view('parent::index', [
                 'parents' => collect(),
-                'institution' => null
+                'institution' => null,
             ])->with('error', 'No institution found for this user.');
         }
 
@@ -103,7 +103,7 @@ class ParentController extends Controller
                     'parent_occupation' => $validated['parent_occupation'] ?? null,
                 ]);
 
-                if (!empty($validated['children'])) {
+                if (! empty($validated['children'])) {
                     $this->unlinkedStudents()
                         ->whereIn('student_id', $validated['children'])
                         ->update(['parent_id' => $parent->id]);
@@ -112,11 +112,11 @@ class ParentController extends Controller
 
             return redirect()->route('parent.index')->with('success', 'Parent created successfully!');
         } catch (\Exception $e) {
-            Log::error('Parent creation failed: ' . $e->getMessage());
+            Log::error('Parent creation failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create parent: ' . $e->getMessage());
+                ->with('error', 'Failed to create parent: '.$e->getMessage());
         }
     }
 
@@ -165,7 +165,7 @@ class ParentController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . $parent->id,
+            'email' => 'required|email|max:255|unique:users,email,'.$parent->id,
             'parent_phone' => 'nullable|string|max:20',
             'parent_occupation' => 'nullable|string|max:255',
             'children' => 'nullable|array',
@@ -196,7 +196,7 @@ class ParentController extends Controller
 
                 // Link newly selected children (only ones that are currently
                 // unlinked, so this can't steal a student from another parent).
-                if (!empty($selected)) {
+                if (! empty($selected)) {
                     $this->unlinkedStudents()
                         ->whereIn('student_id', $selected)
                         ->update(['parent_id' => $parent->id]);
@@ -205,11 +205,11 @@ class ParentController extends Controller
 
             return redirect()->route('parent.show', $parent->id)->with('success', 'Parent updated successfully!');
         } catch (\Exception $e) {
-            Log::error('Parent update failed: ' . $e->getMessage());
+            Log::error('Parent update failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update parent: ' . $e->getMessage());
+                ->with('error', 'Failed to update parent: '.$e->getMessage());
         }
     }
 
@@ -244,7 +244,7 @@ class ParentController extends Controller
     {
         $query = StudentDetails::whereNull('parent_id')->with(['student', 'institution']);
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 

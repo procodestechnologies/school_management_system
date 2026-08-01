@@ -25,6 +25,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 class TimetableImportService
 {
     private const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
     private const SKIP_SUBJECTS = ['BREAK', 'LUNCH', 'SHORT BREAK', 'LUNCH BREAK'];
 
     /**
@@ -41,7 +42,7 @@ class TimetableImportService
         $header = array_map(fn ($h) => strtolower(trim((string) $h)), array_shift($rows));
         $columns = $this->mapColumns($header);
 
-        if (!isset($columns['day'], $columns['start_time'], $columns['end_time'], $columns['subject'])) {
+        if (! isset($columns['day'], $columns['start_time'], $columns['end_time'], $columns['subject'])) {
             return [
                 'created' => 0,
                 'skipped' => 0,
@@ -67,24 +68,28 @@ class TimetableImportService
 
             if ($subject === '' || in_array(strtoupper($subject), self::SKIP_SUBJECTS, true)) {
                 $skipped++;
+
                 continue;
             }
 
-            if (!$day) {
+            if (! $day) {
                 $errors[] = "Row {$rowNumber}: invalid or missing day.";
+
                 continue;
             }
 
             $startTime = $this->normalizeTime($row[$columns['start_time']] ?? null);
             $endTime = $this->normalizeTime($row[$columns['end_time']] ?? null);
 
-            if (!$startTime || !$endTime) {
+            if (! $startTime || ! $endTime) {
                 $errors[] = "Row {$rowNumber}: invalid start/end time.";
+
                 continue;
             }
 
             if ($startTime >= $endTime) {
                 $errors[] = "Row {$rowNumber}: end time must be after start time.";
+
                 continue;
             }
 
@@ -148,7 +153,7 @@ class TimetableImportService
     }
 
     /**
-     * @param array<int, string> $header
+     * @param  array<int, string>  $header
      * @return array<string, int>
      */
     private function mapColumns(array $header): array

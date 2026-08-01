@@ -9,7 +9,6 @@ use Illuminate\Support\Collection;
 use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
-use Modules\Teacher\Models\TeacherDetails;
 
 /**
  * Produces role-scoped analytics for the dashboard and the Report module,
@@ -179,7 +178,7 @@ class AnalyticsService
     {
         $institution = $user->teacherUserDetails?->institution;
 
-        if (!$institution) {
+        if (! $institution) {
             return [
                 'scope' => 'teacher',
                 'institution' => null,

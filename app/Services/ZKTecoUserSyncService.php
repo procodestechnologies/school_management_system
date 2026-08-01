@@ -2,16 +2,17 @@
 
 namespace App\Services;
 
-use Athwari\LaravelZktecoAdms\Models\ZktecoUser;
-use Athwari\LaravelZktecoAdms\Services\DeviceManager;
-use Athwari\LaravelZktecoAdms\Services\CommandManager;
 use Athwari\LaravelZktecoAdms\DTOs\UserRecord;
-use Illuminate\Support\Facades\Log;
+use Athwari\LaravelZktecoAdms\Models\ZktecoUser;
+use Athwari\LaravelZktecoAdms\Services\CommandManager;
+use Athwari\LaravelZktecoAdms\Services\DeviceManager;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ZKTecoUserSyncService
 {
     private DeviceManager $deviceManager;
+
     private CommandManager $commandManager;
 
     public function __construct(
@@ -24,9 +25,9 @@ class ZKTecoUserSyncService
 
     /**
      * Add a user to a ZKTeco device.
-     * 
-     * @param string $deviceSerial The serial number of the device
-     * @param array $userData User data with keys: pin, name, privilege, card, password
+     *
+     * @param  string  $deviceSerial  The serial number of the device
+     * @param  array  $userData  User data with keys: pin, name, privilege, card, password
      * @return bool True if user was added/updated successfully
      */
     public function addUserToDevice(string $deviceSerial, array $userData): bool
@@ -34,30 +35,32 @@ class ZKTecoUserSyncService
         try {
             // Validate required fields
             if (empty($userData['pin']) || empty($userData['name'])) {
-                Log::error("PIN and Name are required to add user to device", [
+                Log::error('PIN and Name are required to add user to device', [
                     'device' => $deviceSerial,
-                    'user_data' => $userData
+                    'user_data' => $userData,
                 ]);
+
                 return false;
             }
 
             // Check if device exists
             $device = $this->deviceManager->getDevice($deviceSerial);
-            if (!$device) {
-                Log::error("Device not found", ['device' => $deviceSerial]);
+            if (! $device) {
+                Log::error('Device not found', ['device' => $deviceSerial]);
+
                 return false;
             }
 
             // Build only the parameters using tabs
             $paramParts = [
-                sprintf("PIN=%s", (string) $userData['pin']),
-                sprintf("Name=%s", $userData['name']),
-                sprintf("Pri=%d", (int) ($userData['privilege'] ?? 0)),
+                sprintf('PIN=%s', (string) $userData['pin']),
+                sprintf('Name=%s', $userData['name']),
+                sprintf('Pri=%d', (int) ($userData['privilege'] ?? 0)),
             ];
 
             // Add Card if provided
-            if (!empty($userData['card'])) {
-                $paramParts[] = sprintf("Card=%s", (string) $userData['card']);
+            if (! empty($userData['card'])) {
+                $paramParts[] = sprintf('Card=%s', (string) $userData['card']);
             }
 
             // Add Password if provided. The ZKTeco push protocol field for the
@@ -70,10 +73,10 @@ class ZKTecoUserSyncService
                 // password of up to 6 digits, so non-digit characters are stripped.
                 $cleanPassword = substr(preg_replace('/\D/', '', $userData['password']), 0, 6);
 
-                if (!empty($cleanPassword)) {
-                    $paramParts[] = sprintf("Passwd=%s", $cleanPassword);
+                if (! empty($cleanPassword)) {
+                    $paramParts[] = sprintf('Passwd=%s', $cleanPassword);
                 } else {
-                    Log::warning("Password could not be synced to device: no digits found after cleaning", [
+                    Log::warning('Password could not be synced to device: no digits found after cleaning', [
                         'device' => $deviceSerial,
                         'pin' => $userData['pin'],
                     ]);
@@ -81,13 +84,13 @@ class ZKTecoUserSyncService
             }
             // FIX: Put a SPACE after the action verb, and separate parameters with tabs (\t)
             // Correct format: DATA UPDATE USERINFO PIN=101\tName=John\tPri=0
-            $commandString = "DATA UPDATE USERINFO " . implode("\t", $paramParts);
+            $commandString = 'DATA UPDATE USERINFO '.implode("\t", $paramParts);
 
-            Log::debug("Queuing DATA UPDATE USERINFO command with password", [
+            Log::debug('Queuing DATA UPDATE USERINFO command with password', [
                 'device' => $deviceSerial,
                 'command' => $commandString,
                 'pin' => $userData['pin'],
-                'password' => isset($userData['password']) && $userData['password'] !== '' ? 'set' : 'not set'
+                'password' => isset($userData['password']) && $userData['password'] !== '' ? 'set' : 'not set',
             ]);
 
             // Queue the command
@@ -104,12 +107,12 @@ class ZKTecoUserSyncService
                 ]
             );
 
-            Log::info("User command queued successfully", [
+            Log::info('User command queued successfully', [
                 'device' => $deviceSerial,
                 'pin' => $userData['pin'],
                 'name' => $userData['name'],
-                'password_set' => !empty($userData['password']),
-                'card_set' => !empty($userData['card'])
+                'password_set' => ! empty($userData['password']),
+                'card_set' => ! empty($userData['card']),
             ]);
 
             // Clear cache for this device
@@ -117,22 +120,22 @@ class ZKTecoUserSyncService
 
             return true;
         } catch (\Exception $e) {
-            Log::error("Failed to add user to device", [
+            Log::error('Failed to add user to device', [
                 'device' => $deviceSerial,
                 'pin' => $userData['pin'] ?? 'unknown',
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return false;
         }
     }
 
-
     /**
      * Check if a user exists on a device using UserRecord DTO.
-     * 
-     * @param string $deviceSerial The serial number of the device
-     * @param string $pin The PIN to check
+     *
+     * @param  string  $deviceSerial  The serial number of the device
+     * @param  string  $pin  The PIN to check
      * @return bool True if the user exists on the device
      */
     public function userExistsOnDevice(string $deviceSerial, string $pin): bool
@@ -140,10 +143,11 @@ class ZKTecoUserSyncService
         try {
             // Get the device
             $device = $this->deviceManager->getDevice($deviceSerial);
-            if (!$device) {
-                Log::warning("Device not found when checking user existence", [
-                    'device' => $deviceSerial
+            if (! $device) {
+                Log::warning('Device not found when checking user existence', [
+                    'device' => $deviceSerial,
                 ]);
+
                 return false;
             }
 
@@ -162,43 +166,45 @@ class ZKTecoUserSyncService
             $exists = $users->contains('pin', (string) $pin);
 
             if ($exists) {
-                Log::debug("User exists on device", [
+                Log::debug('User exists on device', [
                     'device' => $deviceSerial,
-                    'pin' => $pin
+                    'pin' => $pin,
                 ]);
             } else {
-                Log::debug("User does not exist on device", [
+                Log::debug('User does not exist on device', [
                     'device' => $deviceSerial,
-                    'pin' => $pin
+                    'pin' => $pin,
                 ]);
             }
 
             return $exists;
         } catch (\Exception $e) {
-            Log::warning("Failed to check user existence on device", [
+            Log::warning('Failed to check user existence on device', [
                 'device' => $deviceSerial,
                 'pin' => $pin,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false; // Assume user doesn't exist
         }
     }
 
     /**
      * Get a user from the device by PIN.
-     * 
-     * @param string $deviceSerial The serial number of the device
-     * @param string $pin The PIN to search for
+     *
+     * @param  string  $deviceSerial  The serial number of the device
+     * @param  string  $pin  The PIN to search for
      * @return UserRecord|null The user record or null if not found
      */
     public function getUserFromDevice(string $deviceSerial, string $pin): ?UserRecord
     {
         try {
             $device = $this->deviceManager->getDevice($deviceSerial);
-            if (!$device) {
-                Log::warning("Device not found when getting user", [
-                    'device' => $deviceSerial
+            if (! $device) {
+                Log::warning('Device not found when getting user', [
+                    'device' => $deviceSerial,
                 ]);
+
                 return null;
             }
 
@@ -210,11 +216,12 @@ class ZKTecoUserSyncService
                 ->where('pin', (string) $pin)
                 ->first();
 
-            if (!$zktecoUser) {
-                Log::debug("User not found in local database", [
+            if (! $zktecoUser) {
+                Log::debug('User not found in local database', [
                     'device' => $deviceSerial,
-                    'pin' => $pin
+                    'pin' => $pin,
                 ]);
+
                 return null;
             }
 
@@ -227,29 +234,31 @@ class ZKTecoUserSyncService
                 password: '', // Password is not stored in the model for security
             );
         } catch (\Exception $e) {
-            Log::error("Failed to get user from device", [
+            Log::error('Failed to get user from device', [
                 'device' => $deviceSerial,
                 'pin' => $pin,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
 
     /**
      * Get all users from a device.
-     * 
-     * @param string $deviceSerial The serial number of the device
+     *
+     * @param  string  $deviceSerial  The serial number of the device
      * @return UserRecord[] Array of UserRecord DTOs
      */
     public function getAllUsersFromDevice(string $deviceSerial): array
     {
         try {
             $device = $this->deviceManager->getDevice($deviceSerial);
-            if (!$device) {
-                Log::warning("Device not found when getting all users", [
-                    'device' => $deviceSerial
+            if (! $device) {
+                Log::warning('Device not found when getting all users', [
+                    'device' => $deviceSerial,
                 ]);
+
                 return [];
             }
 
@@ -271,17 +280,18 @@ class ZKTecoUserSyncService
                 );
             }
 
-            Log::debug("Retrieved users from device", [
+            Log::debug('Retrieved users from device', [
                 'device' => $deviceSerial,
-                'count' => count($users)
+                'count' => count($users),
             ]);
 
             return $users;
         } catch (\Exception $e) {
-            Log::error("Failed to get all users from device", [
+            Log::error('Failed to get all users from device', [
                 'device' => $deviceSerial,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return [];
         }
     }

@@ -3,13 +3,14 @@
 namespace Modules\Student\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Student\Models\Student;
 
 class StudentFactory extends Factory
 {
     /**
      * The name of the factory's corresponding model.
      */
-    protected $model = \Modules\Student\Models\Student::class;
+    protected $model = Student::class;
 
     /**
      * Define the model's default state.
@@ -19,4 +20,3 @@ class StudentFactory extends Factory
         return [];
     }
 }
-

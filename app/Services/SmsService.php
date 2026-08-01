@@ -22,7 +22,7 @@ class SmsService
         // Get provider configuration
         $providerConfig = $this->config['providers'][$provider] ?? null;
 
-        if (!$providerConfig) {
+        if (! $providerConfig) {
             return ['success' => false, 'error' => "SMS provider '{$provider}' not found in configuration"];
         }
 
@@ -38,7 +38,7 @@ class SmsService
             'msgType' => env('PINNACLE_MESSAGE_TYPE'),
             'duplicatecheck' => true,
             'output' => env('PINNACLE_RESPONSE'),
-            'sendMethod' => env('PINNACLE_SEND_METHOD')
+            'sendMethod' => env('PINNACLE_SEND_METHOD'),
         ]);
 
         $curl = curl_init();
@@ -51,8 +51,8 @@ class SmsService
             CURLOPT_TIMEOUT => $this->config['options']['timeout'] ?? 30,
             CURLOPT_MAXREDIRS => $this->config['options']['max_redirects'] ?? 10,
             CURLOPT_HTTPHEADER => [
-                "apikey: " . ($providerConfig['apikey'] ?? ''),
-                "Content-Type: application/x-www-form-urlencoded"
+                'apikey: '.($providerConfig['apikey'] ?? ''),
+                'Content-Type: application/x-www-form-urlencoded',
             ],
         ]);
 
@@ -70,6 +70,7 @@ class SmsService
         if (json_last_error() !== JSON_ERROR_NONE) {
             return ['success' => false, 'error' => 'Invalid JSON response', 'raw_response' => $response];
         }
+
         return $decodedResponse;
     }
 
@@ -78,7 +79,7 @@ class SmsService
         $mobile = preg_replace('/[^0-9]/', '', $mobile);
 
         if (strlen($mobile) == 10 && substr($mobile, 0, 1) == '0') {
-            return '254' . substr($mobile, 1);
+            return '254'.substr($mobile, 1);
         }
 
         return $mobile;

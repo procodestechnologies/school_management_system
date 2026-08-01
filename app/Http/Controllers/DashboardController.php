@@ -7,9 +7,7 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    public function __construct(private AnalyticsService $analytics)
-    {
-    }
+    public function __construct(private AnalyticsService $analytics) {}
 
     public function __invoke()
     {

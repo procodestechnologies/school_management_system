@@ -55,7 +55,7 @@ class ZktecoDeviceEvent extends Model
      */
     public static function record(int $deviceId, DeviceEventType $eventType, ?array $payload = null, ?string $ipAddress = null): self
     {
-        $model = new self();
+        $model = new self;
 
         return $model->query()->create([
             'device_id' => $deviceId,

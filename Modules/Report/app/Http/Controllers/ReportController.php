@@ -10,9 +10,7 @@ use Modules\FeeManagement\Models\Fee;
 
 class ReportController extends Controller
 {
-    public function __construct(private AnalyticsService $analytics)
-    {
-    }
+    public function __construct(private AnalyticsService $analytics) {}
 
     /**
      * Display the analytics report for the authenticated user's role.
@@ -49,7 +47,7 @@ class ReportController extends Controller
 
         $fees = $query->latest()->get();
 
-        $filename = 'fees-report-' . now()->format('Y-m-d') . '.csv';
+        $filename = 'fees-report-'.now()->format('Y-m-d').'.csv';
 
         return response()->streamDownload(function () use ($fees) {
             $handle = fopen('php://output', 'w');

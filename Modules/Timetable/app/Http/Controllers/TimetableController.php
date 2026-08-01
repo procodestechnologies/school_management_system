@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
+use Modules\Student\Models\StudentDetails;
 use Modules\Timetable\Models\TimetableEntry;
 use Modules\Timetable\Services\TimetableImportService;
 
@@ -42,14 +43,14 @@ class TimetableController extends Controller
                 ->get();
 
             $periods = $entries
-                ->map(fn (TimetableEntry $e) => $e->start_time?->format('H:i') . '-' . $e->end_time?->format('H:i'))
+                ->map(fn (TimetableEntry $e) => $e->start_time?->format('H:i').'-'.$e->end_time?->format('H:i'))
                 ->unique()
                 ->sort()
                 ->values();
 
             $grid = [];
             foreach ($entries as $entry) {
-                $periodKey = $entry->start_time?->format('H:i') . '-' . $entry->end_time?->format('H:i');
+                $periodKey = $entry->start_time?->format('H:i').'-'.$entry->end_time?->format('H:i');
                 $grid[$entry->day_of_week][$periodKey] = $entry;
             }
         }
@@ -90,18 +91,18 @@ class TimetableController extends Controller
         if ($result['created'] === 0) {
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Import failed: ' . implode(' ', $result['errors']));
+                ->with('error', 'Import failed: '.implode(' ', $result['errors']));
         }
 
         $message = "Imported {$result['created']} timetable entries for {$class->name}.";
         if ($result['skipped'] > 0) {
             $message .= " Skipped {$result['skipped']} break/lunch row(s).";
         }
-        if (!empty($result['errors'])) {
-            $message .= ' ' . count($result['errors']) . ' row(s) had errors: ' . implode(' ', $result['errors']);
+        if (! empty($result['errors'])) {
+            $message .= ' '.count($result['errors']).' row(s) had errors: '.implode(' ', $result['errors']);
         }
-        if (!empty($result['warnings'])) {
-            $message .= ' ' . implode(' ', $result['warnings']);
+        if (! empty($result['warnings'])) {
+            $message .= ' '.implode(' ', $result['warnings']);
         }
 
         return redirect()->route('timetable.index', ['class_id' => $class->id])->with('success', $message);
@@ -222,7 +223,7 @@ class TimetableController extends Controller
             'class_id' => 'required|exists:classes,id',
             'teacher_id' => 'nullable|exists:users,id',
             'subject' => 'required|string|max:255',
-            'day_of_week' => 'required|in:' . implode(',', self::DAYS),
+            'day_of_week' => 'required|in:'.implode(',', self::DAYS),
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'room' => 'nullable|string|max:100',
@@ -253,8 +254,8 @@ class TimetableController extends Controller
 
         if ($user->hasAnyRole(['Parent', 'Student'])) {
             $institutionIds = $user->hasRole('Parent')
-                ? \Modules\Student\Models\StudentDetails::where('parent_id', $user->id)->pluck('institution_id')
-                : \Modules\Student\Models\StudentDetails::where('student_id', $user->id)->pluck('institution_id');
+                ? StudentDetails::where('parent_id', $user->id)->pluck('institution_id')
+                : StudentDetails::where('student_id', $user->id)->pluck('institution_id');
 
             $query->whereIn('institution_id', $institutionIds);
 
@@ -280,7 +281,7 @@ class TimetableController extends Controller
     {
         $query = User::role('Teacher')->with('teacherUserDetails');
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $institutionIds = Auth::user()->institution()->pluck('id');
             $query->whereHas('teacherUserDetails', fn ($q) => $q->whereIn('institution_id', $institutionIds));
         }
@@ -296,7 +297,7 @@ class TimetableController extends Controller
     {
         $query = SchoolClass::query();
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 

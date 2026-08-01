@@ -2,6 +2,7 @@
 
 namespace Athwari\LaravelZktecoAdms\Http\Controllers;
 
+use App\Services\SmsService;
 use Athwari\LaravelZktecoAdms\DTOs\CommandResult;
 use Athwari\LaravelZktecoAdms\Enums\DeviceEventType;
 use Athwari\LaravelZktecoAdms\Events\AttendanceReceived;
@@ -19,7 +20,6 @@ use Athwari\LaravelZktecoAdms\Models\ZktecoUser;
 use Athwari\LaravelZktecoAdms\Services\AttendanceParser;
 use Athwari\LaravelZktecoAdms\Services\CommandManager;
 use Athwari\LaravelZktecoAdms\Services\DeviceManager;
-use App\Services\SmsService;
 use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
@@ -27,7 +27,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
-use Itsmurumba\Hostpinnacle\Facades\Hostpinnacle;
 
 /**
  * Controller handling all ADMS protocol endpoints.
@@ -160,7 +159,7 @@ class AdmsController extends Controller
             Log::debug('registry body', ['preview' => AttendanceParser::bodyPreview($body)]);
             $info = $this->parser->parseKVPairs($body, ',', AttendanceParser::trimTildePrefix(...));
             Log::debug('registry info', [
-                'info' => $info
+                'info' => $info,
             ]);
             $this->deviceManager->updateDeviceOptions($serialNumber, $info);
 
@@ -184,7 +183,7 @@ class AdmsController extends Controller
         $snapshots = $this->deviceManager->getDeviceSnapshots();
 
         $payload = [
-            'devices' => array_map(fn($s) => $s->toArray(), $snapshots),
+            'devices' => array_map(fn ($s) => $s->toArray(), $snapshots),
             'count' => count($snapshots),
             'time' => now()->toIso8601String(),
         ];
@@ -283,14 +282,14 @@ class AdmsController extends Controller
             };
 
             $attendanceModel::create([
-                'device_id'   => $device?->id,
-                'pin'         => $record->pin,
+                'device_id' => $device?->id,
+                'pin' => $record->pin,
                 'recorded_at' => $record->timestamp,
                 'occurred_at' => DateTimeImmutable::createFromInterface($record->timestamp)
                     ->setTimezone($storageTimezone),
-                'status'      => $record->status,
+                'status' => $record->status,
                 'verify_mode' => $record->verifyMode,
-                'work_code'   => $record->workCode,
+                'work_code' => $record->workCode,
             ]);
             $smsMessage = sprintf(
                 'Dear Parent, %s has %s today at %s using %s verification.',
@@ -367,7 +366,7 @@ class AdmsController extends Controller
             }
         }
 
-        return response('OK: ' . count($records), 200);
+        return response('OK: '.count($records), 200);
     }
 
     /**

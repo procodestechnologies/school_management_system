@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\Mail;
 // #[Description('Command description')]
 class SendReminder extends Command
 {
-    protected $signature = "remind:user";
+    protected $signature = 'remind:user';
+
     protected $description = 'Send fee reminder';
+
     /**
      * Execute the console command.
      */
@@ -25,10 +27,10 @@ class SendReminder extends Command
                 $message->to($user->email)->subject('Hello');
             });
 
-            $this->info('Email sent successfully to ' . $user->email);
+            $this->info('Email sent successfully to '.$user->email);
         } catch (\Exception $e) {
-            $this->error('Failed to send email: ' . $e->getMessage());
-            Log::error('Mail error: ' . $e->getMessage());
+            $this->error('Failed to send email: '.$e->getMessage());
+            Log::error('Mail error: '.$e->getMessage());
         }
     }
 }

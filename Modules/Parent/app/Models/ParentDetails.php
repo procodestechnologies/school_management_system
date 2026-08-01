@@ -3,8 +3,9 @@
 namespace Modules\Parent\Models;
 
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
 // use Modules\Parent\Database\Factories\ParentDetailsFactory;
 
 class ParentDetails extends Model
@@ -17,7 +18,7 @@ class ParentDetails extends Model
     protected $fillable = [
         'parent_id',
         'parent_phone',
-        'parent_occupation'
+        'parent_occupation',
     ];
 
     // protected static function newFactory(): ParentDetailsFactory

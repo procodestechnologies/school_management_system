@@ -2,9 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-
-use Illuminate\Auth\MustVerifyEmail;
+// use Illuminate\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -40,7 +38,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable, HasRoles,MustVerifyEmail;
+    use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -63,21 +61,25 @@ class User extends Authenticatable implements PasskeyUser
         $initials = Str::initials($this->name, true);
 
         return Str::length($initials) > 1
-            ? Str::substr($initials, 0, 1) . Str::substr($initials, -1)
+            ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
             : $initials;
     }
+
     public function children()
     {
         return $this->hasMany(StudentDetails::class, 'parent_id');
     }
+
     public function institution()
     {
         return $this->hasMany(Institution::class);
     }
+
     public function studentUserDetails()
     {
         return $this->hasOne(StudentDetails::class, 'user_id');
     }
+
     public function parentUserDetails()
     {
         return $this->hasOneThrough(
@@ -89,6 +91,7 @@ class User extends Authenticatable implements PasskeyUser
             'parent_id'           // Local key on intermediate model (StudentDetails.institution_id)
         );
     }
+
     public function parentInstitution()
     {
         return $this->hasOneThrough(
@@ -100,6 +103,7 @@ class User extends Authenticatable implements PasskeyUser
             'institution_id'    // Local key on student_details (institution id)
         );
     }
+
     public function studentParent()
     {
         return $this->hasOneThrough(
@@ -111,6 +115,7 @@ class User extends Authenticatable implements PasskeyUser
             'parent_id'            // Local key on intermediate model (StudentDetails.parent_id)
         );
     }
+
     public function studentInstitution()
     {
         return $this->hasOneThrough(
@@ -122,18 +127,22 @@ class User extends Authenticatable implements PasskeyUser
             'institution_id'           // Local key on intermediate model (StudentDetails.institution_id)
         );
     }
+
     public function parent()
     {
         return $this->hasOne(ParentDetails::class, 'parent_id');
     }
+
     public function fees()
     {
         return $this->hasMany(Fee::class, 'student_id');
     }
+
     public function childFees()
     {
         return $this->hasMany(Fee::class, 'parent_id');
     }
+
     public function teacherUserDetails()
     {
         return $this->hasOne(TeacherDetails::class, 'teacher_id');

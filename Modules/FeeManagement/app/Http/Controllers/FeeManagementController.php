@@ -80,11 +80,11 @@ class FeeManagementController extends Controller
             return redirect()->route('feemanagement.index')
                 ->with('success', 'Fee created successfully!');
         } catch (\Exception $e) {
-            Log::error('Fee creation failed: ' . $e->getMessage());
+            Log::error('Fee creation failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create fee: ' . $e->getMessage());
+                ->with('error', 'Failed to create fee: '.$e->getMessage());
         }
     }
 
@@ -151,11 +151,11 @@ class FeeManagementController extends Controller
             return redirect()->route('feemanagement.show', $fee->id)
                 ->with('success', 'Fee updated successfully!');
         } catch (\Exception $e) {
-            Log::error('Fee update failed: ' . $e->getMessage());
+            Log::error('Fee update failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update fee: ' . $e->getMessage());
+                ->with('error', 'Failed to update fee: '.$e->getMessage());
         }
     }
 
@@ -211,7 +211,7 @@ class FeeManagementController extends Controller
     {
         $query = StudentDetails::query();
 
-        if (!isAdmin()) {
+        if (! isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 

@@ -20,7 +20,6 @@ return new class extends Migration
             $table->string('admission_number')->unique();
             $table->string('student_number')->unique()->nullable();
 
-
             // Address
             $table->text('address')->nullable();
             $table->string('city')->nullable();
