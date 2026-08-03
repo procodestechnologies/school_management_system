@@ -30,7 +30,7 @@
                         <flux:table.row>
                             <flux:table.cell>{{ $examination->title }}</flux:table.cell>
                             <flux:table.cell>{{ $examination->subject }}</flux:table.cell>
-                            <flux:table.cell>{{ $examination->class_name }}</flux:table.cell>
+                            <flux:table.cell>{{ $examination->schoolClass?->name ?? $examination->class_name }}</flux:table.cell>
                             <flux:table.cell>{{ $examination->institution?->name }}</flux:table.cell>
                             <flux:table.cell>{{ $examination->exam_date?->format('d M Y') }}</flux:table.cell>
                             <flux:table.cell>

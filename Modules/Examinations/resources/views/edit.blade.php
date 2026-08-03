@@ -37,8 +37,15 @@
                     <flux:input type="text" name="subject" label="Subject"
                         value="{{ old('subject', $examination->subject) }}" required />
 
-                    <flux:input type="text" name="class_name" label="Class"
-                        value="{{ old('class_name', $examination->class_name) }}" required />
+                    <flux:select name="class_id" label="Class">
+                        <flux:select.option value="">Select Class</flux:select.option>
+                        @foreach ($classes as $schoolClass)
+                            <flux:select.option value="{{ $schoolClass->id }}"
+                                :selected="old('class_id', $examination->class_id) == $schoolClass->id">
+                                {{ $schoolClass->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
 
                     <flux:input type="text" name="term" label="Term"
                         value="{{ old('term', $examination->term) }}" />

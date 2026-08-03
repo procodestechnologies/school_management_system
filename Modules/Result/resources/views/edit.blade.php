@@ -31,7 +31,7 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select name="class_id" label="Class">
+                    <flux:select id="class_id" name="class_id" label="Class">
                         @foreach ($classes as $schoolClass)
                             <flux:select.option value="{{ $schoolClass->id }}"
                                 :selected="old('class_id', $result->class_id) == $schoolClass->id">
@@ -40,9 +40,10 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select name="student_id" label="Student">
+                    <flux:select id="student_id" name="student_id" label="Student">
                         @foreach ($students as $studentDetail)
                             <flux:select.option value="{{ $studentDetail->student_id }}"
+                                data-class-id="{{ $studentDetail->class_id }}"
                                 :selected="old('student_id', $result->student_id) == $studentDetail->student_id">
                                 {{ $studentDetail->student?->name }}
                                 @if ($studentDetail->admission_number)
@@ -52,9 +53,10 @@
                         @endforeach
                     </flux:select>
 
-                    <flux:select name="examination_id" label="Examination">
+                    <flux:select id="examination_id" name="examination_id" label="Examination">
                         @foreach ($examinations as $examination)
                             <flux:select.option value="{{ $examination->id }}"
+                                data-class-id="{{ $examination->class_id }}"
                                 :selected="old('examination_id', $result->examination_id) == $examination->id">
                                 {{ $examination->title }} ({{ $examination->subject }})
                             </flux:select.option>
@@ -82,4 +84,33 @@
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const classSelect = document.getElementById('class_id');
+            const examinationSelect = document.getElementById('examination_id');
+            const studentSelect = document.getElementById('student_id');
+
+            function filterByClass(select, classId) {
+                const currentValue = select.value;
+
+                Array.from(select.options).forEach(function(option) {
+                    if (!option.value || option.value === currentValue) {
+                        option.hidden = false;
+                        return;
+                    }
+
+                    option.hidden = !!classId && option.dataset.classId !== String(classId);
+                });
+            }
+
+            function applyFilters() {
+                filterByClass(examinationSelect, classSelect.value);
+                filterByClass(studentSelect, classSelect.value);
+            }
+
+            classSelect.addEventListener('change', applyFilters);
+            applyFilters();
+        });
+    </script>
 </x-layouts::app>

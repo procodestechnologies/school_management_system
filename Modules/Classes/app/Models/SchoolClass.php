@@ -5,6 +5,7 @@ namespace Modules\Classes\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
 use Modules\Lesson\Models\Lesson;
 use Modules\Result\Models\Result;
@@ -57,5 +58,10 @@ class SchoolClass extends Model
     public function results()
     {
         return $this->hasMany(Result::class, 'class_id');
+    }
+
+    public function examinations()
+    {
+        return $this->hasMany(Examination::class, 'class_id');
     }
 }

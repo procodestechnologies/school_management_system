@@ -20,7 +20,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Class</p>
-                    <p class="text-sm text-gray-900">{{ $examination->class_name }}</p>
+                    <p class="text-sm text-gray-900">{{ $examination->schoolClass?->name ?? $examination->class_name }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Term</p>

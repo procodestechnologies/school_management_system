@@ -5,6 +5,7 @@ namespace Modules\Examinations\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Modules\Classes\Models\SchoolClass;
 use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
@@ -18,7 +19,7 @@ class ExaminationsController extends Controller
     {
         abort_unless(Auth::user()->can('view examination'), 403);
 
-        $query = Examination::with('institution');
+        $query = Examination::with(['institution', 'schoolClass']);
         $this->scopeToViewer($query);
 
         $examinations = $query->orderBy('exam_date')->get();
@@ -34,8 +35,9 @@ class ExaminationsController extends Controller
         abort_unless(Auth::user()->can('create examination'), 403);
 
         $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $classes = $this->scopedClasses();
 
-        return view('examinations::create', compact('institutions'));
+        return view('examinations::create', compact('institutions', 'classes'));
     }
 
     /**
@@ -73,8 +75,9 @@ class ExaminationsController extends Controller
 
         $examination = $this->scopedExamination($id);
         $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $classes = $this->scopedClasses();
 
-        return view('examinations::edit', compact('examination', 'institutions'));
+        return view('examinations::edit', compact('examination', 'institutions', 'classes'));
     }
 
     /**
@@ -107,11 +110,11 @@ class ExaminationsController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'institution_id' => 'required|exists:institutions,id',
+            'class_id' => 'required|exists:classes,id',
             'title' => 'required|string|max:255',
             'subject' => 'required|string|max:255',
-            'class_name' => 'required|string|max:255',
             'term' => 'nullable|string|max:100',
             'exam_date' => 'required|date',
             'start_time' => 'nullable|date_format:H:i',
@@ -120,6 +123,12 @@ class ExaminationsController extends Controller
             'passing_marks' => 'nullable|integer|min:0|lte:total_marks',
             'notes' => 'nullable|string',
         ]);
+
+        // Keep the legacy class_name column in sync for anything still
+        // reading it directly, though class_id is now the source of truth.
+        $validated['class_name'] = SchoolClass::find($validated['class_id'])?->name;
+
+        return $validated;
     }
 
     private function scopeToViewer($query): void
@@ -152,9 +161,24 @@ class ExaminationsController extends Controller
 
     private function scopedExamination(int $id): Examination
     {
-        $query = Examination::with('institution');
+        $query = Examination::with(['institution', 'schoolClass']);
         $this->scopeToViewer($query);
 
         return $query->findOrFail($id);
+    }
+
+    /**
+     * Classes selectable for an examination, scoped to the viewer's
+     * institution(s) unless they're an Admin.
+     */
+    private function scopedClasses()
+    {
+        $query = SchoolClass::query();
+
+        if (! isAdmin()) {
+            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+        }
+
+        return $query->orderBy('name')->get();
     }
 }
