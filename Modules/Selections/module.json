@@ -1,0 +1,11 @@
+{
+    "name": "Selections",
+    "alias": "selections",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Selections\\Providers\\SelectionsServiceProvider"
+    ],
+    "files": []
+}

@@ -69,8 +69,15 @@
                     <flux:input type="number" step="0.01" name="marks_obtained" label="Marks Obtained"
                         value="{{ old('marks_obtained') }}" min="0" required />
 
-                    <flux:input type="text" name="grade" label="Grade" value="{{ old('grade') }}"
-                        placeholder="e.g. A, B+" />
+                    <div class="md:col-span-3 -mt-2">
+                        <flux:text class="text-xs text-zinc-500">
+                            Grade is computed automatically from the institution's grading scale once saved.
+                            @can('edit reportcard')
+                                <a href="{{ route('reportcard.settings') }}" class="underline">Manage grading
+                                    scale</a>.
+                            @endcan
+                        </flux:text>
+                    </div>
 
                     <div class="md:col-span-3">
                         <flux:textarea name="remarks" rows="2" label="Remarks">{{ old('remarks') }}</flux:textarea>

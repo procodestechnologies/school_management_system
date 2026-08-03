@@ -5,6 +5,7 @@ namespace Athwari\LaravelZktecoAdms\Services;
 use Athwari\LaravelZktecoAdms\DTOs\DeviceSnapshot;
 use Athwari\LaravelZktecoAdms\Enums\DeviceEventType;
 use Athwari\LaravelZktecoAdms\Enums\DeviceStatus;
+use Athwari\LaravelZktecoAdms\Events\DeviceConnected;
 use Athwari\LaravelZktecoAdms\Exceptions\DeviceLimitReachedException;
 use Athwari\LaravelZktecoAdms\Exceptions\DeviceNotFoundException;
 use Athwari\LaravelZktecoAdms\Exceptions\InvalidSerialNumberException;
@@ -68,14 +69,18 @@ class DeviceManager
 
             Log::info('Device registered', ['device' => $serialNumber]);
         } else {
+            // The device already exists - it may have been pre-registered
+            // while offline (e.g. a Director assigning a serial number to
+            // their institution before the physical unit ever connected),
+            // or it's simply reconnecting. Either way, refresh its live
+            // connection details in place; never overwrite fields like its
+            // real name/options with placeholder values once they're set.
             $deviceAttributes = array_filter($attributes);
-            $device = $modelClass::update(array_merge([
-                'serial_number' => $serialNumber,
-                'name' => "{$serialNumber}",
+
+            $device->update(array_merge([
                 'ip_address' => $ipAddress,
                 'status' => DeviceStatus::Online,
                 'last_activity_at' => now(),
-                'options' => [],
             ], $deviceAttributes));
         }
 
@@ -121,6 +126,10 @@ class DeviceManager
                     null,
                     $ipAddress
                 );
+            }
+
+            if (config('zkteco-adms.events.dispatch_device_connected', true)) {
+                event(new DeviceConnected($device));
             }
 
             Log::info('Device online', ['device' => $serialNumber]);

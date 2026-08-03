@@ -3,6 +3,7 @@
 namespace Modules\FeeManagement\Providers;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\FeeManagement\Console\Commands\SendFeeReminders;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class FeeManagementServiceProvider extends ModuleServiceProvider
@@ -22,7 +23,9 @@ class FeeManagementServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        SendFeeReminders::class,
+    ];
 
     /**
      * Provider classes to register.

@@ -39,16 +39,21 @@
                     :current="request()->routeIs('institution.index')" wire:navigate>
                     {{ __('Institutions') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="device-mobile" :href="route('devices')" :current="request()->routeIs('devices')"
-                    wire:navigate>
+            @endhasrole
+            @if (isDirector())
+                <flux:sidebar.item icon="device-phone-mobile" :href="route('devices.index')"
+                    :current="request()->routeIs('devices.index')" wire:navigate>
                     {{ __('Devices') }}
                 </flux:sidebar.item>
-            @endhasrole
+            @endif
             @if (hasInstitutions() && !isAdmin())
-                <flux:sidebar.item tooltip='Devices' icon="device-phone-mobile" :href="route('devices.index')"
-                    :current="request()->routeIs('devices.*')" wire:navigate>
-                    Devices
-                </flux:sidebar.item>
+               
+                @hasrole('Student')
+                    <flux:sidebar.item icon="clipboard-document-list" :href="route('selections.index')"
+                        :current="request()->routeIs('selections.*')" wire:navigate>
+                        {{ __('Selections') }}
+                    </flux:sidebar.item>
+                @endhasrole
                 @foreach (Module::allEnabled() as $module)
                     @php
                         $moduleName = strtolower($module->getName());

@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/reportcard",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\ReportCard\\": "app/",
+            "Modules\\ReportCard\\Database\\Factories\\": "database/factories/",
+            "Modules\\ReportCard\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\ReportCard\\Tests\\": "tests/"
+        }
+    }
+}

@@ -16,15 +16,25 @@
                 <flux:table.column>Device Name</flux:table.column>
                 <flux:table.column>Device IP</flux:table.column>
                 <flux:table.column>Device Serial Number</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
                 <flux:table.column>Actions</flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($devices as $device)
+                @forelse ($devices as $device)
                     <flux:table.row>
                         <flux:table.cell class="truncate">{{ $device->institution->name }}</flux:table.cell>
-                        <flux:table.cell>{{ $device->zktecoDevice }}</flux:table.cell>
-                        <flux:table.cell>{{ $device->zktecoDevice->ip_address }}</flux:table.cell>
-                        <flux:table.cell>{{ $device->zktecoDevice->serial_number }}</flux:table.cell>
+                        <flux:table.cell>{{ $device->zktecoDevice?->name ?? '—' }}</flux:table.cell>
+                        <flux:table.cell>{{ $device->zktecoDevice?->ip_address ?? '—' }}</flux:table.cell>
+                        <flux:table.cell>{{ $device->serial_number }}</flux:table.cell>
+                        <flux:table.cell>
+                            @if ($device->zktecoDevice?->isOnline())
+                                <flux:badge color="emerald">Online</flux:badge>
+                            @elseif ($device->zktecoDevice)
+                                <flux:badge color="zinc">Offline</flux:badge>
+                            @else
+                                <flux:badge color="amber">Not yet connected</flux:badge>
+                            @endif
+                        </flux:table.cell>
                         <flux:table.cell>
                             <flux:button wire:navigate href="{{ route('devices.edit', $device) }}" variant="primary"
                                 color="blue" icon="pencil">Edit</flux:button>
@@ -38,8 +48,15 @@
                             </form>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
-                <flux:table.rows>
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="6" class="text-center text-gray-500">
+                            No devices yet. Add one even before it's online - you'll see it come online here
+                            once it connects.
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
+            </flux:table.rows>
         </flux:table>
     </div>
 </x-layouts::app>

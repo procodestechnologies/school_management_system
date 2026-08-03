@@ -1,0 +1,11 @@
+{
+    "name": "ReportCard",
+    "alias": "reportcard",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\ReportCard\\Providers\\ReportCardServiceProvider"
+    ],
+    "files": []
+}

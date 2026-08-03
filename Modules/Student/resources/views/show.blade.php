@@ -130,6 +130,8 @@
                     </div>
                 </div>
 
+                <x-selections::student-subjects :student="$student" />
+
                 {{-- Address --}}
                 <h5 class="text-md font-semibold text-gray-800 mb-3 border-b border-gray-200 pb-2">Address</h5>
 

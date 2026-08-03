@@ -19,6 +19,7 @@
                     <flux:table.column>Name</flux:table.column>
                     <flux:table.column>Code</flux:table.column>
                     <flux:table.column>Institution</flux:table.column>
+                    <flux:table.column>Type</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
@@ -29,6 +30,11 @@
                             <flux:table.cell>{{ $subject->name }}</flux:table.cell>
                             <flux:table.cell>{{ $subject->code ?? '—' }}</flux:table.cell>
                             <flux:table.cell>{{ $subject->institution?->name }}</flux:table.cell>
+                            <flux:table.cell>
+                                <flux:badge :color="$subject->is_compulsory ? 'amber' : 'zinc'">
+                                    {{ $subject->is_compulsory ? 'Compulsory' : 'Optional' }}
+                                </flux:badge>
+                            </flux:table.cell>
                             <flux:table.cell>
                                 <flux:badge :color="$subject->is_active ? 'emerald' : 'zinc'">
                                     {{ $subject->is_active ? 'Active' : 'Inactive' }}
@@ -54,7 +60,7 @@
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="5" class="text-center text-gray-500">
+                            <flux:table.cell colspan="6" class="text-center text-gray-500">
                                 No subjects found.
                             </flux:table.cell>
                         </flux:table.row>

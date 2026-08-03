@@ -36,6 +36,10 @@
 
                     <flux:input type="text" name="code" label="Code" value="{{ old('code', $subject->code) }}" />
 
+                    <flux:checkbox name="is_compulsory" value="1" label="Compulsory"
+                        description="Every student takes this subject automatically"
+                        :checked="old('is_compulsory', $subject->is_compulsory)" />
+
                     <flux:checkbox name="is_active" value="1" label="Active"
                         :checked="old('is_active', $subject->is_active)" />
                 </div>

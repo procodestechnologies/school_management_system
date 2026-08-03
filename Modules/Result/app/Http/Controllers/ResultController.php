@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
+use Modules\ReportCard\Services\GradingBandService;
+use Modules\ReportCard\Services\ReportCardCompletionService;
 use Modules\Result\Models\Result;
 use Modules\Student\Models\StudentDetails;
 
@@ -70,7 +72,9 @@ class ResultController extends Controller
 
         $validated['recorded_by'] = Auth::id();
 
-        Result::create($validated);
+        $result = Result::create($validated);
+
+        $this->checkReportCardCompletion($result);
 
         return redirect()->route('result.index')->with('success', 'Result recorded successfully!');
     }
@@ -123,6 +127,8 @@ class ResultController extends Controller
 
         $result->update($validated);
 
+        $this->checkReportCardCompletion($result);
+
         return redirect()->route('result.show', $result->id)->with('success', 'Result updated!');
     }
 
@@ -139,6 +145,17 @@ class ResultController extends Controller
         return redirect()->route('result.index')->with('success', 'Result removed!');
     }
 
+    private function checkReportCardCompletion(Result $result): void
+    {
+        $result->loadMissing(['student', 'examination']);
+
+        if (! $result->examination?->term || ! $result->student) {
+            return;
+        }
+
+        app(ReportCardCompletionService::class)->handle($result->student, $result->examination->term);
+    }
+
     private function validated(Request $request): array
     {
         $validated = $request->validate([
@@ -147,13 +164,21 @@ class ResultController extends Controller
             'student_id' => 'required|exists:users,id',
             'examination_id' => 'required|exists:examinations,id',
             'marks_obtained' => 'required|numeric|min:0',
-            'grade' => 'nullable|string|max:10',
             'remarks' => 'nullable|string',
         ]);
 
         $examination = Examination::find($validated['examination_id']);
         if ($examination && $validated['marks_obtained'] > $examination->total_marks) {
             abort(422, "Marks obtained can't exceed the examination's total marks ({$examination->total_marks}).");
+        }
+
+        // Grade is auto-computed from the institution's grading scale, not
+        // typed by the director - left null if no scale is configured yet.
+        $validated['grade'] = null;
+        if ($examination && $examination->total_marks > 0) {
+            $institution = Institution::find($validated['institution_id']);
+            $percentage = $validated['marks_obtained'] / $examination->total_marks * 100;
+            $validated['grade'] = $institution ? GradingBandService::resolve($institution, $percentage) : null;
         }
 
         return $validated;

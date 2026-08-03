@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 
@@ -80,7 +81,13 @@ class InstitutionController extends Controller
             'city' => 'required',
             'postal_address' => 'required',
             'physical_address' => 'required',
+            'logo' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $request->file('logo')->store('institutions/logos', 'public');
+        }
+
         $user = $request->user();
         $user->institution()->create($data);
 
@@ -144,6 +151,9 @@ class InstitutionController extends Controller
             'curriculum' => 'required|exists:curricula,id',
             'education_level' => 'nullable|string|max:100',
             'timezone' => 'required|string|max:50',
+            'logo' => 'nullable|image|max:2048',
+            'min_electives' => 'required|integer|min:0',
+            'max_electives' => 'nullable|integer|gte:min_electives',
 
             // Contact Information
             'email' => 'required|email|max:255|unique:institutions,email,'.$id,
@@ -176,6 +186,15 @@ class InstitutionController extends Controller
             // Format subscription expiry date if provided
             if ($request->filled('subscription_expires_at')) {
                 $validated['subscription_expires_at'] = Carbon::parse($request->subscription_expires_at)->format('Y-m-d H:i:s');
+            }
+
+            // Handle logo upload
+            if ($request->hasFile('logo')) {
+                if ($institution->logo && Storage::disk('public')->exists($institution->logo)) {
+                    Storage::disk('public')->delete($institution->logo);
+                }
+
+                $validated['logo'] = $request->file('logo')->store('institutions/logos', 'public');
             }
 
             // Update the institution

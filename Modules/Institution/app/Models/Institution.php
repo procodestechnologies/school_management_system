@@ -58,6 +58,8 @@ class Institution extends Model
         // Academic
         'curriculum',
         'education_level',
+        'min_electives',
+        'max_electives',
 
         // Attendance
         'timezone',

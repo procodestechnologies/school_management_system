@@ -13,5 +13,7 @@
     "Classes": true,
     "Lesson": true,
     "Result": true,
-    "Subject": true
+    "Subject": true,
+    "Selections": true,
+    "ReportCard": true
 }

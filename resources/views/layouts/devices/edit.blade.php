@@ -9,7 +9,7 @@
                 </flux:button>
             </div>
         </div>
-        <livewire:edit-device-form :device="$zktecoDevice" />
+        <livewire:edit-device-form :device="$device" />
 
     </div>
 </x-layouts::app>

@@ -52,6 +52,17 @@
 
                     </div>
 
+                    {{-- Branding --}}
+                    <h5 class="text-md font-semibold text-gray-800 mb-3">Branding</h5>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <flux:input type="file" name="logo" label="Logo" accept="image/*" />
+                            <p class="mt-1 text-xs text-gray-500">Used on the letterhead of generated report cards.
+                            </p>
+                        </div>
+                    </div>
+
                     {{-- Contact --}}
                     <h5 class="text-md font-semibold text-gray-800 mb-3">Contact Information</h5>
 

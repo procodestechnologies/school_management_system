@@ -36,6 +36,9 @@
                     <flux:input type="text" name="code" label="Code" value="{{ old('code') }}"
                         placeholder="e.g. MATH" />
 
+                    <flux:checkbox name="is_compulsory" value="1" label="Compulsory"
+                        description="Every student takes this subject automatically" />
+
                     <flux:checkbox name="is_active" value="1" label="Active" checked />
                 </div>
 

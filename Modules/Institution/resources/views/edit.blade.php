@@ -138,6 +138,51 @@
                         </div>
                     </div>
 
+                    {{-- Branding --}}
+                    <div class="mb-6">
+                        <h5 class="text-md font-semibold text-gray-800 mb-3">Branding</h5>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                            <div>
+                                <flux:input type="file" name="logo" label="Logo" accept="image/*" />
+                                <p class="mt-1 text-xs text-gray-500">Used on the letterhead of generated report
+                                    cards.</p>
+                                @error('logo')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            @if ($institution->logo)
+                                <div>
+                                    <img src="{{ Storage::url($institution->logo) }}" alt="{{ $institution->name }}"
+                                        class="h-16 w-auto rounded border border-gray-200 bg-white p-1">
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    {{-- Academic Settings --}}
+                    <div class="mb-6">
+                        <h5 class="text-md font-semibold text-gray-800 mb-3">Academic Settings</h5>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <flux:input type="number" name="min_electives" label="Minimum Elective Subjects"
+                                    min="0" value="{{ old('min_electives', $institution->min_electives) }}" />
+                                @error('min_electives')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <flux:input type="number" name="max_electives" label="Maximum Elective Subjects"
+                                    min="0" value="{{ old('max_electives', $institution->max_electives) }}" />
+                                <small class="text-xs text-gray-500">Leave blank for no maximum.</small>
+                                @error('max_electives')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Contact Information --}}
                     <div class="mb-6">
                         <h5 class="text-md font-semibold text-gray-800 mb-3 flex items-center">

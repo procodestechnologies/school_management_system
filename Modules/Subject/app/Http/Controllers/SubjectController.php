@@ -113,6 +113,7 @@ class SubjectController extends Controller
             'code' => 'nullable|string|max:50',
         ]);
 
+        $validated['is_compulsory'] = $request->boolean('is_compulsory');
         $validated['is_active'] = $request->boolean('is_active', true);
 
         return $validated;

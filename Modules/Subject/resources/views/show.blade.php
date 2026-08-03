@@ -20,6 +20,14 @@
                         <p class="text-sm text-gray-900">{{ $subject->code ?? '—' }}</p>
                     </div>
                     <div>
+                        <p class="text-xs text-gray-500 uppercase">Type</p>
+                        <p class="text-sm">
+                            <flux:badge :color="$subject->is_compulsory ? 'amber' : 'zinc'">
+                                {{ $subject->is_compulsory ? 'Compulsory' : 'Optional' }}
+                            </flux:badge>
+                        </p>
+                    </div>
+                    <div>
                         <p class="text-xs text-gray-500 uppercase">Status</p>
                         <p class="text-sm">
                             <flux:badge :color="$subject->is_active ? 'emerald' : 'zinc'">

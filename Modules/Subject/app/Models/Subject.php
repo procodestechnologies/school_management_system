@@ -15,10 +15,12 @@ class Subject extends Model
         'institution_id',
         'name',
         'code',
+        'is_compulsory',
         'is_active',
     ];
 
     protected $casts = [
+        'is_compulsory' => 'boolean',
         'is_active' => 'boolean',
     ];
 

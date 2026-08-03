@@ -13,7 +13,9 @@ Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboard')->group(function () {
     Route::get('', DashboardController::class)->name('dashboard');
-    Route::resource('/devices', DevicesController::class)->names('devices');
+    // store/show aren't implemented - device creation and viewing are
+    // handled entirely by the create/edit Livewire components.
+    Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
 });
 Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);

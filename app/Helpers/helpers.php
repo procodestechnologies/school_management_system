@@ -50,3 +50,9 @@ if (! function_exists('isAdmin')) {
         return Auth::user()->hasRole('Admin');
     }
 }
+if (! function_exists('isDirector')) {
+    function isDirector()
+    {
+        return Auth::user()->hasRole('Director');
+    }
+}

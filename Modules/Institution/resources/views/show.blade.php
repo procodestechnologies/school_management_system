@@ -5,11 +5,17 @@
             {{-- Header --}}
             <div
                 class="border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg flex items-center justify-between">
-                <div>
-                    <h4 class="text-lg font-semibold text-gray-900 mb-0">Institution Details</h4>
-                    <small class="text-sm text-gray-500">
-                        View comprehensive information about the institution
-                    </small>
+                <div class="flex items-center gap-4">
+                    @if ($institution->logo)
+                        <img src="{{ Storage::url($institution->logo) }}" alt="{{ $institution->name }}"
+                            class="h-12 w-auto rounded border border-gray-200 bg-white p-1">
+                    @endif
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-900 mb-0">Institution Details</h4>
+                        <small class="text-sm text-gray-500">
+                            View comprehensive information about the institution
+                        </small>
+                    </div>
                 </div>
                 <div class="flex gap-2">
                     @if (institutionOwner($institution->owner->id))
@@ -92,6 +98,18 @@
                             <label
                                 class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Timezone</label>
                             <p class="mt-1 text-sm text-gray-900">{{ $institution->timezone }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Elective
+                                Subjects</label>
+                            <p class="mt-1 text-sm text-gray-900">
+                                {{ $institution->min_electives }}
+                                @if ($institution->max_electives)
+                                    – {{ $institution->max_electives }}
+                                @else
+                                    or more
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Devices;
-use Athwari\LaravelZktecoAdms\Models\ZktecoDevice;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class DevicesController extends Controller
 {
@@ -17,10 +17,6 @@ class DevicesController extends Controller
             return $institution->devices()->with('zktecoDevice', 'institution')->get();
         });
 
-        if ($devices->isEmpty()) {
-            abort(404, 'No devices found for your institution.');
-        }
-
         $deviceCount = $devices->count();
         return view('layouts.devices.index', compact('devices', 'deviceCount'));
     }
@@ -30,30 +26,39 @@ class DevicesController extends Controller
     }
     public function edit(Devices $device)
     {
-        $zktecoDevice = ZktecoDevice::findOrFail($device->zkteco_device_id);
+        // The matching ZktecoDevice may not exist yet - the physical unit
+        // could still be offline and never have connected to the ADMS
+        // server, so this must not 404 on a missing match.
+        $zktecoDevice = $device->zktecoDevice;
+
         return view('layouts.devices.edit', compact('device', 'zktecoDevice'));
     }
     public function update(Request $request, Devices $device)
     {
-        // dd($device->zktecoDevice->id);
-        $zktecoDeviceData = $request->only('name', 'ip_address', 'serial_number');
-        $zktecoDevice = ZktecoDevice::findOrFail($device->zktecoDevice->id);
-        $deviceData = [
-            'zkteco_device_id' => $device->zktecoDevice->id,
-            'serial_number' => $request->input('serial_number'),
-        ];
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'ip_address' => 'required|ip',
-            'serial_number' => 'required|string|max:255',
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'ip_address' => 'nullable|ip',
+            'serial_number' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('devices', 'serial_number')->ignore($device->id),
+            ],
         ]);
-        $zktecoDevice->update($zktecoDeviceData);
-        $device->update($deviceData);
+
+        // Re-resolve the ZktecoDevice for the (possibly changed) serial
+        // number rather than renaming whichever device happened to be
+        // linked before - editing the serial number re-points this
+        // institution's device to a different physical unit, it never
+        // hijacks another device's identity.
+        $device->serial_number = $validated['serial_number'];
+        $device->linkZktecoDevice($validated['name'] ?? null, $validated['ip_address'] ?? null);
 
         return redirect()->route('devices.index')->with('success', 'Device updated successfully.');
     }
     public function destroy(Request $request, Devices $device)
     {
+        $device = Devices::findOrFail($device->id);
         $device->delete();
         return redirect()->route('devices.index')->with('success', 'Device deleted successfully.');
     }
