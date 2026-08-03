@@ -1,34 +1,30 @@
 <?php
 
-namespace Modules\Timetable\Models;
+namespace Modules\Lesson\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
-use Modules\Lesson\Models\Lesson;
+use Modules\Timetable\Models\TimetableEntry;
 
-class TimetableEntry extends Model
+class Lesson extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'institution_id',
         'class_id',
-        'teacher_id',
-        'class_name',
-        'subject',
-        'day_of_week',
-        'start_time',
-        'end_time',
-        'room',
-        'notes',
+        'timetable_entry_id',
+        'lesson_date',
+        'status',
+        'remarks',
+        'marked_by',
     ];
 
     protected $casts = [
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
+        'lesson_date' => 'date',
     ];
 
     public function institution()
@@ -41,13 +37,18 @@ class TimetableEntry extends Model
         return $this->belongsTo(SchoolClass::class, 'class_id');
     }
 
-    public function teacher()
+    public function timetableEntry()
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsTo(TimetableEntry::class);
     }
 
-    public function lessons()
+    public function markedBy()
     {
-        return $this->hasMany(Lesson::class);
+        return $this->belongsTo(User::class, 'marked_by');
+    }
+
+    public function isAttended(): bool
+    {
+        return $this->status === 'attended';
     }
 }

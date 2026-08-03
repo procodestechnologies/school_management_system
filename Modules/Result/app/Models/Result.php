@@ -1,34 +1,31 @@
 <?php
 
-namespace Modules\Timetable\Models;
+namespace Modules\Result\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Classes\Models\SchoolClass;
+use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
-use Modules\Lesson\Models\Lesson;
 
-class TimetableEntry extends Model
+class Result extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'institution_id',
         'class_id',
-        'teacher_id',
-        'class_name',
-        'subject',
-        'day_of_week',
-        'start_time',
-        'end_time',
-        'room',
-        'notes',
+        'student_id',
+        'examination_id',
+        'marks_obtained',
+        'grade',
+        'remarks',
+        'recorded_by',
     ];
 
     protected $casts = [
-        'start_time' => 'datetime:H:i',
-        'end_time' => 'datetime:H:i',
+        'marks_obtained' => 'decimal:2',
     ];
 
     public function institution()
@@ -41,13 +38,18 @@ class TimetableEntry extends Model
         return $this->belongsTo(SchoolClass::class, 'class_id');
     }
 
-    public function teacher()
+    public function student()
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsTo(User::class, 'student_id');
     }
 
-    public function lessons()
+    public function examination()
     {
-        return $this->hasMany(Lesson::class);
+        return $this->belongsTo(Examination::class);
+    }
+
+    public function recordedBy()
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

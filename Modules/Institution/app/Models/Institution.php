@@ -10,6 +10,8 @@ use Modules\Classes\Models\SchoolClass;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Examinations\Models\Examination;
 use Modules\FeeManagement\Models\Fee;
+use Modules\Lesson\Models\Lesson;
+use Modules\Result\Models\Result;
 use Modules\Student\Models\StudentDetails;
 use Modules\Teacher\Models\TeacherDetails;
 use Modules\Timetable\Models\TimetableEntry;
@@ -132,5 +134,15 @@ class Institution extends Model
     public function classes()
     {
         return $this->hasMany(SchoolClass::class);
+    }
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class);
+    }
+
+    public function results()
+    {
+        return $this->hasMany(Result::class);
     }
 }

@@ -3,37 +3,116 @@
 namespace Modules\Lesson\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Modules\Classes\Models\SchoolClass;
+use Modules\Lesson\Models\Lesson;
+use Modules\Student\Models\StudentDetails;
+use Modules\Timetable\Models\TimetableEntry;
 
 class LessonController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource: pick a class and a date, see that
+     * day's timetable periods with their attended / not attended status.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('lesson::index');
+        abort_unless(Auth::user()->can('view lesson'), 403);
+
+        $classes = $this->scopedClasses();
+
+        $selectedClass = null;
+        $classId = $request->integer('class_id') ?: $classes->first()?->id;
+        if ($classId) {
+            $selectedClass = $classes->firstWhere('id', $classId);
+        }
+
+        $date = $request->filled('date') ? Carbon::parse($request->string('date')) : Carbon::today();
+
+        $rows = collect();
+        if ($selectedClass) {
+            $entries = TimetableEntry::with('teacher')
+                ->where('class_id', $selectedClass->id)
+                ->where('day_of_week', $date->format('l'))
+                ->orderBy('start_time')
+                ->get();
+
+            $lessons = Lesson::where('class_id', $selectedClass->id)
+                ->whereDate('lesson_date', $date)
+                ->get()
+                ->keyBy('timetable_entry_id');
+
+            $rows = $entries->map(fn (TimetableEntry $entry) => [
+                'entry' => $entry,
+                'lesson' => $lessons->get($entry->id),
+            ]);
+        }
+
+        $recent = collect();
+        if ($selectedClass) {
+            $recent = Lesson::with('timetableEntry')
+                ->where('class_id', $selectedClass->id)
+                ->orderByDesc('lesson_date')
+                ->limit(10)
+                ->get();
+        }
+
+        return view('lesson::index', compact('classes', 'selectedClass', 'date', 'rows', 'recent'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Bulk save the attended / not attended status for every period shown
+     * in the selected class's day grid.
      */
-    public function create()
+    public function store(Request $request)
     {
-        return view('lesson::create');
-    }
+        abort_unless(Auth::user()->can('create lesson') || Auth::user()->can('edit lesson'), 403);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request) {}
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'date' => 'required|date',
+            'statuses' => 'required|array|min:1',
+            'statuses.*.timetable_entry_id' => 'required|integer|exists:timetable_entries,id',
+            'statuses.*.status' => 'required|in:attended,not_attended',
+            'statuses.*.remarks' => 'nullable|string',
+        ]);
+
+        $class = $this->scopedClasses()->firstWhere('id', $validated['class_id']);
+        abort_unless($class, 403);
+
+        foreach ($validated['statuses'] as $row) {
+            Lesson::updateOrCreate(
+                [
+                    'timetable_entry_id' => $row['timetable_entry_id'],
+                    'lesson_date' => $validated['date'],
+                ],
+                [
+                    'institution_id' => $class->institution_id,
+                    'class_id' => $class->id,
+                    'status' => $row['status'],
+                    'remarks' => $row['remarks'] ?? null,
+                    'marked_by' => Auth::id(),
+                ]
+            );
+        }
+
+        return redirect()
+            ->route('lesson.index', ['class_id' => $class->id, 'date' => $validated['date']])
+            ->with('success', 'Lesson attendance saved.');
+    }
 
     /**
      * Show the specified resource.
      */
     public function show($id)
     {
-        return view('lesson::show');
+        abort_unless(Auth::user()->can('view lesson'), 403);
+
+        $lesson = $this->scopedLesson($id, ['timetableEntry.teacher', 'schoolClass', 'markedBy']);
+
+        return view('lesson::show', compact('lesson'));
     }
 
     /**
@@ -41,16 +120,101 @@ class LessonController extends Controller
      */
     public function edit($id)
     {
-        return view('lesson::edit');
+        abort_unless(Auth::user()->can('edit lesson'), 403);
+
+        $lesson = $this->scopedLesson($id, ['timetableEntry']);
+
+        return view('lesson::edit', compact('lesson'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id) {}
+    public function update(Request $request, $id)
+    {
+        abort_unless(Auth::user()->can('edit lesson') || Auth::user()->can('update lesson'), 403);
+
+        $lesson = $this->scopedLesson($id);
+
+        $validated = $request->validate([
+            'status' => 'required|in:attended,not_attended',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $lesson->update([
+            'status' => $validated['status'],
+            'remarks' => $validated['remarks'] ?? null,
+            'marked_by' => Auth::id(),
+        ]);
+
+        return redirect()->route('lesson.show', $lesson->id)->with('success', 'Lesson updated!');
+    }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy($id) {}
+    public function destroy($id)
+    {
+        abort_unless(Auth::user()->can('delete lesson'), 403);
+
+        $lesson = $this->scopedLesson($id);
+        $classId = $lesson->class_id;
+        $date = $lesson->lesson_date->format('Y-m-d');
+        $lesson->delete();
+
+        return redirect()
+            ->route('lesson.index', ['class_id' => $classId, 'date' => $date])
+            ->with('success', 'Lesson attendance record removed!');
+    }
+
+    private function scopeToViewer($query): void
+    {
+        $user = Auth::user();
+
+        if (isAdmin()) {
+            return;
+        }
+
+        if ($user->hasRole('Teacher')) {
+            $institutionId = $user->teacherUserDetails?->institution_id;
+            $query->where('institution_id', $institutionId ?? 0);
+
+            return;
+        }
+
+        if ($user->hasAnyRole(['Parent', 'Student'])) {
+            $institutionIds = $user->hasRole('Parent')
+                ? StudentDetails::where('parent_id', $user->id)->pluck('institution_id')
+                : StudentDetails::where('student_id', $user->id)->pluck('institution_id');
+
+            $query->whereIn('institution_id', $institutionIds);
+
+            return;
+        }
+
+        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+    }
+
+    private function scopedLesson(int $id, array $with = []): Lesson
+    {
+        $query = Lesson::with($with);
+        $this->scopeToViewer($query);
+
+        return $query->findOrFail($id);
+    }
+
+    /**
+     * Classes selectable for lesson attendance, scoped to the viewer's
+     * institution(s) unless they're an Admin.
+     */
+    private function scopedClasses()
+    {
+        $query = SchoolClass::query();
+
+        if (! isAdmin()) {
+            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+        }
+
+        return $query->orderBy('name')->get();
+    }
 }

@@ -11,5 +11,6 @@
     "Curriculum": true,
     "Report": true,
     "Classes": true,
-    "Lesson": true
+    "Lesson": true,
+    "Result": true
 }

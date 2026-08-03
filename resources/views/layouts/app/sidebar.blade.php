@@ -133,6 +133,20 @@
                                     auth()->user()->can('edit classes') ||
                                     auth()->user()->can('create classes');
                                 break;
+                            case 'Lesson':
+                                $icon = 'clipboard-document-check';
+                                $canAccess =
+                                    auth()->user()->can('view lesson') ||
+                                    auth()->user()->can('edit lesson') ||
+                                    auth()->user()->can('create lesson');
+                                break;
+                            case 'Result':
+                                $icon = 'academic-cap';
+                                $canAccess =
+                                    auth()->user()->can('view result') ||
+                                    auth()->user()->can('edit result') ||
+                                    auth()->user()->can('create result');
+                                break;
                             default:
                                 $icon = 'folder';
                                 $canAccess =

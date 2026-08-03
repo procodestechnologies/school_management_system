@@ -4,7 +4,9 @@ namespace Modules\Examinations\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
+use Modules\Result\Models\Result;
 
 class Examination extends Model
 {
@@ -12,6 +14,7 @@ class Examination extends Model
 
     protected $fillable = [
         'institution_id',
+        'class_id',
         'title',
         'subject',
         'class_name',
@@ -33,5 +36,15 @@ class Examination extends Model
     public function institution()
     {
         return $this->belongsTo(Institution::class);
+    }
+
+    public function schoolClass()
+    {
+        return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    public function results()
+    {
+        return $this->hasMany(Result::class);
     }
 }

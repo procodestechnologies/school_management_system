@@ -43,6 +43,8 @@ class PermissionSeeder extends Seeder
             'feemanagement' => ['view', 'create', 'edit', 'update', 'delete'],
             'timetable' => ['view', 'create', 'edit', 'update', 'delete'],
             'classes' => ['view', 'create', 'edit', 'update', 'delete'],
+            'lesson' => ['view', 'create', 'edit', 'update', 'delete'],
+            'result' => ['view', 'create', 'edit', 'update', 'delete'],
             'user' => ['view', 'create', 'edit', 'update', 'delete'],
             'role' => ['view', 'create', 'edit', 'update', 'delete'],
             'permission' => ['view', 'create', 'edit', 'update', 'delete'],
@@ -104,6 +106,8 @@ class PermissionSeeder extends Seeder
             'view feemanagement', 'create feemanagement', 'edit feemanagement', 'update feemanagement', 'delete feemanagement',
             'view timetable', 'create timetable', 'edit timetable', 'update timetable', 'delete timetable',
             'view classes', 'create classes', 'edit classes', 'update classes', 'delete classes',
+            'view lesson', 'create lesson', 'edit lesson', 'update lesson', 'delete lesson',
+            'view result', 'create result', 'edit result', 'update result', 'delete result',
             'view account', 'create account', 'edit account', 'update account',
             'view finance', 'create finance', 'edit finance', 'update finance',
 
@@ -147,6 +151,8 @@ class PermissionSeeder extends Seeder
             'view timetable',
             'view classes',
             'view feemanagement',
+            'view lesson',
+            'view result',
             'view dashboard',
             'view report',
         ])->get();
@@ -159,6 +165,8 @@ class PermissionSeeder extends Seeder
             'view examination',
             'view timetable',
             'view classes',
+            'view lesson',
+            'view result',
             'view dashboard',
             'view report',
         ])->get();
@@ -173,6 +181,8 @@ class PermissionSeeder extends Seeder
             'view timetable',
             'view classes',
             'view curriculum',
+            'view lesson',
+            'view result',
             'view dashboard',
             'view report',
         ])->get();

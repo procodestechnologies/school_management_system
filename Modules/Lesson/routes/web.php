@@ -4,5 +4,10 @@ use Illuminate\Support\Facades\Route;
 use Modules\Lesson\Http\Controllers\LessonController;
 
 Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
-    Route::resource('lessons', LessonController::class)->names('lesson')->middleware('verified');
+    Route::get('lessons', [LessonController::class, 'index'])->name('lesson.index');
+    Route::post('lessons', [LessonController::class, 'store'])->name('lesson.store');
+    Route::get('lessons/{lesson}', [LessonController::class, 'show'])->name('lesson.show');
+    Route::get('lessons/{lesson}/edit', [LessonController::class, 'edit'])->name('lesson.edit');
+    Route::put('lessons/{lesson}', [LessonController::class, 'update'])->name('lesson.update');
+    Route::delete('lessons/{lesson}', [LessonController::class, 'destroy'])->name('lesson.destroy');
 });

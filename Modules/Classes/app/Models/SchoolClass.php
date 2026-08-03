@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Institution\Models\Institution;
+use Modules\Lesson\Models\Lesson;
+use Modules\Result\Models\Result;
 use Modules\Student\Models\StudentDetails;
 use Modules\Timetable\Models\TimetableEntry;
 
@@ -45,5 +47,15 @@ class SchoolClass extends Model
     public function timetableEntries()
     {
         return $this->hasMany(TimetableEntry::class, 'class_id');
+    }
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class, 'class_id');
+    }
+
+    public function results()
+    {
+        return $this->hasMany(Result::class, 'class_id');
     }
 }
