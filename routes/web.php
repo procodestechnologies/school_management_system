@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DevicesController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\SyncStudentToDeviceController;
 use App\Http\Middleware\EnsureAccountIsActive;
@@ -12,7 +13,8 @@ Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboard')->group(function () {
     Route::get('', DashboardController::class)->name('dashboard');
+    Route::resource('/devices', DevicesController::class)->names('devices');
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
 });
 Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';

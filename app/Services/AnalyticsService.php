@@ -44,17 +44,11 @@ class AnalyticsService
             'scope' => 'system',
             'institutions_count' => Institution::count(),
             'active_institutions_count' => Institution::where('is_active', true)->count(),
+            'all_users_except_admin'=>User::withoutRole('Admin')->get()->count(),
             'users_by_role' => $this->usersByRole(),
-            'students_count' => StudentDetails::count(),
-            'devices_count' => Devices::count(),
-            'attendance_today_count' => ZktecoAttendanceLog::whereDate('occurred_at', today())->count(),
-            'fees_billed' => (float) ($feeTotals->billed ?? 0),
-            'fees_collected' => (float) ($feeTotals->collected ?? 0),
-            'fees_outstanding' => (float) ($feeTotals->billed ?? 0) - (float) ($feeTotals->collected ?? 0),
+            'active_count'=>User::whereStatus('active')->get()->count(),
+            'devices_count' => Devices::all()->count(),
             'recent_institutions' => Institution::with('owner')->latest()->take(5)->get(),
-            'enrollment_by_status' => StudentDetails::selectRaw('enrollment_status, COUNT(*) as total')
-                ->groupBy('enrollment_status')
-                ->pluck('total', 'enrollment_status'),
         ];
     }
 

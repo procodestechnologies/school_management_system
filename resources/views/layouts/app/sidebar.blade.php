@@ -35,8 +35,20 @@
                         {{ __('Create Module') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+                <flux:sidebar.item icon="home-modern" :href="route('institution.index')"
+                    :current="request()->routeIs('institution.index')" wire:navigate>
+                    {{ __('Institutions') }}
+                </flux:sidebar.item>
+                <flux:sidebar.item icon="device-mobile" :href="route('devices')" :current="request()->routeIs('devices')"
+                    wire:navigate>
+                    {{ __('Devices') }}
+                </flux:sidebar.item>
             @endhasrole
-            @if (hasInstitutions())
+            @if (hasInstitutions() && !isAdmin())
+                <flux:sidebar.item tooltip='Devices' icon="device-phone-mobile" :href="route('devices.index')"
+                    :current="request()->routeIs('devices.*')" wire:navigate>
+                    Devices
+                </flux:sidebar.item>
                 @foreach (Module::allEnabled() as $module)
                     @php
                         $moduleName = strtolower($module->getName());
@@ -138,8 +150,9 @@
                     @endphp
 
                     @if ($canAccess)
-                        <flux:sidebar.item icon="{{ $icon }}" :href="route($moduleName.
-                            '.index')"
+                        <flux:sidebar.item icon="{{ $icon }}"
+                            :href="route($moduleName.
+                                '.index')"
                             :current="request()->routeIs($moduleName . '.index')" wire:navigate>
                             {{ __($module->getName()) }}
                         </flux:sidebar.item>

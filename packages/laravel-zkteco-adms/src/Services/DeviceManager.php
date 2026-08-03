@@ -50,7 +50,7 @@ class DeviceManager
 
             $device = $modelClass::create(array_merge([
                 'serial_number' => $serialNumber,
-                'name' => "Device {$serialNumber}",
+                'name' => "{$serialNumber}",
                 'ip_address' => $ipAddress,
                 'status' => DeviceStatus::Online,
                 'last_activity_at' => now(),
@@ -67,6 +67,16 @@ class DeviceManager
             }
 
             Log::info('Device registered', ['device' => $serialNumber]);
+        } else {
+            $deviceAttributes = array_filter($attributes);
+            $device = $modelClass::update(array_merge([
+                'serial_number' => $serialNumber,
+                'name' => "{$serialNumber}",
+                'ip_address' => $ipAddress,
+                'status' => DeviceStatus::Online,
+                'last_activity_at' => now(),
+                'options' => [],
+            ], $deviceAttributes));
         }
 
         return $device;

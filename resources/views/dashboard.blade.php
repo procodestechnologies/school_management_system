@@ -36,7 +36,6 @@
 
             {{-- ===================== ADMIN ===================== --}}
         @elseif ($scope === 'system')
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <flux:card class="space-y-1">
                     <flux:text class="text-zinc-500">Institutions</flux:text>
@@ -45,6 +44,12 @@
                     </flux:text>
                 </flux:card>
                 <flux:card class="space-y-1">
+                    <flux:text class="text-zinc-500">Users</flux:text>
+                    <flux:heading size="xl">{{ $stats['all_users_except_admin'] }}</flux:heading>
+                    <flux:text class="text-xs text-zinc-500">{{ $stats['active_count'] }} active
+                    </flux:text>
+                </flux:card>
+                {{-- <flux:card class="space-y-1">
                     <flux:text class="text-zinc-500">Students</flux:text>
                     <flux:heading size="xl">{{ $stats['students_count'] }}</flux:heading>
                 </flux:card>
@@ -55,7 +60,7 @@
                 <flux:card class="space-y-1">
                     <flux:text class="text-zinc-500">Fees Outstanding</flux:text>
                     <flux:heading size="xl">{{ $currency($stats['fees_outstanding']) }}</flux:heading>
-                </flux:card>
+                </flux:card> --}}
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -122,7 +127,6 @@
 
             {{-- ===================== DIRECTOR / ACCOUNTANT ===================== --}}
         @elseif ($scope === 'institution')
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @if (isset($stats['students_count']))
                     <flux:card class="space-y-1">
@@ -157,19 +161,28 @@
                             style="width: {{ $pct($stats['fees_collected'], $stats['fees_billed']) }}%"></div>
                     </div>
                 </flux:card>
-
+                {{-- create a flux card with device information --}}
+                <flux:card>
+                    <flux:heading size="lg" class="mb-4">Biometric Devices</flux:heading>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-zinc-500">Total Devices</span>
+                        <span class="text-zinc-500">{{ $stats['devices_count'] }}</span>
+                    </div>
+                </flux:card>
                 <flux:card>
                     <flux:heading size="lg" class="mb-4">Recent Fees</flux:heading>
                     <div class="space-y-2">
                         @forelse ($stats['recent_fees'] as $fee)
                             <div class="flex justify-between text-sm">
                                 <span>{{ $fee->student?->name }} — {{ $fee->title }}</span>
-                                <flux:badge size="sm" :color="match ($fee->status) {
-                                    'paid' => 'emerald',
-                                    'partial' => 'amber',
-                                    'overdue' => 'red',
-                                    default => 'zinc',
-                                }">{{ ucfirst($fee->status) }}</flux:badge>
+                                <flux:badge size="sm"
+                                    :color="match ($fee->status) {
+                                                                        'paid' => 'emerald',
+                                                                        'partial' => 'amber',
+                                                                        'overdue' => 'red',
+                                                                        default => 'zinc',
+                                                                    }">
+                                    {{ ucfirst($fee->status) }}</flux:badge>
                             </div>
                         @empty
                             <flux:text class="text-zinc-500">No fee records yet.</flux:text>
@@ -194,7 +207,6 @@
 
             {{-- ===================== PARENT ===================== --}}
         @elseif ($scope === 'parent')
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <flux:card class="space-y-1">
                     <flux:text class="text-zinc-500">Children</flux:text>
@@ -229,7 +241,6 @@
 
             {{-- ===================== STUDENT ===================== --}}
         @elseif ($scope === 'student')
-
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <flux:card class="space-y-1">
                     <flux:text class="text-zinc-500">Attendance Today</flux:text>
@@ -247,7 +258,6 @@
 
             {{-- ===================== TEACHER ===================== --}}
         @elseif ($scope === 'teacher')
-
             @if (!$stats['institution'])
                 <flux:callout variant="warning" icon="information-circle">
                     <flux:callout.heading>Not yet assigned to a school</flux:callout.heading>
@@ -269,7 +279,6 @@
                     </flux:card>
                 </div>
             @endif
-
         @else
             <flux:button href="{{ route('institution.create') }}">Add an Institution to continue...</flux:button>
         @endif
