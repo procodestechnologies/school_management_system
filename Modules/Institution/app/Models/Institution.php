@@ -13,6 +13,7 @@ use Modules\FeeManagement\Models\Fee;
 use Modules\Lesson\Models\Lesson;
 use Modules\Result\Models\Result;
 use Modules\Student\Models\StudentDetails;
+use Modules\Subject\Models\Subject;
 use Modules\Teacher\Models\TeacherDetails;
 use Modules\Timetable\Models\TimetableEntry;
 
@@ -144,5 +145,10 @@ class Institution extends Model
     public function results()
     {
         return $this->hasMany(Result::class);
+    }
+
+    public function subjects()
+    {
+        return $this->hasMany(Subject::class);
     }
 }

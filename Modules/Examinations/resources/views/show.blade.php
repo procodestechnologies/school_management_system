@@ -16,7 +16,7 @@
             <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Subject</p>
-                    <p class="text-sm text-gray-900">{{ $examination->subject }}</p>
+                    <p class="text-sm text-gray-900">{{ $examination->subject?->name ?? $examination->subject_name }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Class</p>

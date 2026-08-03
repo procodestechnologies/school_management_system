@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 use Modules\Result\Models\Result;
+use Modules\Subject\Models\Subject;
 
 class Examination extends Model
 {
@@ -16,7 +17,8 @@ class Examination extends Model
         'institution_id',
         'class_id',
         'title',
-        'subject',
+        'subject_id',
+        'subject_name',
         'class_name',
         'term',
         'exam_date',
@@ -41,6 +43,11 @@ class Examination extends Model
     public function schoolClass()
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    public function subject()
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     public function results()

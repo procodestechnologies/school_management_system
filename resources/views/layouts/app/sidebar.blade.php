@@ -140,6 +140,13 @@
                                     auth()->user()->can('edit lesson') ||
                                     auth()->user()->can('create lesson');
                                 break;
+                            case 'Subject':
+                                $icon = 'book-open';
+                                $canAccess =
+                                    auth()->user()->can('view subject') ||
+                                    auth()->user()->can('edit subject') ||
+                                    auth()->user()->can('create subject');
+                                break;
                             case 'Result':
                                 $icon = 'academic-cap';
                                 $canAccess =

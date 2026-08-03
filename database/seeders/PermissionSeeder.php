@@ -45,6 +45,7 @@ class PermissionSeeder extends Seeder
             'classes' => ['view', 'create', 'edit', 'update', 'delete'],
             'lesson' => ['view', 'create', 'edit', 'update', 'delete'],
             'result' => ['view', 'create', 'edit', 'update', 'delete'],
+            'subject' => ['view', 'create', 'edit', 'update', 'delete'],
             'user' => ['view', 'create', 'edit', 'update', 'delete'],
             'role' => ['view', 'create', 'edit', 'update', 'delete'],
             'permission' => ['view', 'create', 'edit', 'update', 'delete'],
@@ -108,6 +109,7 @@ class PermissionSeeder extends Seeder
             'view classes', 'create classes', 'edit classes', 'update classes', 'delete classes',
             'view lesson', 'create lesson', 'edit lesson', 'update lesson', 'delete lesson',
             'view result', 'create result', 'edit result', 'update result', 'delete result',
+            'view subject', 'create subject', 'edit subject', 'update subject', 'delete subject',
             'view account', 'create account', 'edit account', 'update account',
             'view finance', 'create finance', 'edit finance', 'update finance',
 
@@ -183,6 +185,7 @@ class PermissionSeeder extends Seeder
             'view curriculum',
             'view lesson',
             'view result',
+            'view subject',
             'view dashboard',
             'view report',
         ])->get();

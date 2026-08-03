@@ -22,7 +22,7 @@
                 @method('PUT')
 
                 <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select name="institution_id" label="Institution">
+                    <flux:select id="institution_id" name="institution_id" label="Institution">
                         @foreach ($institutions as $institution)
                             <flux:select.option value="{{ $institution->id }}"
                                 :selected="old('institution_id', $result->institution_id) == $institution->id">
@@ -32,8 +32,10 @@
                     </flux:select>
 
                     <flux:select id="class_id" name="class_id" label="Class">
+                        <flux:select.option value="">Select Class</flux:select.option>
                         @foreach ($classes as $schoolClass)
                             <flux:select.option value="{{ $schoolClass->id }}"
+                                data-institution-id="{{ $schoolClass->institution_id }}"
                                 :selected="old('class_id', $result->class_id) == $schoolClass->id">
                                 {{ $schoolClass->name }}
                             </flux:select.option>
@@ -41,6 +43,7 @@
                     </flux:select>
 
                     <flux:select id="student_id" name="student_id" label="Student">
+                        <flux:select.option value="">Select Student</flux:select.option>
                         @foreach ($students as $studentDetail)
                             <flux:select.option value="{{ $studentDetail->student_id }}"
                                 data-class-id="{{ $studentDetail->class_id }}"
@@ -54,11 +57,12 @@
                     </flux:select>
 
                     <flux:select id="examination_id" name="examination_id" label="Examination">
+                        <flux:select.option value="">Select Examination</flux:select.option>
                         @foreach ($examinations as $examination)
                             <flux:select.option value="{{ $examination->id }}"
                                 data-class-id="{{ $examination->class_id }}"
                                 :selected="old('examination_id', $result->examination_id) == $examination->id">
-                                {{ $examination->title }} ({{ $examination->subject }})
+                                {{ $examination->title }} ({{ $examination->subject?->name ?? $examination->subject_name }})
                             </flux:select.option>
                         @endforeach
                     </flux:select>
@@ -87,12 +91,21 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const institutionSelect = document.getElementById('institution_id');
             const classSelect = document.getElementById('class_id');
-            const examinationSelect = document.getElementById('examination_id');
             const studentSelect = document.getElementById('student_id');
+            const examinationSelect = document.getElementById('examination_id');
 
-            function filterByClass(select, classId) {
+            // Hides every real option unless it matches the chosen parent
+            // (institution for Class; class for Student/Examination), so
+            // each field stays empty until its parent is picked. The
+            // placeholder text explains why.
+            function filterOptions(select, parentValue, datasetKey, lockedText, readyText) {
                 const currentValue = select.value;
+                const placeholder = select.querySelector('option[value=""]');
+                if (placeholder) {
+                    placeholder.textContent = parentValue ? readyText : lockedText;
+                }
 
                 Array.from(select.options).forEach(function(option) {
                     if (!option.value || option.value === currentValue) {
@@ -100,17 +113,40 @@
                         return;
                     }
 
-                    option.hidden = !!classId && option.dataset.classId !== String(classId);
+                    option.hidden = !parentValue || option.dataset[datasetKey] !== String(parentValue);
                 });
             }
 
-            function applyFilters() {
-                filterByClass(examinationSelect, classSelect.value);
-                filterByClass(studentSelect, classSelect.value);
+            function applyClassFilters() {
+                filterOptions(studentSelect, classSelect.value, 'classId', 'Select a class first', 'Select Student');
+                filterOptions(examinationSelect, classSelect.value, 'classId', 'Select a class first',
+                    'Select Examination');
             }
 
-            classSelect.addEventListener('change', applyFilters);
-            applyFilters();
+            function applyInstitutionFilter() {
+                filterOptions(classSelect, institutionSelect.value, 'institutionId', 'Select an institution first',
+                    'Select Class');
+            }
+
+            // Institution -> Class -> {Student, Examination}. Changing a
+            // parent resets and re-filters everything below it so stale,
+            // out-of-scope picks can't linger.
+            institutionSelect.addEventListener('change', function() {
+                classSelect.value = '';
+                studentSelect.value = '';
+                examinationSelect.value = '';
+                applyInstitutionFilter();
+                applyClassFilters();
+            });
+
+            classSelect.addEventListener('change', function() {
+                studentSelect.value = '';
+                examinationSelect.value = '';
+                applyClassFilters();
+            });
+
+            applyInstitutionFilter();
+            applyClassFilters();
         });
     </script>
 </x-layouts::app>

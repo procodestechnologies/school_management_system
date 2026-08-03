@@ -23,14 +23,16 @@ class ResultController extends Controller
         $query = Result::with(['institution', 'schoolClass', 'student', 'examination']);
         $this->scopeToViewer($query);
 
+        $classId = $request->integer('class_id') ?: null;
+
         $query
-            ->when($request->filled('class_id'), fn ($q) => $q->where('class_id', $request->integer('class_id')))
+            ->when($classId, fn ($q) => $q->where('class_id', $classId))
             ->when($request->filled('examination_id'), fn ($q) => $q->where('examination_id', $request->integer('examination_id')));
 
         $results = $query->latest()->get();
 
         $classes = $this->scopedClasses();
-        $examinations = $this->scopedExaminations();
+        $examinations = $this->scopedExaminations($classId);
 
         return view('result::index', compact('results', 'classes', 'examinations'));
     }
@@ -44,7 +46,7 @@ class ResultController extends Controller
 
         $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
         $classes = $this->scopedClasses();
-        $examinations = $this->scopedExaminations();
+        $examinations = $this->recentExaminationsPerClass();
         $students = $this->scopedStudents();
 
         return view('result::create', compact('institutions', 'classes', 'examinations', 'students'));
@@ -190,7 +192,7 @@ class ResultController extends Controller
 
     private function scopedResult(int $id): Result
     {
-        $query = Result::with(['institution', 'schoolClass', 'student', 'examination', 'recordedBy']);
+        $query = Result::with(['institution', 'schoolClass', 'student', 'examination.subject', 'recordedBy']);
         $this->scopeToViewer($query);
 
         return $query->findOrFail($id);
@@ -213,17 +215,41 @@ class ResultController extends Controller
 
     /**
      * Examinations selectable for a result, scoped to the viewer's
-     * institution(s) unless they're an Admin.
+     * institution(s) unless they're an Admin, optionally narrowed to a
+     * single class.
      */
-    private function scopedExaminations()
+    private function scopedExaminations(?int $classId = null)
     {
-        $query = Examination::query();
+        $query = Examination::with('subject');
 
         if (! isAdmin()) {
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
+        $query->when($classId, fn ($q) => $q->where('class_id', $classId));
+
         return $query->orderByDesc('exam_date')->get();
+    }
+
+    /**
+     * The most recent examinations per class, scoped to the viewer's
+     * institution(s) unless they're an Admin. Keeps the "add result"
+     * examination picker focused on current exams instead of the full
+     * history.
+     */
+    private function recentExaminationsPerClass(int $perClassLimit = 5)
+    {
+        $query = Examination::with('subject');
+
+        if (! isAdmin()) {
+            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+        }
+
+        return $query->orderByDesc('exam_date')
+            ->get()
+            ->groupBy('class_id')
+            ->flatMap(fn ($examinations) => $examinations->take($perClassLimit))
+            ->values();
     }
 
     /**

@@ -20,7 +20,7 @@
                 @csrf
 
                 <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:select name="institution_id" label="Institution">
+                    <flux:select id="institution_id" name="institution_id" label="Institution">
                         <flux:select.option value="">Select Institution</flux:select.option>
                         @foreach ($institutions as $institution)
                             <flux:select.option value="{{ $institution->id }}"
@@ -33,13 +33,22 @@
                     <flux:input type="text" name="title" label="Title" value="{{ old('title') }}"
                         placeholder="e.g. Mid Term Exam" required />
 
-                    <flux:input type="text" name="subject" label="Subject" value="{{ old('subject') }}"
-                        required />
+                    <flux:select id="subject_id" name="subject_id" label="Subject">
+                        <flux:select.option value="">Select Subject</flux:select.option>
+                        @foreach ($subjects as $subject)
+                            <flux:select.option value="{{ $subject->id }}"
+                                data-institution-id="{{ $subject->institution_id }}"
+                                :selected="old('subject_id') == $subject->id">
+                                {{ $subject->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
 
-                    <flux:select name="class_id" label="Class">
+                    <flux:select id="class_id" name="class_id" label="Class">
                         <flux:select.option value="">Select Class</flux:select.option>
                         @foreach ($classes as $schoolClass)
                             <flux:select.option value="{{ $schoolClass->id }}"
+                                data-institution-id="{{ $schoolClass->institution_id }}"
                                 :selected="old('class_id') == $schoolClass->id">
                                 {{ $schoolClass->name }}
                             </flux:select.option>
@@ -78,4 +87,34 @@
             </form>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const institutionSelect = document.getElementById('institution_id');
+            const classSelect = document.getElementById('class_id');
+            const subjectSelect = document.getElementById('subject_id');
+
+            function filterByInstitution(select) {
+                const institutionId = institutionSelect.value;
+                const currentValue = select.value;
+
+                Array.from(select.options).forEach(function(option) {
+                    if (!option.value || option.value === currentValue) {
+                        option.hidden = false;
+                        return;
+                    }
+
+                    option.hidden = !!institutionId && option.dataset.institutionId !== String(institutionId);
+                });
+            }
+
+            function applyFilters() {
+                filterByInstitution(classSelect);
+                filterByInstitution(subjectSelect);
+            }
+
+            institutionSelect.addEventListener('change', applyFilters);
+            applyFilters();
+        });
+    </script>
 </x-layouts::app>

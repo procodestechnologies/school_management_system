@@ -24,7 +24,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Subject</p>
-                    <p class="text-sm text-gray-900">{{ $result->examination?->subject }}</p>
+                    <p class="text-sm text-gray-900">{{ $result->examination?->subject?->name ?? $result->examination?->subject_name }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Marks</p>

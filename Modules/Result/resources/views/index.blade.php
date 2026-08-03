@@ -15,7 +15,8 @@
 
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <form method="GET" action="{{ route('result.index') }}" class="flex flex-wrap items-center gap-2">
-                <flux:select name="class_id" onchange="this.form.submit()">
+                <flux:select name="class_id"
+                    onchange="document.getElementById('examination_id').value=''; this.form.submit()">
                     <flux:select.option value="">All Classes</flux:select.option>
                     @foreach ($classes as $schoolClass)
                         <flux:select.option value="{{ $schoolClass->id }}"
@@ -25,8 +26,10 @@
                     @endforeach
                 </flux:select>
 
-                <flux:select name="examination_id" onchange="this.form.submit()">
-                    <flux:select.option value="">All Examinations</flux:select.option>
+                <flux:select id="examination_id" name="examination_id" onchange="this.form.submit()">
+                    <flux:select.option value="">
+                        {{ request('class_id') && $examinations->isEmpty() ? 'No examinations for this class' : 'All Examinations' }}
+                    </flux:select.option>
                     @foreach ($examinations as $examination)
                         <flux:select.option value="{{ $examination->id }}"
                             :selected="request('examination_id') == $examination->id">
