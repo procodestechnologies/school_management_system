@@ -70,6 +70,9 @@
                     @endforelse
                 </flux:table.rows>
             </flux:table>
+            <div class="mt-4">
+                {{ $teachers->links() }}
+            </div>
         </flux:card>
     </div>
 </x-layouts::app>

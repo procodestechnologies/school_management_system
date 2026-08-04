@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 use Modules\Lesson\Models\Lesson;
+use Modules\Subject\Models\Subject;
 
 class TimetableEntry extends Model
 {
@@ -19,6 +20,7 @@ class TimetableEntry extends Model
         'teacher_id',
         'class_name',
         'subject',
+        'subject_id',
         'day_of_week',
         'start_time',
         'end_time',
@@ -39,6 +41,16 @@ class TimetableEntry extends Model
     public function schoolClass()
     {
         return $this->belongsTo(SchoolClass::class, 'class_id');
+    }
+
+    /**
+     * Named to avoid colliding with the legacy free-text `subject` column
+     * (Eloquent's attribute lookup would always win over a same-named
+     * relation method) - same reason schoolClass() isn't called class().
+     */
+    public function subjectRecord()
+    {
+        return $this->belongsTo(Subject::class, 'subject_id');
     }
 
     public function teacher()

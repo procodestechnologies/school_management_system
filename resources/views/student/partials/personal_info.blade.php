@@ -24,19 +24,11 @@
         <flux:select name="gender" label="Gender"
             class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('gender') border-red-500 @enderror">
             <flux:select.option value="">Select Gender</flux:select.option>
-            <flux:select.option value="male" {{ old('gender', $student->studentUserDetails->gender ?? '') == 'male' ? 'selected' : '' }}>Male</flux:select.option>
-            <flux:select.option value="female" {{ old('gender', $student->studentUserDetails->gender ?? '') == 'female' ? 'selected' : '' }}>Female</flux:select.option>
-            <flux:select.option value="other" {{ old('gender', $student->studentUserDetails->gender ?? '') == 'other' ? 'selected' : '' }}>Other</flux:select.option>
+            <flux:select.option value="male" :selected="old('gender', $student->studentUserDetails->gender ?? '') == 'male'">Male</flux:select.option>
+            <flux:select.option value="female" :selected="old('gender', $student->studentUserDetails->gender ?? '') == 'female'">Female</flux:select.option>
+            <flux:select.option value="other" :selected="old('gender', $student->studentUserDetails->gender ?? '') == 'other'">Other</flux:select.option>
         </flux:select>
         @error('gender')
-            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-        @enderror
-    </div>
-
-    <div>
-        <flux:input type="file" name="profile_photo" label="Profile Photo"
-            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('profile_photo') border-red-500 @enderror" />
-        @error('profile_photo')
             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
         @enderror
     </div>
@@ -64,8 +56,8 @@
             class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('institution_id') border-red-500 @enderror">
             <flux:select.option value="">Select Institution</flux:select.option>
             @foreach ($institutions ?? [] as $institution)
-                <flux:select.option value="{{ $institution->id }}" 
-                    {{ old('institution_id', $student->studentUserDetails->institution_id ?? '') == $institution->id ? 'selected' : '' }}>
+                <flux:select.option value="{{ $institution->id }}"
+                    :selected="old('institution_id', $student->studentUserDetails->institution_id ?? '') == $institution->id">
                     {{ $institution->name }}
                 </flux:select.option>
             @endforeach
@@ -78,13 +70,13 @@
     <div>
         <flux:select name="enrollment_status" label="Enrollment Status"
             class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('enrollment_status') border-red-500 @enderror">
-            <flux:select.option value="active" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'active' ? 'selected' : '' }}>Active</flux:select.option>
-            <flux:select.option value="transferred" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'transferred' ? 'selected' : '' }}>Transferred</flux:select.option>
-            <flux:select.option value="graduated" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'graduated' ? 'selected' : '' }}>Graduated</flux:select.option>
-            <flux:select.option value="dropped" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'dropped' ? 'selected' : '' }}>Dropped</flux:select.option>
-            <flux:select.option value="suspended" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'suspended' ? 'selected' : '' }}>Suspended</flux:select.option>
-            <flux:select.option value="expelled" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'expelled' ? 'selected' : '' }}>Expelled</flux:select.option>
-            <flux:select.option value="withdrawn" {{ old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') == 'withdrawn' ? 'selected' : '' }}>Withdrawn</flux:select.option>
+            <flux:select.option value="active" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'active'">Active</flux:select.option>
+            <flux:select.option value="transferred" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'transferred'">Transferred</flux:select.option>
+            <flux:select.option value="graduated" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'graduated'">Graduated</flux:select.option>
+            <flux:select.option value="dropped" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'dropped'">Dropped</flux:select.option>
+            <flux:select.option value="suspended" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'suspended'">Suspended</flux:select.option>
+            <flux:select.option value="expelled" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'expelled'">Expelled</flux:select.option>
+            <flux:select.option value="withdrawn" :selected="old('enrollment_status', $student->studentUserDetails->enrollment_status ?? '') === 'withdrawn'">Withdrawn</flux:select.option>
         </flux:select>
         @error('enrollment_status')
             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

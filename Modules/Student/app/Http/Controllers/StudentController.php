@@ -141,7 +141,7 @@ class StudentController extends Controller
                         'is_active',
                         'parent_name',
                         'parent_phone',
-                        'profile_photo',
+                        'profile_image',
                         'parent_email',
                         'parent_occupation',
                     ])
@@ -217,7 +217,7 @@ class StudentController extends Controller
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
-            'profile_image' => 'required|image|max:2048',
+            'profile_image' => 'nullable|image|max:2048',
             'admission_number' => 'nullable|string|max:100',
             'student_number' => 'nullable|string|max:100',
             'institution_id' => 'required|exists:institutions,id',
@@ -248,7 +248,6 @@ class StudentController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
-        $validated['profile_photo'] = $request->file('profile_image')->store('students/photos', 'public');
         try {
             DB::transaction(function () use ($request, $validated, $id) {
                 // 1. Find the student details
@@ -256,16 +255,15 @@ class StudentController extends Controller
                     ->orWhere('student_id', $id)
                     ->firstOrFail();
 
-                // 2. Update student details (excluding parent fields)
+                // 2. Update student details (excluding parent fields and the raw upload)
                 $studentData = collect($validated)
-                    ->except(['parent_name', 'parent_phone', 'parent_email', 'parent_occupation'])
+                    ->except(['parent_name', 'parent_phone', 'parent_email', 'parent_occupation', 'profile_image'])
                     ->toArray();
 
                 $studentData['is_active'] = $request->boolean('is_active');
 
-                // Handle profile photo upload
-                if ($request->hasFile('profile_photo')) {
-                    // Delete old photo if exists
+                // Handle profile photo upload: replace and delete the old file if a new one was sent
+                if ($request->hasFile('profile_image')) {
                     if ($studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)) {
                         Storage::disk('public')->delete($studentDetails->profile_photo);
                     }
@@ -279,7 +277,7 @@ class StudentController extends Controller
                 // If the photo changed for a student already synced to a
                 // device, push the update immediately rather than waiting
                 // for the device's next connect event.
-                if ($request->hasFile('profile_photo')) {
+                if ($request->hasFile('profile_image')) {
                     $this->resyncPhotoIfAlreadySynced($studentDetails);
                 }
 
@@ -346,7 +344,7 @@ class StudentController extends Controller
                 }
             });
 
-            return redirect()->route('student.show', $id)
+            return redirect()->back()
                 ->with('success', 'Student updated successfully!');
         } catch (Exception $e) {
             Log::error('Student update failed: ' . $e->getMessage());

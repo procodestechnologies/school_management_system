@@ -27,7 +27,7 @@ class TeacherController extends Controller
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
-        $teachers = $query->latest()->get();
+        $teachers = $query->latest()->paginate(10);
 
         return view('teacher::index', compact('teachers'));
     }

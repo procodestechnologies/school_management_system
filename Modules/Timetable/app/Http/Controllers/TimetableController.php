@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
+use Modules\Subject\Models\Subject;
 use Modules\Timetable\Models\TimetableEntry;
 use Modules\Timetable\Services\TimetableImportService;
 
@@ -24,18 +25,37 @@ class TimetableController extends Controller
     {
         abort_unless(Auth::user()->can('view timetable'), 403);
 
-        $classes = $this->scopedClasses();
+        $user = Auth::user();
+        $isStudent = $user->hasRole('Student');
+        $isParent = $user->hasRole('Parent');
 
-        $selectedClass = null;
+        if ($isStudent) {
+            // A student doesn't pick a class - they only ever see their own.
+            $classIds = collect([StudentDetails::where('student_id', $user->id)->value('class_id')]);
+        } elseif ($isParent) {
+            // A parent doesn't pick from every class either - only the
+            // class(es) their own children are in.
+            $classIds = StudentDetails::where('parent_id', $user->id)->pluck('class_id');
+        }
+
+        if ($isStudent || $isParent) {
+            $classIds = $classIds->filter()->map(fn ($id) => (int) $id)->unique()->values();
+            $classes = SchoolClass::whereIn('id', $classIds)->orderBy('name')->get();
+        } else {
+            $classes = $this->scopedClasses();
+        }
+
+        // Hide the picker whenever there's nothing to actually choose
+        // between: always for a student, and for a parent whose children
+        // all share the same class.
+        $showPicker = ! $isStudent && ! ($isParent && $classes->count() <= 1);
+
         $grid = null;
         $periods = collect();
         $days = self::DAYS;
 
         $classId = $request->integer('class_id') ?: $classes->first()?->id;
-
-        if ($classId) {
-            $selectedClass = $classes->firstWhere('id', $classId);
-        }
+        $selectedClass = $classId ? $classes->firstWhere('id', $classId) : null;
 
         if ($selectedClass) {
             $entries = TimetableEntry::with(['teacher'])
@@ -55,7 +75,7 @@ class TimetableController extends Controller
             }
         }
 
-        return view('timetable::index', compact('classes', 'selectedClass', 'grid', 'periods', 'days'));
+        return view('timetable::index', compact('classes', 'selectedClass', 'grid', 'periods', 'days', 'isStudent', 'isParent', 'showPicker'));
     }
 
     /**
@@ -233,6 +253,13 @@ class TimetableController extends Controller
         // Keep the legacy class_name column in sync for anything still
         // reading it directly, though class_id is now the source of truth.
         $validated['class_name'] = SchoolClass::find($validated['class_id'])?->name;
+
+        // Best-effort link to the Subject catalog for this institution -
+        // subject stays free text since not every typed name has a
+        // matching catalog entry.
+        $validated['subject_id'] = Subject::where('institution_id', $validated['institution_id'])
+            ->where('name', $validated['subject'])
+            ->value('id');
 
         return $validated;
     }

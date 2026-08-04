@@ -4,13 +4,44 @@ namespace Modules\Attendance\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Devices;
+use App\Models\User;
+use Athwari\LaravelZktecoAdms\Enums\AttendanceStatus;
 use Athwari\LaravelZktecoAdms\Models\ZktecoAttendanceLog;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Modules\Institution\Models\Institution;
 
 class AttendanceController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        abort_unless(Auth::user()->can('view attendance'), 403);
+
+        $user = Auth::user();
+        $institutionId = $this->resolveInstitutionId($user);
+        $institution = null;
+        $logs = null;
+
+        if ($institutionId) {
+            $institution = Institution::find($institutionId);
+        }
+
+        if ($institution) {
+            $logs = $this->scopedAttendanceLogs($institution, $user, $request)
+                ->paginate(25)
+                ->withQueryString();
+
+            $logs->through(fn (ZktecoAttendanceLog $log) => $this->toDisplayRow($log));
+        }
+
+        return view('attendance::index', compact('institution', 'logs'));
+    }
+
     /**
      * List student attendance recorded on devices belonging to an institution.
      */
@@ -20,42 +51,10 @@ class AttendanceController extends Controller
 
         $institution = Institution::findOrFail($institution);
 
-        $deviceIds = Devices::whereInstitutionId($institution->id)
-            ->when($request->filled('device_id'), fn ($q) => $q->where('id', $request->integer('device_id')))
-            ->whereNotNull('zkteco_device_id')
-            ->pluck('zkteco_device_id');
-
-        $logs = ZktecoAttendanceLog::whereIn('device_id', $deviceIds)
-            ->with(['device', 'zktecoUser.appUser.studentUserDetails'])
-            ->when($request->filled('from'), fn ($q) => $q->whereDate('occurred_at', '>=', $request->date('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('occurred_at', '<=', $request->date('to')))
-            ->orderByDesc('occurred_at')
+        $logs = $this->scopedAttendanceLogs($institution, Auth::user(), $request)
             ->paginate($request->integer('per_page', 25));
 
-        $logs->getCollection()->transform(function (ZktecoAttendanceLog $log) {
-            $student = $log->zktecoUser?->appUser;
-            $studentDetails = $student?->studentUserDetails;
-
-            return [
-                'id' => $log->id,
-                'device' => [
-                    'id' => $log->device?->id,
-                    'serial_number' => $log->device?->serial_number,
-                    'name' => $log->device?->name,
-                ],
-                'student' => $student ? [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'admission_number' => $studentDetails?->admission_number,
-                    'student_number' => $studentDetails?->student_number,
-                ] : null,
-                'pin' => $log->pin,
-                'status' => $log->status,
-                'verify_mode' => $log->verify_mode,
-                'recorded_at' => $log->recorded_at,
-                'occurred_at' => $log->occurred_at,
-            ];
-        });
+        $logs->getCollection()->transform(fn (ZktecoAttendanceLog $log) => $this->toApiRow($log));
 
         return response()->json([
             'success' => true,
@@ -68,13 +67,163 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Build the attendance log query for this user/institution: scoped to
+     * devices in the institution, restricted to the caller's own children
+     * (Parent) or self (Student), and filtered by the request's search/date
+     * inputs. Logs that don't map back to an actual student are excluded.
      */
-    public function index()
+    private function scopedAttendanceLogs(Institution $institution, User $user, Request $request): Builder
     {
-        abort_unless(Auth::user()->can('view attendance'), 403);
+        if (! isAdmin()) {
+            abort_unless($this->allowedInstitutionIds($user)->contains($institution->id), 403);
+        }
 
-        return view('attendance::index');
+        $deviceIds = Devices::whereInstitutionId($institution->id)
+            ->when($request->filled('device_id'), fn ($q) => $q->where('id', $request->integer('device_id')))
+            ->whereNotNull('zkteco_device_id')
+            ->pluck('zkteco_device_id');
+
+        $pins = $this->visiblePins($user);
+        $search = $request->string('search')->trim()->toString();
+
+        return ZktecoAttendanceLog::whereIn('device_id', $deviceIds)
+            // A log only counts if it maps back to an actual student record.
+            ->whereHas('zktecoUser.appUser.studentUserDetails')
+            ->with(['device', 'zktecoUser.appUser.studentUserDetails'])
+            ->when($pins !== null, fn ($q) => $q->whereIn('pin', $pins))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($q) use ($search) {
+                    $q->where('pin', 'like', "%{$search}%")
+                        ->orWhereHas('zktecoUser.appUser', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('zktecoUser.appUser.studentUserDetails', function ($q) use ($search) {
+                            $q->where('admission_number', 'like', "%{$search}%")
+                                ->orWhere('student_number', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($request->filled('from'), fn ($q) => $q->whereDate('occurred_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('occurred_at', '<=', $request->date('to')))
+            ->orderByDesc('occurred_at');
+    }
+
+    /**
+     * The single institution to load onto the index page for this user:
+     * their own (Director/Admin), their child's (Parent), or their own
+     * enrollment/employment (Student/Teacher).
+     */
+    private function resolveInstitutionId(User $user): ?int
+    {
+        return $user->institution()->value('id')
+            ?? $user->parentInstitution?->id
+            ?? $user->studentInstitution?->id
+            ?? $user->teacherUserDetails?->institution_id;
+    }
+
+    /**
+     * Institution IDs a non-admin user is allowed to view attendance for.
+     */
+    private function allowedInstitutionIds(User $user): Collection
+    {
+        if ($user->hasRole('Parent')) {
+            return $user->children()->pluck('institution_id')->filter()->unique()->values();
+        }
+
+        if ($user->hasRole('Student')) {
+            return collect([$user->studentUserDetails?->institution_id])->filter()->values();
+        }
+
+        if ($user->hasRole('Teacher')) {
+            return collect([$user->teacherUserDetails?->institution_id])->filter()->values();
+        }
+
+        // Director/Accountant/other institution owners.
+        return $user->institution()->pluck('id');
+    }
+
+    /**
+     * Device PINs (== app User IDs) this user may see attendance for, or
+     * null when the role isn't restricted to specific students (e.g.
+     * Director sees every student in the institution).
+     */
+    private function visiblePins(User $user): ?array
+    {
+        if ($user->hasRole('Parent')) {
+            return $user->children()->pluck('student_id')->map(fn ($id) => (string) $id)->all();
+        }
+
+        if ($user->hasRole('Student')) {
+            return [(string) $user->id];
+        }
+
+        return null;
+    }
+
+    /**
+     * Flatten a log into the display-ready row consumed by the index view.
+     */
+    private function toDisplayRow(ZktecoAttendanceLog $log): array
+    {
+        $student = $log->zktecoUser->appUser;
+        $studentDetails = $student->studentUserDetails;
+        [$statusLabel, $statusColor] = $this->statusMeta($log->status);
+
+        return [
+            'id' => $log->id,
+            'student_name' => $student->name,
+            'admission_number' => $studentDetails->admission_number ?? '—',
+            'device_name' => $log->device?->name ?? $log->device?->serial_number ?? '—',
+            'status_label' => $statusLabel,
+            'status_color' => $statusColor,
+            'verify_mode_label' => $log->verify_mode?->getLabel() ?? 'Unknown',
+            'occurred_at' => $log->occurred_at?->format('M j, Y g:i A') ?? '—',
+        ];
+    }
+
+    /**
+     * Flatten a log into the JSON shape returned by the API endpoint.
+     */
+    private function toApiRow(ZktecoAttendanceLog $log): array
+    {
+        $student = $log->zktecoUser->appUser;
+        $studentDetails = $student->studentUserDetails;
+
+        return [
+            'id' => $log->id,
+            'device' => [
+                'id' => $log->device?->id,
+                'serial_number' => $log->device?->serial_number,
+                'name' => $log->device?->name,
+            ],
+            'student' => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'admission_number' => $studentDetails->admission_number,
+                'student_number' => $studentDetails->student_number,
+            ],
+            'pin' => $log->pin,
+            'status' => $log->status,
+            'verify_mode' => $log->verify_mode,
+            'recorded_at' => $log->recorded_at,
+            'occurred_at' => $log->occurred_at,
+        ];
+    }
+
+    /**
+     * [Label, Flux badge color] for a status. Not using AttendanceStatus::getLabel()
+     * here because it resolves via a translation key that this app has no
+     * translations for and would just print the raw key.
+     */
+    private function statusMeta(?AttendanceStatus $status): array
+    {
+        return match ($status) {
+            AttendanceStatus::CheckIn => ['Check In', 'emerald'],
+            AttendanceStatus::CheckOut => ['Check Out', 'red'],
+            AttendanceStatus::BreakOut => ['Break Out', 'amber'],
+            AttendanceStatus::BreakIn => ['Break In', 'sky'],
+            AttendanceStatus::OvertimeIn => ['Overtime In', 'indigo'],
+            AttendanceStatus::OvertimeOut => ['Overtime Out', 'zinc'],
+            default => ['Unknown', 'zinc'],
+        };
     }
 
     /**

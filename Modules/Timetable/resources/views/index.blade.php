@@ -8,17 +8,23 @@
         @endif
 
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <form method="GET" action="{{ route('timetable.index') }}" class="flex items-center gap-2">
-                <flux:select name="class_id" onchange="this.form.submit()">
-                    <flux:select.option value="">Select a class&hellip;</flux:select.option>
-                    @foreach ($classes as $schoolClass)
-                        <flux:select.option value="{{ $schoolClass->id }}"
-                            :selected="$selectedClass?->id === $schoolClass->id">
-                            {{ $schoolClass->name }}
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
-            </form>
+            @if ($showPicker)
+                <form method="GET" action="{{ route('timetable.index') }}" class="flex items-center gap-2">
+                    <flux:select name="class_id" onchange="this.form.submit()">
+                        <flux:select.option value="">Select a class&hellip;</flux:select.option>
+                        @foreach ($classes as $schoolClass)
+                            <flux:select.option value="{{ $schoolClass->id }}"
+                                :selected="$selectedClass?->id === $schoolClass->id">
+                                {{ $schoolClass->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </form>
+            @elseif ($isStudent)
+                <flux:heading size="lg">My Timetable</flux:heading>
+            @elseif ($isParent)
+                <flux:heading size="lg">My Child's Timetable</flux:heading>
+            @endif
 
             <div class="flex gap-2">
                 @can('create timetable')
@@ -29,7 +35,17 @@
             </div>
         </div>
 
-        @if ($classes->isEmpty())
+        @if (($isStudent || $isParent) && $classes->isEmpty())
+            <flux:card class="text-center py-10">
+                <flux:text class="text-zinc-500">
+                    @if ($isStudent)
+                        You are not assigned to a class yet. Contact your school administrator.
+                    @else
+                        No child is assigned to a class yet. Contact your school administrator.
+                    @endif
+                </flux:text>
+            </flux:card>
+        @elseif (! $isStudent && ! $isParent && $classes->isEmpty())
             <flux:card class="text-center py-10">
                 <flux:text class="text-zinc-500">No classes available yet.</flux:text>
             </flux:card>

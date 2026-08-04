@@ -67,7 +67,7 @@
                         </div>
 
                         <div>
-                            <flux:input type="file" name="profile_photo" label="Profile Photo"
+                            <flux:input type="file" name="profile_image" label="Profile Photo"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                         </div>
 

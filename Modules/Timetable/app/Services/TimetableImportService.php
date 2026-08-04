@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Modules\Classes\Models\SchoolClass;
+use Modules\Subject\Models\Subject;
 use Modules\Timetable\Models\TimetableEntry;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -33,6 +34,8 @@ class TimetableImportService
      */
     public function import(UploadedFile $file, SchoolClass $class): array
     {
+        $subjectIds = Subject::where('institution_id', $class->institution_id)->pluck('id', 'name');
+
         $rows = $this->readRows($file);
 
         if (empty($rows)) {
@@ -119,6 +122,7 @@ class TimetableImportService
                 'teacher_id' => $teacherId,
                 'class_name' => $class->name,
                 'subject' => $subject,
+                'subject_id' => $subjectIds[$subject] ?? null,
                 'day_of_week' => $day,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
