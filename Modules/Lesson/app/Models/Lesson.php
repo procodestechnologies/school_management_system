@@ -51,4 +51,27 @@ class Lesson extends Model
     {
         return $this->status === 'attended';
     }
+
+    public function isRecovered(): bool
+    {
+        return $this->status === 'recovered';
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            'attended' => 'Attended',
+            'recovered' => 'Recovered',
+            default => 'Not Attended',
+        };
+    }
+
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'attended' => 'emerald',
+            'recovered' => 'amber',
+            default => 'red',
+        };
+    }
 }

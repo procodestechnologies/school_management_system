@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Lesson\Http\Controllers\LessonController;
+use Modules\Lesson\Http\Controllers\LessonReportController;
 
 Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
     Route::get('lessons', [LessonController::class, 'index'])->name('lesson.index');
@@ -10,4 +11,9 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () 
     Route::get('lessons/{lesson}/edit', [LessonController::class, 'edit'])->name('lesson.edit');
     Route::put('lessons/{lesson}', [LessonController::class, 'update'])->name('lesson.update');
     Route::delete('lessons/{lesson}', [LessonController::class, 'destroy'])->name('lesson.destroy');
+
+    Route::get('lesson-reports', [LessonReportController::class, 'index'])->name('lesson.reports.index');
+    Route::post('lesson-reports/generate', [LessonReportController::class, 'generate'])->name('lesson.reports.generate');
+    Route::get('lesson-reports/{lessonReport}', [LessonReportController::class, 'show'])->name('lesson.reports.show');
+    Route::get('lesson-reports/{lessonReport}/download', [LessonReportController::class, 'download'])->name('lesson.reports.download');
 });

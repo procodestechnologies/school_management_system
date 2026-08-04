@@ -3,6 +3,8 @@
 namespace Modules\Lesson\Providers;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Lesson\Console\Commands\GenerateDailyLessonReports;
+use Modules\Lesson\Console\Commands\GenerateWeeklyLessonReports;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class LessonServiceProvider extends ModuleServiceProvider
@@ -22,7 +24,10 @@ class LessonServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        GenerateDailyLessonReports::class,
+        GenerateWeeklyLessonReports::class,
+    ];
 
     /**
      * Provider classes to register.

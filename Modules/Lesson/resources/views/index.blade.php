@@ -38,6 +38,9 @@
                         href="{{ route('lesson.index', ['class_id' => $selectedClass?->id, 'date' => $date->copy()->addDay()->format('Y-m-d')]) }}" />
                 </div>
             </form>
+
+            <flux:button href="{{ route('lesson.reports.index', ['class_id' => $selectedClass?->id]) }}"
+                icon="document-chart-bar" variant="ghost">Reports</flux:button>
         </div>
 
         @if ($classes->isEmpty())
@@ -101,16 +104,18 @@
                                                 @can('edit lesson')
                                                     <flux:select name="statuses[{{ $i }}][status]" size="sm">
                                                         <flux:select.option value="attended"
-                                                            :selected="($lesson->status ?? '') === 'attended'">
+                                                            :selected="($lesson->status ?? 'not_attended') === 'attended'">
                                                             Attended</flux:select.option>
                                                         <flux:select.option value="not_attended"
                                                             :selected="($lesson->status ?? 'not_attended') === 'not_attended'">
                                                             Not Attended</flux:select.option>
+                                                        <flux:select.option value="recovered"
+                                                            :selected="($lesson->status ?? 'not_attended') === 'recovered'">
+                                                            Recovered</flux:select.option>
                                                     </flux:select>
                                                 @else
-                                                    <flux:badge
-                                                        :color="($lesson?->status === 'attended') ? 'emerald' : 'zinc'">
-                                                        {{ $lesson ? ($lesson->isAttended() ? 'Attended' : 'Not Attended') : 'Not marked' }}
+                                                    <flux:badge :color="$lesson ? $lesson->statusColor() : 'zinc'">
+                                                        {{ $lesson ? $lesson->statusLabel() : 'Not marked' }}
                                                     </flux:badge>
                                                 @endcan
                                             </td>
@@ -154,8 +159,8 @@
                                     <flux:table.cell>{{ $item->lesson_date->format('d M Y') }}</flux:table.cell>
                                     <flux:table.cell>{{ $item->timetableEntry?->subject }}</flux:table.cell>
                                     <flux:table.cell>
-                                        <flux:badge :color="$item->isAttended() ? 'emerald' : 'red'">
-                                            {{ $item->isAttended() ? 'Attended' : 'Not Attended' }}
+                                        <flux:badge :color="$item->statusColor()">
+                                            {{ $item->statusLabel() }}
                                         </flux:badge>
                                     </flux:table.cell>
                                     <flux:table.cell>

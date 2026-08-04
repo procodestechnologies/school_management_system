@@ -75,7 +75,7 @@ class LessonController extends Controller
             'date' => 'required|date',
             'statuses' => 'required|array|min:1',
             'statuses.*.timetable_entry_id' => 'required|integer|exists:timetable_entries,id',
-            'statuses.*.status' => 'required|in:attended,not_attended',
+            'statuses.*.status' => 'required|in:attended,not_attended,recovered',
             'statuses.*.remarks' => 'nullable|string',
         ]);
 
@@ -137,7 +137,7 @@ class LessonController extends Controller
         $lesson = $this->scopedLesson($id);
 
         $validated = $request->validate([
-            'status' => 'required|in:attended,not_attended',
+            'status' => 'required|in:attended,not_attended,recovered',
             'remarks' => 'nullable|string',
         ]);
 
@@ -204,15 +204,36 @@ class LessonController extends Controller
     }
 
     /**
-     * Classes selectable for lesson attendance, scoped to the viewer's
-     * institution(s) unless they're an Admin.
+     * Classes selectable for lesson attendance, scoped to the viewer's own
+     * class(es)/institution unless they're an Admin.
      */
     private function scopedClasses()
     {
+        $user = Auth::user();
+
+        if ($user->hasRole('Parent')) {
+            $classIds = StudentDetails::where('parent_id', $user->id)
+                ->pluck('class_id')->filter()->map(fn ($id) => (int) $id)->unique();
+
+            return SchoolClass::whereIn('id', $classIds)->orderBy('name')->get();
+        }
+
+        if ($user->hasRole('Student')) {
+            $classId = StudentDetails::where('student_id', $user->id)->value('class_id');
+
+            return SchoolClass::whereIn('id', array_filter([(int) $classId]))->orderBy('name')->get();
+        }
+
+        if ($user->hasRole('Teacher')) {
+            $institutionId = $user->teacherUserDetails?->institution_id;
+
+            return SchoolClass::where('institution_id', $institutionId ?? 0)->orderBy('name')->get();
+        }
+
         $query = SchoolClass::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->whereIn('institution_id', $user->institution()->pluck('id'));
         }
 
         return $query->orderBy('name')->get();

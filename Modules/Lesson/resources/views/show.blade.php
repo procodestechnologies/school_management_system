@@ -37,8 +37,8 @@
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Status</p>
                     <p class="text-sm">
-                        <flux:badge :color="$lesson->isAttended() ? 'emerald' : 'red'">
-                            {{ $lesson->isAttended() ? 'Attended' : 'Not Attended' }}
+                        <flux:badge :color="$lesson->statusColor()">
+                            {{ $lesson->statusLabel() }}
                         </flux:badge>
                     </p>
                 </div>

@@ -30,6 +30,9 @@
                         <flux:select.option value="not_attended"
                             :selected="old('status', $lesson->status) === 'not_attended'">
                             Not Attended</flux:select.option>
+                        <flux:select.option value="recovered"
+                            :selected="old('status', $lesson->status) === 'recovered'">
+                            Recovered</flux:select.option>
                     </flux:select>
 
                     <div class="md:col-span-2">
