@@ -26,7 +26,7 @@ class SyncStudentsToDeviceListener
     {
         $serialNumber = $event->device->serial_number;
 
-        $devices = Devices::where('serial_number', $serialNumber)
+        $devices = Devices::whereSerialNumber($serialNumber)
             ->where('is_active', true)
             ->get();
 

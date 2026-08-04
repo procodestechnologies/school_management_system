@@ -112,6 +112,7 @@
             margin-top: 24px;
             font-size: 9px;
             color: #9ca3af;
+            text-align: center;
         }
     </style>
 </head>
@@ -225,7 +226,7 @@
         </div>
     @endif
 
-    <p class="footer-note">This report card was generated automatically by {{ $institution->name }}'s
+    <p class="footer-note text-center">This report card was generated automatically by {{ $institution->name }}'s
         school management system.</p>
 </body>
 
