@@ -3,7 +3,9 @@
 namespace Modules\Student\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Devices;
 use App\Models\User;
+use App\Services\ZKTecoUserSyncService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +19,10 @@ use Modules\Student\Models\StudentDetails;
 
 class StudentController extends Controller
 {
+    public function __construct(
+        private readonly ZKTecoUserSyncService $syncService,
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -66,7 +72,7 @@ class StudentController extends Controller
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
-            'profile_photo' => 'nullable|image|max:2048',
+            'profile_image' => 'required|image|max:2048',
             'admission_number' => 'nullable|string|max:100',
             'student_number' => 'nullable|string|max:100',
             'institution_id' => 'required|exists:institutions,id',
@@ -97,7 +103,6 @@ class StudentController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
-
         try {
             DB::transaction(function () use ($request, $validated) {
                 // 1. Create Parent User (if parent details are provided)
@@ -105,7 +110,7 @@ class StudentController extends Controller
                 if (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
                     $parent = User::create([
                         'name' => $validated['parent_name'] ?? 'Parent',
-                        'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
+                        'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
                         'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                     ]);
                     $parent->syncRoles('Parent');
@@ -136,6 +141,7 @@ class StudentController extends Controller
                         'is_active',
                         'parent_name',
                         'parent_phone',
+                        'profile_photo',
                         'parent_email',
                         'parent_occupation',
                     ])
@@ -155,8 +161,8 @@ class StudentController extends Controller
                 $studentData['is_active'] = $request->boolean('is_active');
 
                 // Handle profile photo upload
-                if ($request->hasFile('profile_photo')) {
-                    $studentData['profile_photo'] = $request->file('profile_photo')
+                if ($request->hasFile('profile_image')) {
+                    $studentData['profile_photo'] = $request->file('profile_image')
                         ->store('students/photos', 'public');
                 }
 
@@ -167,12 +173,12 @@ class StudentController extends Controller
             return redirect()->route('student.index')
                 ->with('success', 'Student created successfully!');
         } catch (Exception $e) {
-            Log::error('Student creation failed: '.$e->getMessage());
-            Log::error('Stack trace: '.$e->getTraceAsString());
+            Log::error('Student creation failed: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create student: '.$e->getMessage());
+                ->with('error', 'Failed to create student: ' . $e->getMessage());
         }
     }
 
@@ -205,14 +211,13 @@ class StudentController extends Controller
     public function update(Request $request, $id)
     {
         abort_unless(Auth::user()->can('update student'), 403);
-
         // Validate the request
         $validated = $request->validate([
             // Personal
             'phone' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
-            'profile_photo' => 'nullable|image|max:2048',
+            'profile_image' => 'required|image|max:2048',
             'admission_number' => 'nullable|string|max:100',
             'student_number' => 'nullable|string|max:100',
             'institution_id' => 'required|exists:institutions,id',
@@ -243,7 +248,7 @@ class StudentController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
-
+        $validated['profile_photo'] = $request->file('profile_image')->store('students/photos', 'public');
         try {
             DB::transaction(function () use ($request, $validated, $id) {
                 // 1. Find the student details
@@ -265,12 +270,18 @@ class StudentController extends Controller
                         Storage::disk('public')->delete($studentDetails->profile_photo);
                     }
 
-                    $studentData['profile_photo'] = $request->file('profile_photo')
-                        ->store('students/photos', 'public');
+                    $studentData['profile_photo'] = $request->file('profile_image')->store('students/photos', 'public');
                 }
 
                 // Update student details
                 $studentDetails->update($studentData);
+
+                // If the photo changed for a student already synced to a
+                // device, push the update immediately rather than waiting
+                // for the device's next connect event.
+                if ($request->hasFile('profile_photo')) {
+                    $this->resyncPhotoIfAlreadySynced($studentDetails);
+                }
 
                 // 3. Handle Parent User and Parent Details
                 if (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
@@ -289,7 +300,7 @@ class StudentController extends Controller
                             // Parent user was deleted, create new
                             $parent = User::create([
                                 'name' => $validated['parent_name'] ?? 'Parent',
-                                'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
+                                'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
                                 'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                             ]);
                             $parent->syncRoles('Parent');
@@ -300,7 +311,7 @@ class StudentController extends Controller
                         // Create new parent user
                         $parent = User::create([
                             'name' => $validated['parent_name'] ?? 'Parent',
-                            'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
+                            'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
                             'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                         ]);
                         $parent->syncRoles('Parent');
@@ -338,11 +349,11 @@ class StudentController extends Controller
             return redirect()->route('student.show', $id)
                 ->with('success', 'Student updated successfully!');
         } catch (Exception $e) {
-            Log::error('Student update failed: '.$e->getMessage());
+            Log::error('Student update failed: ' . $e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update student: '.$e->getMessage());
+                ->with('error', 'Failed to update student: ' . $e->getMessage());
         }
     }
 
@@ -358,5 +369,50 @@ class StudentController extends Controller
         $user->delete();
 
         return redirect()->route('student.index')->with('success', 'Sutudent and Parent successfully removed from institution!');
+    }
+
+    /**
+     * Push the student's updated photo (and current info) to their
+     * institution's active device(s), but only if they were already synced
+     * - a student who was never synced will pick up the new photo the same
+     * way they'd pick up anything else: manual sync or the device's next
+     * connect event.
+     */
+    private function resyncPhotoIfAlreadySynced(StudentDetails $studentDetails): void
+    {
+        $student = User::findORFail($studentDetails->student_id);
+
+        if (! $student || ! $student->zkteco_synced) {
+            return;
+        }
+
+        $devices = Devices::whereInstitutionId($studentDetails->institution_id)
+            ->where('is_active', true)
+            ->get();
+
+        if ($devices->isEmpty()) {
+            return;
+        }
+
+        $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
+            ? Storage::disk('public')->path($studentDetails->profile_photo)
+            : null;
+
+        foreach ($devices as $device) {
+            $this->syncService->addUserToDevice($device->serial_number, [
+                'pin' => (string) $student->id,
+                'name' => $student->name,
+                'privilege' => 0,
+                'card' => $studentDetails->student_number ?? '',
+                'password' => $studentDetails->admission_number ?? '',
+                'app_user_id' => $student->id,
+                'photo_path' => $photoPath,
+            ]);
+        }
+
+        Log::info('Re-synced student photo to device(s) after edit', [
+            'student_id' => $student->id,
+            'device_count' => $devices->count(),
+        ]);
     }
 }

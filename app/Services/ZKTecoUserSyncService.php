@@ -27,7 +27,7 @@ class ZKTecoUserSyncService
      * Add a user to a ZKTeco device.
      *
      * @param  string  $deviceSerial  The serial number of the device
-     * @param  array  $userData  User data with keys: pin, name, privilege, card, password
+     * @param  array  $userData  User data with keys: pin, name, privilege, card, password, photo_path (optional, absolute filesystem path)
      * @return bool True if user was added/updated successfully
      */
     public function addUserToDevice(string $deviceSerial, array $userData): bool
@@ -117,6 +117,10 @@ class ZKTecoUserSyncService
 
             // Clear cache for this device
             Cache::forget("device_users_{$deviceSerial}");
+
+            if (! empty($userData['photo_path'])) {
+                $this->queuePhotoCommand($deviceSerial, (string) $userData['pin'], (string) $userData['photo_path']);
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -294,5 +298,114 @@ class ZKTecoUserSyncService
 
             return [];
         }
+    }
+
+    /**
+     * Push a user's photo to a device as a BIOPHOTO record.
+     *
+     * NOTE: the ZKTeco push protocol's exact BIOPHOTO field names/type code
+     * vary a little across firmware generations. This uses the commonly
+     * documented push-SDK format (Type=9 for a JPEG face photo) - verify
+     * against your specific device model's protocol docs if photos don't
+     * appear on-device after syncing.
+     *
+     * @param  string  $deviceSerial  The serial number of the device
+     * @param  string  $pin  The user's PIN (matches the PIN used in addUserToDevice)
+     * @param  string  $absolutePhotoPath  Absolute filesystem path to the source photo
+     */
+    private function queuePhotoCommand(string $deviceSerial, string $pin, string $absolutePhotoPath): void
+    {
+        try {
+            if (! is_file($absolutePhotoPath)) {
+                Log::warning('Photo file not found, skipping device photo sync', [
+                    'device' => $deviceSerial,
+                    'pin' => $pin,
+                    'path' => $absolutePhotoPath,
+                ]);
+
+                return;
+            }
+
+            $jpegContents = $this->resizePhotoForDevice($absolutePhotoPath);
+
+            if ($jpegContents === null) {
+                Log::warning('Could not process photo for device sync', [
+                    'device' => $deviceSerial,
+                    'pin' => $pin,
+                ]);
+
+                return;
+            }
+
+            $encoded = base64_encode($jpegContents);
+
+            $commandString = sprintf(
+                "DATA UPDATE BIOPHOTO PIN=%s\tType=9\tSize=%d\tContent=%s",
+                $pin,
+                strlen($jpegContents),
+                $encoded
+            );
+
+            $this->commandManager->queueCommand($deviceSerial, $commandString);
+
+            Log::info('Photo command queued', [
+                'device' => $deviceSerial,
+                'pin' => $pin,
+                'bytes' => strlen($jpegContents),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to queue photo command', [
+                'device' => $deviceSerial,
+                'pin' => $pin,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Resize a photo down to a small square JPEG suitable for pushing to a
+     * device (devices expect a small headshot, not a multi-megabyte upload).
+     *
+     * @return string|null The re-encoded JPEG binary contents, or null on failure
+     */
+    private function resizePhotoForDevice(string $absolutePath, int $maxDimension = 200): ?string
+    {
+        $imageInfo = @getimagesize($absolutePath);
+
+        if ($imageInfo === false) {
+            return null;
+        }
+
+        $source = match ($imageInfo['mime']) {
+            'image/jpeg' => @imagecreatefromjpeg($absolutePath),
+            'image/png' => @imagecreatefrompng($absolutePath),
+            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($absolutePath) : false,
+            default => false,
+        };
+
+        if (! $source) {
+            return null;
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $scale = min($maxDimension / $width, $maxDimension / $height, 1);
+        $newWidth = max(1, (int) round($width * $scale));
+        $newHeight = max(1, (int) round($height * $scale));
+
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        // Flatten transparency onto a white background - devices expect a plain JPEG.
+        $white = imagecolorallocate($resized, 255, 255, 255);
+        imagefill($resized, 0, 0, $white);
+        imagecopyresampled($resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+        ob_start();
+        imagejpeg($resized, null, 80);
+        $contents = ob_get_clean();
+
+        imagedestroy($source);
+        imagedestroy($resized);
+
+        return $contents !== false ? $contents : null;
     }
 }

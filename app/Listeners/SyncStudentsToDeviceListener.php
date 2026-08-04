@@ -6,6 +6,7 @@ use App\Models\Devices;
 use App\Services\ZKTecoUserSyncService;
 use Athwari\LaravelZktecoAdms\Events\DeviceConnected;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Modules\Student\Models\StudentDetails;
 
 /**
@@ -52,6 +53,10 @@ class SyncStudentsToDeviceListener
                 continue;
             }
 
+            $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
+                ? Storage::disk('public')->path($studentDetails->profile_photo)
+                : null;
+
             $synced = $this->syncService->addUserToDevice($serialNumber, [
                 'pin' => (string) $student->id,
                 'name' => $student->name,
@@ -59,6 +64,7 @@ class SyncStudentsToDeviceListener
                 'card' => $studentDetails->student_number ?? '',
                 'password' => $studentDetails->admission_number ?? '',
                 'app_user_id' => $student->id,
+                'photo_path' => $photoPath,
             ]);
 
             $student->update($synced

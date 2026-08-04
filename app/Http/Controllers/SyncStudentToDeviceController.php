@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\ZKTecoUserSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Modules\Student\Models\StudentDetails;
 
 class SyncStudentToDeviceController extends Controller
 {
@@ -22,7 +24,7 @@ class SyncStudentToDeviceController extends Controller
      */
     public function syncStudent(Request $request, $studentId)
     {
-        $student = User::with('studentUserDetails')->findOrFail($studentId);
+        $student = User::findOrFail($studentId);
 
         if (! $student->hasRole('Student')) {
             return response()->json([
@@ -31,7 +33,20 @@ class SyncStudentToDeviceController extends Controller
             ], 422);
         }
 
-        $devices = Devices::whereSerialNumber($student->studentInstitution->devices->first()->serial_number)->get();
+        // NOTE: User::studentUserDetails() points at a 'user_id' column that
+        // doesn't exist on student_details - query by student_id directly.
+        $studentDetails = StudentDetails::where('student_id', $student->id)->first();
+
+        if (! $studentDetails) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student profile not found',
+            ], 404);
+        }
+
+        $devices = Devices::where('institution_id', $studentDetails->institution_id)
+            ->where('is_active', true)
+            ->get();
 
         if ($devices->isEmpty()) {
             return response()->json([
@@ -40,24 +55,15 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
-        $studentDetails = $student->studentUserDetails;
+        $deviceUserData = $this->buildDeviceUserData($student, $studentDetails);
 
-        // Prepare user data for device
-        // IMPORTANT: Password = admission_number, Card = student_number
-        $deviceUserData = [
-            'pin' => (string) $student->id,
-            'name' => $student->name,
-            'privilege' => 0, // Normal user
-            'card' => $studentDetails?->student_number ?? '', // Card number (RFID)
-            'password' => $studentDetails?->admission_number ?? '', // Password = admission_number
-            'app_user_id' => $student->id,
-        ];
         Log::debug('Manual sync data', [
             'student_id' => $student->id,
             'pin' => $deviceUserData['pin'],
             'name' => $deviceUserData['name'],
             'card' => $deviceUserData['card'],
             'password' => $deviceUserData['password'] ? 'set' : 'not set',
+            'photo' => $deviceUserData['photo_path'] ? 'set' : 'not set',
         ]);
 
         $results = [];
@@ -141,13 +147,22 @@ class SyncStudentToDeviceController extends Controller
      */
     public function syncStudentToDevice(Request $request, $studentId, $deviceSerial)
     {
-        $student = User::with('studentUserDetails')->findOrFail($studentId);
+        $student = User::findOrFail($studentId);
 
         if (! $student->hasRole('Student')) {
             return response()->json([
                 'success' => false,
                 'message' => 'User is not a student',
             ], 422);
+        }
+
+        $studentDetails = StudentDetails::where('student_id', $student->id)->first();
+
+        if (! $studentDetails) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student profile not found',
+            ], 404);
         }
 
         // Check if device exists and is active
@@ -162,16 +177,7 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
-        // Prepare user data
-        $studentDetails = $student->studentUserDetails;
-        $deviceUserData = [
-            'pin' => (string) $student->id,
-            'name' => $student->name,
-            'privilege' => 0,
-            'card' => $studentDetails?->student_number ?? '',
-            'password' => $studentDetails?->admission_number ?? '',
-            'app_user_id' => $student->id,
-        ];
+        $deviceUserData = $this->buildDeviceUserData($student, $studentDetails);
 
         try {
             // Check if user exists
@@ -234,5 +240,29 @@ class SyncStudentToDeviceController extends Controller
                 'message' => 'Error syncing student: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Build the payload sent to ZKTecoUserSyncService::addUserToDevice().
+     *
+     * IMPORTANT: Password = admission_number, Card = student_number. Photo
+     * (if the student has one on file) rides along in the same sync call so
+     * PIN/name/card/password/photo always stay in lockstep on the device.
+     */
+    private function buildDeviceUserData(User $student, StudentDetails $studentDetails): array
+    {
+        $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
+            ? Storage::disk('public')->path($studentDetails->profile_photo)
+            : null;
+
+        return [
+            'pin' => (string) $student->id,
+            'name' => $student->name,
+            'privilege' => 0, // Normal user
+            'card' => $studentDetails->student_number ?? '',
+            'password' => $studentDetails->admission_number ?? '',
+            'app_user_id' => $student->id,
+            'photo_path' => $photoPath,
+        ];
     }
 }
