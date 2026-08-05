@@ -3,10 +3,10 @@
 namespace App\Listeners;
 
 use App\Models\Devices;
+use App\Services\ProfilePhotoResolver;
 use App\Services\ZKTecoUserSyncService;
 use Athwari\LaravelZktecoAdms\Events\DeviceConnected;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Modules\Student\Models\StudentDetails;
 
 /**
@@ -20,6 +20,7 @@ class SyncStudentsToDeviceListener
 {
     public function __construct(
         private readonly ZKTecoUserSyncService $syncService,
+        private readonly ProfilePhotoResolver $photoResolver,
     ) {}
 
     public function handle(DeviceConnected $event): void
@@ -53,19 +54,17 @@ class SyncStudentsToDeviceListener
                 continue;
             }
 
-            $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
-                ? Storage::disk('public')->path($studentDetails->profile_photo)
-                : null;
-
-            $synced = $this->syncService->addUserToDevice($serialNumber, [
-                'pin' => (string) $student->id,
-                'name' => $student->name,
-                'privilege' => 0,
-                'card' => $studentDetails->student_number ?? '',
-                'password' => $studentDetails->admission_number ?? '',
-                'app_user_id' => $student->id,
-                'photo_path' => $photoPath,
-            ]);
+            $synced = $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($serialNumber, $student, $studentDetails) {
+                return $this->syncService->addUserToDevice($serialNumber, [
+                    'pin' => (string) $student->id,
+                    'name' => $student->name,
+                    'privilege' => 0,
+                    'card' => $studentDetails->student_number ?? '',
+                    'password' => $studentDetails->admission_number ?? '',
+                    'app_user_id' => $student->id,
+                    'photo_path' => $photoPath,
+                ]);
+            });
 
             $student->update($synced
                 ? ['zkteco_synced' => true, 'zkteco_synced_at' => now(), 'zkteco_sync_error' => null]

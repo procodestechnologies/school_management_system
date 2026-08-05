@@ -6,7 +6,7 @@
 <div class="flex justify-center mb-6">
     <div class="relative">
         @if ($currentPhoto)
-            <img src="{{ Storage::url($currentPhoto) }}" alt="{{ $student->name }}"
+            <img src="{{ Storage::disk('cloudinary')->url($currentPhoto) }}" alt="{{ $student->name }}"
                 class="h-32 w-32 rounded-full object-cover border-4 border-gray-200">
         @else
             <div class="h-32 w-32 rounded-full bg-gray-100 border-4 border-gray-200 flex items-center justify-center">

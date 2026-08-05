@@ -82,7 +82,7 @@ class InstitutionController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            $data['logo'] = $request->file('logo')->store('institutions/logos', 'public');
+            $data['logo'] = $request->file('logo')->store('institutions/logos', 'cloudinary');
         }
 
         // New institutions start unapproved regardless of the column's
@@ -187,11 +187,11 @@ class InstitutionController extends Controller
 
             // Handle logo upload
             if ($request->hasFile('logo')) {
-                if ($institution->logo && Storage::disk('public')->exists($institution->logo)) {
-                    Storage::disk('public')->delete($institution->logo);
+                if ($institution->logo && Storage::disk('cloudinary')->exists($institution->logo)) {
+                    Storage::disk('cloudinary')->delete($institution->logo);
                 }
 
-                $validated['logo'] = $request->file('logo')->store('institutions/logos', 'public');
+                $validated['logo'] = $request->file('logo')->store('institutions/logos', 'cloudinary');
             }
 
             // Update the institution

@@ -137,7 +137,7 @@
                             </div>
                             @if ($institution->logo)
                                 <div>
-                                    <img src="{{ Storage::url($institution->logo) }}" alt="{{ $institution->name }}"
+                                    <img src="{{ Storage::disk('cloudinary')->url($institution->logo) }}" alt="{{ $institution->name }}"
                                         class="h-16 w-auto rounded border border-gray-200 bg-white p-1">
                                 </div>
                             @endif

@@ -48,9 +48,9 @@
             <div class="p-6">
 
                 {{-- Profile Photo --}}
-                @if ($student->profile_photo)
+                @if ($student->studentUserDetails?->profile_photo)
                     <div class="flex justify-center mb-6">
-                        <img src="{{ Storage::url($student->profile_photo) }}" alt="{{ $student->name }}"
+                        <img src="{{ Storage::disk('cloudinary')->url($student->studentUserDetails->profile_photo) }}" alt="{{ $student->name }}"
                             class="h-32 w-32 rounded-full object-cover border-4 border-gray-200">
                     </div>
                 @endif

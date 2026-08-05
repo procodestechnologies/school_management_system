@@ -87,12 +87,12 @@ class ReportCardPdfService
 
     private function logoDataUri($institution): ?string
     {
-        if (! $institution->logo || ! Storage::disk('public')->exists($institution->logo)) {
+        if (! $institution->logo || ! Storage::disk('cloudinary')->exists($institution->logo)) {
             return null;
         }
 
-        $mime = Storage::disk('public')->mimeType($institution->logo);
-        $contents = Storage::disk('public')->get($institution->logo);
+        $mime = Storage::disk('cloudinary')->mimeType($institution->logo);
+        $contents = Storage::disk('cloudinary')->get($institution->logo);
 
         return 'data:'.$mime.';base64,'.base64_encode($contents);
     }

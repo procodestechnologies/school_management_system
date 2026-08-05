@@ -3,12 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Models\Devices;
+use App\Services\ProfilePhotoResolver;
 use App\Services\ZKTecoUserSyncService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Modules\Student\Models\StudentDetails;
 
 #[Signature('app:sync-user-to-device
@@ -21,6 +21,7 @@ class SyncUserToDevice extends Command
 {
     public function __construct(
         private readonly ZKTecoUserSyncService $syncService,
+        private readonly ProfilePhotoResolver $photoResolver,
     ) {
         parent::__construct();
     }
@@ -75,34 +76,34 @@ class SyncUserToDevice extends Command
                 return;
             }
 
-            $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
-                ? Storage::disk('public')->path($studentDetails->profile_photo)
-                : null;
+            [$attempted, $succeeded] = $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($devices, $student, $studentDetails, $force) {
+                $deviceUserData = [
+                    'pin' => (string) $student->id,
+                    'name' => $student->name,
+                    'privilege' => 0,
+                    'card' => $studentDetails->student_number ?? '',
+                    'password' => $studentDetails->admission_number ?? '',
+                    'app_user_id' => $student->id,
+                    'photo_path' => $photoPath,
+                ];
 
-            $deviceUserData = [
-                'pin' => (string) $student->id,
-                'name' => $student->name,
-                'privilege' => 0,
-                'card' => $studentDetails->student_number ?? '',
-                'password' => $studentDetails->admission_number ?? '',
-                'app_user_id' => $student->id,
-                'photo_path' => $photoPath,
-            ];
+                $attempted = false;
+                $succeeded = false;
 
-            $attempted = false;
-            $succeeded = false;
+                foreach ($devices as $device) {
+                    if (! $force && $this->syncService->userExistsOnDevice($device->serial_number, (string) $student->id)) {
+                        continue;
+                    }
 
-            foreach ($devices as $device) {
-                if (! $force && $this->syncService->userExistsOnDevice($device->serial_number, (string) $student->id)) {
-                    continue;
+                    $attempted = true;
+
+                    if ($this->syncService->addUserToDevice($device->serial_number, $deviceUserData)) {
+                        $succeeded = true;
+                    }
                 }
 
-                $attempted = true;
-
-                if ($this->syncService->addUserToDevice($device->serial_number, $deviceUserData)) {
-                    $succeeded = true;
-                }
-            }
+                return [$attempted, $succeeded];
+            });
 
             if ($succeeded) {
                 $student->update([

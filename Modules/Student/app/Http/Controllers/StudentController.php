@@ -5,6 +5,7 @@ namespace Modules\Student\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Devices;
 use App\Models\User;
+use App\Services\ProfilePhotoResolver;
 use App\Services\ZKTecoUserSyncService;
 use Exception;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class StudentController extends Controller
 {
     public function __construct(
         private readonly ZKTecoUserSyncService $syncService,
+        private readonly ProfilePhotoResolver $photoResolver,
     ) {}
 
     /**
@@ -163,7 +165,7 @@ class StudentController extends Controller
                 // Handle profile photo upload
                 if ($request->hasFile('profile_image')) {
                     $studentData['profile_photo'] = $request->file('profile_image')
-                        ->store('students/photos', 'public');
+                        ->store('students/photos', 'cloudinary');
                 }
 
                 // 4. Create Student Details using the relationship
@@ -264,11 +266,11 @@ class StudentController extends Controller
 
                 // Handle profile photo upload: replace and delete the old file if a new one was sent
                 if ($request->hasFile('profile_image')) {
-                    if ($studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)) {
-                        Storage::disk('public')->delete($studentDetails->profile_photo);
+                    if ($studentDetails->profile_photo && Storage::disk('cloudinary')->exists($studentDetails->profile_photo)) {
+                        Storage::disk('cloudinary')->delete($studentDetails->profile_photo);
                     }
 
-                    $studentData['profile_photo'] = $request->file('profile_image')->store('students/photos', 'public');
+                    $studentData['profile_photo'] = $request->file('profile_image')->store('students/photos', 'cloudinary');
                 }
 
                 // Update student details
@@ -392,21 +394,19 @@ class StudentController extends Controller
             return;
         }
 
-        $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
-            ? Storage::disk('public')->path($studentDetails->profile_photo)
-            : null;
-
-        foreach ($devices as $device) {
-            $this->syncService->addUserToDevice($device->serial_number, [
-                'pin' => (string) $student->id,
-                'name' => $student->name,
-                'privilege' => 0,
-                'card' => $studentDetails->student_number ?? '',
-                'password' => $studentDetails->admission_number ?? '',
-                'app_user_id' => $student->id,
-                'photo_path' => $photoPath,
-            ]);
-        }
+        $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($devices, $student, $studentDetails) {
+            foreach ($devices as $device) {
+                $this->syncService->addUserToDevice($device->serial_number, [
+                    'pin' => (string) $student->id,
+                    'name' => $student->name,
+                    'privilege' => 0,
+                    'card' => $studentDetails->student_number ?? '',
+                    'password' => $studentDetails->admission_number ?? '',
+                    'app_user_id' => $student->id,
+                    'photo_path' => $photoPath,
+                ]);
+            }
+        });
 
         Log::info('Re-synced student photo to device(s) after edit', [
             'student_id' => $student->id,

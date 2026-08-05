@@ -12,7 +12,7 @@
         "php": "^8.3",
         "athwari/laravel-zkteco-adms": "@dev",
         "barryvdh/laravel-dompdf": "^3.1",
-        "cloudinary-labs/cloudinary-laravel": "*",
+        "cloudinary-labs/cloudinary-laravel": "@dev",
         "itsmurumba/laravel-hostpinnacle": "@dev",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
@@ -132,6 +132,10 @@
         {
             "type": "path",
             "url": "packages/laravel-zkteco-adms"
+        },
+        {
+            "type": "path",
+            "url": "packages/cloudinary-laravel-master"
         },
         {
             "type": "path",

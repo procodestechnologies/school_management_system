@@ -4,20 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Devices;
 use App\Models\User;
+use App\Services\ProfilePhotoResolver;
 use App\Services\ZKTecoUserSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Modules\Student\Models\StudentDetails;
 
 class SyncStudentToDeviceController extends Controller
 {
-    private ZKTecoUserSyncService $syncService;
-
-    public function __construct(ZKTecoUserSyncService $syncService)
-    {
-        $this->syncService = $syncService;
-    }
+    public function __construct(
+        private readonly ZKTecoUserSyncService $syncService,
+        private readonly ProfilePhotoResolver $photoResolver,
+    ) {}
 
     /**
      * Manually sync a student to all active devices.
@@ -55,91 +53,93 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
-        $deviceUserData = $this->buildDeviceUserData($student, $studentDetails);
+        return $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($student, $studentDetails, $devices) {
+            $deviceUserData = $this->buildDeviceUserData($student, $studentDetails, $photoPath);
 
-        Log::debug('Manual sync data', [
-            'student_id' => $student->id,
-            'pin' => $deviceUserData['pin'],
-            'name' => $deviceUserData['name'],
-            'card' => $deviceUserData['card'],
-            'password' => $deviceUserData['password'] ? 'set' : 'not set',
-            'photo' => $deviceUserData['photo_path'] ? 'set' : 'not set',
-        ]);
+            Log::debug('Manual sync data', [
+                'student_id' => $student->id,
+                'pin' => $deviceUserData['pin'],
+                'name' => $deviceUserData['name'],
+                'card' => $deviceUserData['card'],
+                'password' => $deviceUserData['password'] ? 'set' : 'not set',
+                'photo' => $deviceUserData['photo_path'] ? 'set' : 'not set',
+            ]);
 
-        $results = [];
-        $syncedCount = 0;
+            $results = [];
+            $syncedCount = 0;
 
-        foreach ($devices as $device) {
-            try {
-                $exists = $this->syncService->userExistsOnDevice(
-                    $device->serial_number,
-                    (string) $student->id
-                );
+            foreach ($devices as $device) {
+                try {
+                    $exists = $this->syncService->userExistsOnDevice(
+                        $device->serial_number,
+                        (string) $student->id
+                    );
 
-                if ($exists) {
+                    if ($exists) {
+                        $results[$device->serial_number] = [
+                            'status' => 'exists',
+                            'message' => 'User already exists on this device',
+                        ];
+
+                        continue;
+                    }
+
+                    $result = $this->syncService->addUserToDevice(
+                        $device->serial_number,
+                        $deviceUserData
+                    );
+
+                    if ($result) {
+                        $syncedCount++;
+                        $results[$device->serial_number] = [
+                            'status' => 'success',
+                            'message' => 'User synced successfully',
+                        ];
+                    } else {
+                        $results[$device->serial_number] = [
+                            'status' => 'failed',
+                            'message' => 'Failed to sync user to device',
+                        ];
+                    }
+
+                } catch (\Exception $e) {
+                    Log::error('Manual sync failed for student', [
+                        'student_id' => $student->id,
+                        'device' => $device->serial_number,
+                        'error' => $e->getMessage(),
+                    ]);
+
                     $results[$device->serial_number] = [
-                        'status' => 'exists',
-                        'message' => 'User already exists on this device',
+                        'status' => 'error',
+                        'message' => $e->getMessage(),
                     ];
-
-                    continue;
                 }
-
-                $result = $this->syncService->addUserToDevice(
-                    $device->serial_number,
-                    $deviceUserData
-                );
-
-                if ($result) {
-                    $syncedCount++;
-                    $results[$device->serial_number] = [
-                        'status' => 'success',
-                        'message' => 'User synced successfully',
-                    ];
-                } else {
-                    $results[$device->serial_number] = [
-                        'status' => 'failed',
-                        'message' => 'Failed to sync user to device',
-                    ];
-                }
-
-            } catch (\Exception $e) {
-                Log::error('Manual sync failed for student', [
-                    'student_id' => $student->id,
-                    'device' => $device->serial_number,
-                    'error' => $e->getMessage(),
-                ]);
-
-                $results[$device->serial_number] = [
-                    'status' => 'error',
-                    'message' => $e->getMessage(),
-                ];
             }
-        }
 
-        if ($syncedCount > 0) {
-            $student->update([
-                'zkteco_synced' => true,
-                'zkteco_synced_at' => now(),
-                'zkteco_sync_error' => null,
-            ]);
-        } else {
-            $student->update([
-                'zkteco_synced' => false,
-                'zkteco_sync_error' => 'Manual sync failed for all devices',
-            ]);
-        }
+            if ($syncedCount > 0) {
+                $student->update([
+                    'zkteco_synced' => true,
+                    'zkteco_synced_at' => now(),
+                    'zkteco_sync_error' => null,
+                ]);
+            } else {
+                $student->update([
+                    'zkteco_synced' => false,
+                    'zkteco_sync_error' => 'Manual sync failed for all devices',
+                ]);
+            }
 
-        return response()->json([
-            'success' => $syncedCount > 0,
-            'message' => $syncedCount > 0 ? "Student synced to {$syncedCount} device(s)" : 'Failed to sync to any device',
-            'data' => [
-                'student' => $student,
-                'devices_synced' => $syncedCount,
-                'total_devices' => $devices->count(),
-                'results' => $results,
-            ],
-        ]);
+            return response()->json([
+                'success' => $syncedCount > 0,
+                'message' => $syncedCount > 0 ? "Student synced to {$syncedCount} device(s)" : 'Failed to sync to any device',
+                'data' => [
+                    'student' => $student,
+                    'devices_synced' => $syncedCount,
+                    'total_devices' => $devices->count(),
+                    'results' => $results,
+                ],
+            ]);
+        });
     }
 
     /**
@@ -177,69 +177,71 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
-        $deviceUserData = $this->buildDeviceUserData($student, $studentDetails);
+        return $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($student, $studentDetails, $device) {
+            $deviceUserData = $this->buildDeviceUserData($student, $studentDetails, $photoPath);
 
-        try {
-            // Check if user exists
-            $exists = $this->syncService->userExistsOnDevice(
-                $device->serial_number,
-                (string) $student->id
-            );
+            try {
+                // Check if user exists
+                $exists = $this->syncService->userExistsOnDevice(
+                    $device->serial_number,
+                    (string) $student->id
+                );
 
-            if ($exists) {
+                if ($exists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User already exists on this device',
+                        'data' => [
+                            'student_id' => $student->id,
+                            'device_serial' => $device->serial_number,
+                            'status' => 'exists',
+                        ],
+                    ]);
+                }
+
+                // Add user to device
+                $result = $this->syncService->addUserToDevice(
+                    $device->serial_number,
+                    $deviceUserData
+                );
+
+                if ($result) {
+                    // Update student sync status
+                    $student->update([
+                        'zkteco_synced' => true,
+                        'zkteco_synced_at' => now(),
+                        'zkteco_sync_error' => null,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Student synced successfully',
+                        'data' => [
+                            'student_id' => $student->id,
+                            'device_serial' => $device->serial_number,
+                            'pin' => $deviceUserData['pin'],
+                            'status' => 'success',
+                        ],
+                    ]);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to sync student to device',
+                    ], 500);
+                }
+            } catch (\Exception $e) {
+                Log::error('Manual sync failed', [
+                    'student_id' => $student->id,
+                    'device' => $device->serial_number,
+                    'error' => $e->getMessage(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'User already exists on this device',
-                    'data' => [
-                        'student_id' => $student->id,
-                        'device_serial' => $device->serial_number,
-                        'status' => 'exists',
-                    ],
-                ]);
-            }
-
-            // Add user to device
-            $result = $this->syncService->addUserToDevice(
-                $device->serial_number,
-                $deviceUserData
-            );
-
-            if ($result) {
-                // Update student sync status
-                $student->update([
-                    'zkteco_synced' => true,
-                    'zkteco_synced_at' => now(),
-                    'zkteco_sync_error' => null,
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Student synced successfully',
-                    'data' => [
-                        'student_id' => $student->id,
-                        'device_serial' => $device->serial_number,
-                        'pin' => $deviceUserData['pin'],
-                        'status' => 'success',
-                    ],
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to sync student to device',
+                    'message' => 'Error syncing student: '.$e->getMessage(),
                 ], 500);
             }
-        } catch (\Exception $e) {
-            Log::error('Manual sync failed', [
-                'student_id' => $student->id,
-                'device' => $device->serial_number,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error syncing student: '.$e->getMessage(),
-            ], 500);
-        }
+        });
     }
 
     /**
@@ -249,12 +251,8 @@ class SyncStudentToDeviceController extends Controller
      * (if the student has one on file) rides along in the same sync call so
      * PIN/name/card/password/photo always stay in lockstep on the device.
      */
-    private function buildDeviceUserData(User $student, StudentDetails $studentDetails): array
+    private function buildDeviceUserData(User $student, StudentDetails $studentDetails, ?string $photoPath): array
     {
-        $photoPath = $studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)
-            ? Storage::disk('public')->path($studentDetails->profile_photo)
-            : null;
-
         return [
             'pin' => (string) $student->id,
             'name' => $student->name,
