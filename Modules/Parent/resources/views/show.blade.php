@@ -43,9 +43,9 @@
                 @else
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Name</flux:table.column>
-                            <flux:table.column>Admission No.</flux:table.column>
-                            <flux:table.column>Institution</flux:table.column>
+                            <x-sortable-column column="name">Name</x-sortable-column>
+                            <x-sortable-column column="admission_number">Admission No.</x-sortable-column>
+                            <x-sortable-column column="institution">Institution</x-sortable-column>
                             <flux:table.column>Status</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>

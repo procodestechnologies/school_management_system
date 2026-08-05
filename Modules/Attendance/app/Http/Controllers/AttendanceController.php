@@ -2,6 +2,7 @@
 
 namespace Modules\Attendance\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\Devices;
 use App\Models\User;
@@ -15,6 +16,8 @@ use Modules\Institution\Models\Institution;
 
 class AttendanceController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -32,9 +35,12 @@ class AttendanceController extends Controller
         }
 
         if ($institution) {
-            $logs = $this->scopedAttendanceLogs($institution, $user, $request)
-                ->paginate(25)
-                ->withQueryString();
+            $logs = $this->applySort(
+                $this->scopedAttendanceLogs($institution, $user, $request),
+                sortable: ['occurred_at', 'status'],
+                defaultColumn: 'occurred_at',
+                defaultDirection: 'desc',
+            )->paginate(25)->withQueryString();
 
             $logs->through(fn (ZktecoAttendanceLog $log) => $this->toDisplayRow($log));
         }
@@ -52,6 +58,7 @@ class AttendanceController extends Controller
         $institution = Institution::findOrFail($institution);
 
         $logs = $this->scopedAttendanceLogs($institution, Auth::user(), $request)
+            ->orderByDesc('occurred_at')
             ->paginate($request->integer('per_page', 25));
 
         $logs->getCollection()->transform(fn (ZktecoAttendanceLog $log) => $this->toApiRow($log));
@@ -102,8 +109,7 @@ class AttendanceController extends Controller
                 });
             })
             ->when($request->filled('from'), fn ($q) => $q->whereDate('occurred_at', '>=', $request->date('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('occurred_at', '<=', $request->date('to')))
-            ->orderByDesc('occurred_at');
+            ->when($request->filled('to'), fn ($q) => $q->whereDate('occurred_at', '<=', $request->date('to')));
     }
 
     /**

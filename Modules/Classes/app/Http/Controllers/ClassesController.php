@@ -2,6 +2,7 @@
 
 namespace Modules\Classes\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Modules\Student\Models\StudentDetails;
 
 class ClassesController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -22,7 +25,12 @@ class ClassesController extends Controller
         $query = SchoolClass::with(['institution', 'classTeacher']);
         $this->scopeToViewer($query);
 
-        $classes = $query->orderBy('name')->get();
+        $classes = $this->applySort(
+            $query,
+            sortable: ['name', 'level', 'capacity'],
+            defaultColumn: 'name',
+            defaultDirection: 'asc',
+        )->get();
 
         return view('classes::index', compact('classes'));
     }
@@ -62,6 +70,16 @@ class ClassesController extends Controller
         abort_unless(Auth::user()->can('view classes'), 403);
 
         $schoolClass = $this->scopedClass($id, ['institution', 'classTeacher', 'students.student']);
+
+        $schoolClass->setRelation('students', $this->sortCollection(
+            $schoolClass->students,
+            sortable: [
+                'name' => fn ($studentDetails) => $studentDetails->student?->name,
+                'admission_number' => 'admission_number',
+            ],
+            defaultColumn: 'admission_number',
+            defaultDirection: 'asc',
+        ));
 
         return view('classes::show', compact('schoolClass'));
     }

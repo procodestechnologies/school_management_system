@@ -19,8 +19,8 @@
                 <flux:table.columns>
                     <flux:table.column>Student</flux:table.column>
                     <flux:table.column>Class</flux:table.column>
-                    <flux:table.column>Term</flux:table.column>
-                    <flux:table.column>Mean Grade</flux:table.column>
+                    <x-sortable-column column="term">Term</x-sortable-column>
+                    <x-sortable-column column="mean_grade">Mean Grade</x-sortable-column>
                     <flux:table.column>Status</flux:table.column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>

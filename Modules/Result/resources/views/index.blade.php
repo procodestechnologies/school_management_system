@@ -50,8 +50,8 @@
                     <flux:table.column>Student</flux:table.column>
                     <flux:table.column>Class</flux:table.column>
                     <flux:table.column>Examination</flux:table.column>
-                    <flux:table.column>Marks</flux:table.column>
-                    <flux:table.column>Grade</flux:table.column>
+                    <x-sortable-column column="marks_obtained">Marks</x-sortable-column>
+                    <x-sortable-column column="grade">Grade</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 

@@ -36,9 +36,9 @@
                             <flux:table.column>Student</flux:table.column>
                             <flux:table.column>Admission No.</flux:table.column>
                             <flux:table.column>Device</flux:table.column>
-                            <flux:table.column>Status</flux:table.column>
+                            <x-sortable-column column="status">Status</x-sortable-column>
                             <flux:table.column>Verify Mode</flux:table.column>
-                            <flux:table.column>Date/Time</flux:table.column>
+                            <x-sortable-column column="occurred_at">Date/Time</x-sortable-column>
                         </flux:table.columns>
 
                         <flux:table.rows>

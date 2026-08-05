@@ -2,6 +2,7 @@
 
 namespace Modules\Lesson\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Modules\Timetable\Models\TimetableEntry;
 
 class LessonController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource: pick a class and a date, see that
      * day's timetable periods with their attended / not attended status.
@@ -52,11 +55,12 @@ class LessonController extends Controller
 
         $recent = collect();
         if ($selectedClass) {
-            $recent = Lesson::with('timetableEntry')
-                ->where('class_id', $selectedClass->id)
-                ->orderByDesc('lesson_date')
-                ->limit(10)
-                ->get();
+            $recent = $this->applySort(
+                Lesson::with('timetableEntry')->where('class_id', $selectedClass->id),
+                sortable: ['lesson_date', 'status'],
+                defaultColumn: 'lesson_date',
+                defaultDirection: 'desc',
+            )->limit(10)->get();
         }
 
         return view('lesson::index', compact('classes', 'selectedClass', 'date', 'rows', 'recent'));

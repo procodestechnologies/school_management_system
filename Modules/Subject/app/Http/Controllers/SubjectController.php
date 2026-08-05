@@ -2,6 +2,7 @@
 
 namespace Modules\Subject\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,8 @@ use Modules\Subject\Models\Subject;
 
 class SubjectController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -21,7 +24,14 @@ class SubjectController extends Controller
         $query = Subject::with('institution');
         $this->scopeToViewer($query);
 
-        $subjects = $query->orderBy('name')->paginate(10);
+        $query = $this->applySort(
+            $query,
+            sortable: ['name', 'code'],
+            defaultColumn: 'name',
+            defaultDirection: 'asc',
+        );
+
+        $subjects = $query->paginate(10)->withQueryString();
 
         return view('subject::index', compact('subjects'));
     }
@@ -60,6 +70,13 @@ class SubjectController extends Controller
         abort_unless(Auth::user()->can('view subject'), 403);
 
         $subject = $this->scopedSubject($id, ['examinations']);
+
+        $subject->setRelation('examinations', $this->sortCollection(
+            $subject->examinations,
+            sortable: ['title' => 'title', 'exam_date' => 'exam_date'],
+            defaultColumn: 'exam_date',
+            defaultDirection: 'asc',
+        ));
 
         return view('subject::show', compact('subject'));
     }

@@ -2,6 +2,7 @@
 
 namespace Modules\Parent\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Modules\Student\Models\StudentDetails;
 
 class ParentController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -26,11 +29,15 @@ class ParentController extends Controller
         // Check if user is admin
         if (isAdmin()) {
             // Admin gets all parents from all institutions
-            $parents = User::role('Parent')
-                ->with(['children' => function ($query) {
-                    $query->with('student', 'institution');
-                }, 'parent'])
-                ->get();
+            $parents = $this->applySort(
+                User::role('Parent')
+                    ->with(['children' => function ($query) {
+                        $query->with('student', 'institution');
+                    }, 'parent']),
+                sortable: ['name'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->get();
 
             $institution = null;
 
@@ -49,12 +56,16 @@ class ParentController extends Controller
         }
 
         // Get parents with their students (children) eager loaded
-        $parents = $institution->parents()
-            ->with(['children' => function ($query) use ($institution) {
-                $query->where('institution_id', $institution->id)
-                    ->with('student'); // Load the student user details
-            }, 'parent'])
-            ->get();
+        $parents = $this->applySort(
+            $institution->parents()
+                ->with(['children' => function ($query) use ($institution) {
+                    $query->where('institution_id', $institution->id)
+                        ->with('student'); // Load the student user details
+                }, 'parent']),
+            sortable: ['name'],
+            defaultColumn: 'created_at',
+            defaultDirection: 'desc',
+        )->get();
 
         return view('parent::index', compact('parents', 'institution'));
     }
@@ -132,6 +143,17 @@ class ParentController extends Controller
             ->findOrFail($id);
 
         $this->authorizeAccessTo($parent);
+
+        $parent->setRelation('children', $this->sortCollection(
+            $parent->children,
+            sortable: [
+                'name' => fn ($child) => $child->student?->name,
+                'admission_number' => 'admission_number',
+                'institution' => fn ($child) => $child->institution?->name,
+            ],
+            defaultColumn: 'admission_number',
+            defaultDirection: 'asc',
+        ));
 
         return view('parent::show', compact('parent'));
     }

@@ -2,6 +2,7 @@
 
 namespace Modules\Lesson\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ use Modules\Student\Models\StudentDetails;
 
 class LessonReportController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource: pick a class, see its daily and
      * weekly lesson attendance reports.
@@ -33,10 +36,12 @@ class LessonReportController extends Controller
 
         $reports = collect();
         if ($selectedClass) {
-            $reports = LessonReport::where('class_id', $selectedClass->id)
-                ->orderByDesc('period_start')
-                ->limit(30)
-                ->get();
+            $reports = $this->applySort(
+                LessonReport::where('class_id', $selectedClass->id),
+                sortable: ['type', 'period_start', 'total_lessons', 'attended_count', 'not_attended_count', 'recovered_count'],
+                defaultColumn: 'period_start',
+                defaultDirection: 'desc',
+            )->limit(30)->get();
         }
 
         return view('lesson::reports.index', compact('classes', 'selectedClass', 'reports'));

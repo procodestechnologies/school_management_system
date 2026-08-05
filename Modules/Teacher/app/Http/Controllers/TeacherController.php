@@ -2,6 +2,7 @@
 
 namespace Modules\Teacher\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Modules\Teacher\Models\TeacherDetails;
 
 class TeacherController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -27,7 +30,12 @@ class TeacherController extends Controller
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
-        $teachers = $query->latest()->paginate(10);
+        $teachers = $this->applySort(
+            $query,
+            sortable: ['employee_number', 'department', 'phone'],
+            defaultColumn: 'created_at',
+            defaultDirection: 'desc',
+        )->paginate(10)->withQueryString();
 
         return view('teacher::index', compact('teachers'));
     }

@@ -17,10 +17,10 @@
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Name</flux:table.column>
-                    <flux:table.column>Employee No.</flux:table.column>
-                    <flux:table.column>Department</flux:table.column>
+                    <x-sortable-column column="employee_number">Employee No.</x-sortable-column>
+                    <x-sortable-column column="department">Department</x-sortable-column>
                     <flux:table.column>Institution</flux:table.column>
-                    <flux:table.column>Phone</flux:table.column>
+                    <x-sortable-column column="phone">Phone</x-sortable-column>
                     <flux:table.column>Status</flux:table.column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>

@@ -2,6 +2,7 @@
 
 namespace Modules\Result\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -17,6 +18,8 @@ use Modules\Timetable\Models\TimetableEntry;
 
 class ResultController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -33,7 +36,12 @@ class ResultController extends Controller
             ->when($classId, fn ($q) => $q->where('class_id', $classId))
             ->when($request->filled('examination_id'), fn ($q) => $q->where('examination_id', $request->integer('examination_id')));
 
-        $results = $query->orderBy('grade','asc')->paginate(10);
+        $results = $this->applySort(
+            $query,
+            sortable: ['marks_obtained', 'grade'],
+            defaultColumn: 'grade',
+            defaultDirection: 'asc',
+        )->paginate(10)->withQueryString();
 
         $classes = $this->scopedClasses();
         $examinations = $this->scopedExaminations($classId);

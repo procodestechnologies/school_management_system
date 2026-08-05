@@ -2,6 +2,7 @@
 
 namespace Modules\Student\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\Devices;
 use App\Models\User;
@@ -20,6 +21,8 @@ use Modules\Student\Models\StudentDetails;
 
 class StudentController extends Controller
 {
+    use Sortable;
+
     public function __construct(
         private readonly ZKTecoUserSyncService $syncService,
         private readonly ProfilePhotoResolver $photoResolver,
@@ -40,7 +43,12 @@ class StudentController extends Controller
             $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
         }
 
-        $students = $query->latest()->get();
+        $students = $this->applySort(
+            $query,
+            sortable: ['admission_number', 'gender', 'phone'],
+            defaultColumn: 'created_at',
+            defaultDirection: 'desc',
+        )->get();
 
         return view('student::index', compact('students'));
     }

@@ -17,7 +17,7 @@
                 @if($parents->count() > 0)
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Parent</flux:table.column>
+                            <x-sortable-column column="name">Parent</x-sortable-column>
                             <flux:table.column>Contact</flux:table.column>
                             <flux:table.column>Students</flux:table.column>
                             <flux:table.column>Status</flux:table.column>

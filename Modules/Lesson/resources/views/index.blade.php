@@ -148,9 +148,9 @@
                     <flux:heading size="lg" class="mb-4">Recent Activity</flux:heading>
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Date</flux:table.column>
+                            <x-sortable-column column="lesson_date">Date</x-sortable-column>
                             <flux:table.column>Subject</flux:table.column>
-                            <flux:table.column>Status</flux:table.column>
+                            <x-sortable-column column="status">Status</x-sortable-column>
                             <flux:table.column>Actions</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>

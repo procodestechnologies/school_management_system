@@ -2,6 +2,7 @@
 
 namespace Modules\ReportCard\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Modules\ReportCard\Models\ReportCard;
@@ -9,6 +10,8 @@ use Modules\Student\Models\StudentDetails;
 
 class ReportCardController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -19,7 +22,12 @@ class ReportCardController extends Controller
         $query = ReportCard::with(['institution', 'schoolClass', 'student']);
         $this->scopeToViewer($query);
 
-        $reportCards = $query->latest('completed_at')->get();
+        $reportCards = $this->applySort(
+            $query,
+            sortable: ['term', 'mean_grade'],
+            defaultColumn: 'completed_at',
+            defaultDirection: 'desc',
+        )->get();
 
         return view('reportcard::index', compact('reportCards'));
     }

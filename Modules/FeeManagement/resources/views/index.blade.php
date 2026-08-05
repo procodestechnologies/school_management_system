@@ -33,12 +33,12 @@
                 <flux:table.columns>
                     <flux:table.column>Student</flux:table.column>
                     <flux:table.column>Institution</flux:table.column>
-                    <flux:table.column>Title</flux:table.column>
-                    <flux:table.column>Amount</flux:table.column>
-                    <flux:table.column>Paid</flux:table.column>
+                    <x-sortable-column column="title">Title</x-sortable-column>
+                    <x-sortable-column column="amount">Amount</x-sortable-column>
+                    <x-sortable-column column="amount_paid">Paid</x-sortable-column>
                     <flux:table.column>Balance</flux:table.column>
                     <flux:table.column>Status</flux:table.column>
-                    <flux:table.column>Due Date</flux:table.column>
+                    <x-sortable-column column="due_date">Due Date</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 

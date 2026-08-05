@@ -2,6 +2,7 @@
 
 namespace Modules\Examinations\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,8 @@ use Modules\Subject\Models\Subject;
 
 class ExaminationsController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -23,7 +26,12 @@ class ExaminationsController extends Controller
         $query = Examination::with(['institution', 'schoolClass', 'subject']);
         $this->scopeToViewer($query);
 
-        $examinations = $query->orderBy('exam_date')->get();
+        $examinations = $this->applySort(
+            $query,
+            sortable: ['title', 'exam_date', 'total_marks'],
+            defaultColumn: 'exam_date',
+            defaultDirection: 'asc',
+        )->get();
 
         return view('examinations::index', compact('examinations'));
     }

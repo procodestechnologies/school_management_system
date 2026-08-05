@@ -16,8 +16,8 @@
         <flux:card>
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Name</flux:table.column>
-                    <flux:table.column>Code</flux:table.column>
+                    <x-sortable-column column="name">Name</x-sortable-column>
+                    <x-sortable-column column="code">Code</x-sortable-column>
                     <flux:table.column>Institution</flux:table.column>
                     <flux:table.column>Type</flux:table.column>
                     <flux:table.column>Status</flux:table.column>

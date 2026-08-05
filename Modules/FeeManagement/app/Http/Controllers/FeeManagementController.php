@@ -2,6 +2,7 @@
 
 namespace Modules\FeeManagement\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Services\FeeReminderService;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Modules\Student\Models\StudentDetails;
 
 class FeeManagementController extends Controller
 {
+    use Sortable;
+
     public function __construct(
         private readonly FeeReminderService $reminderService,
     ) {}
@@ -26,7 +29,12 @@ class FeeManagementController extends Controller
         $query = Fee::with(['student.studentUserDetails', 'institution', 'parent']);
         $this->scopeToViewer($query);
 
-        $fees = $query->latest()->paginate(10);
+        $fees = $this->applySort(
+            $query,
+            sortable: ['title', 'amount', 'amount_paid', 'due_date', 'created_at'],
+            defaultColumn: 'created_at',
+            defaultDirection: 'desc',
+        )->paginate(10)->withQueryString();
 
         if ($request->filled('status')) {
             $fees = $fees->where('status', $request->string('status'));

@@ -45,8 +45,8 @@
                 @else
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Title</flux:table.column>
-                            <flux:table.column>Date</flux:table.column>
+                            <x-sortable-column column="title">Title</x-sortable-column>
+                            <x-sortable-column column="exam_date">Date</x-sortable-column>
                         </flux:table.columns>
                         <flux:table.rows>
                             @foreach ($subject->examinations as $examination)

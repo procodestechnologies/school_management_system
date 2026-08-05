@@ -2,6 +2,7 @@
 
 namespace Modules\Institution\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Carbon\Carbon;
@@ -15,6 +16,8 @@ use Modules\Institution\Models\Institution;
 
 class InstitutionController extends Controller
 {
+    use Sortable;
+
     /**
      * Display a listing of the resource.
      */
@@ -32,7 +35,12 @@ class InstitutionController extends Controller
         abort_unless($this->user->can('view institution'), 403);
 
         if (isAdmin()) {
-            $institution = Institution::with('owner')->get();
+            $institution = $this->applySort(
+                Institution::with('owner'),
+                sortable: ['name', 'code', 'phone', 'email', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->get();
 
             return view('institution::index', compact('institution'));
         }

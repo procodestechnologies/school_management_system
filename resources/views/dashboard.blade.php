@@ -68,7 +68,7 @@
                     <flux:heading size="lg" class="mb-4">Recent Institutions</flux:heading>
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Name</flux:table.column>
+                            <x-sortable-column column="name">Name</x-sortable-column>
                             <flux:table.column>Owner</flux:table.column>
                             <flux:table.column>Status</flux:table.column>
                         </flux:table.columns>

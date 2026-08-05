@@ -9,15 +9,15 @@
         <flux:card>
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Name</flux:table.column>
+                    <x-sortable-column column="name">Name</x-sortable-column>
                     @hasrole('Admin')
                         <flux:table.column>Owner</flux:table.column>
                     @endhasrole
-                    <flux:table.column>Code</flux:table.column>
-                    <flux:table.column>Phone</flux:table.column>
-                    <flux:table.column>Email</flux:table.column>
+                    <x-sortable-column column="code">Code</x-sortable-column>
+                    <x-sortable-column column="phone">Phone</x-sortable-column>
+                    <x-sortable-column column="email">Email</x-sortable-column>
                     <flux:table.column>Status</flux:table.column>
-                    <flux:table.column>Created At</flux:table.column>
+                    <x-sortable-column column="created_at">Created At</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 

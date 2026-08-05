@@ -16,12 +16,12 @@
         <flux:card>
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Title</flux:table.column>
+                    <x-sortable-column column="title">Title</x-sortable-column>
                     <flux:table.column>Subject</flux:table.column>
                     <flux:table.column>Class</flux:table.column>
                     <flux:table.column>Institution</flux:table.column>
-                    <flux:table.column>Date</flux:table.column>
-                    <flux:table.column>Marks</flux:table.column>
+                    <x-sortable-column column="exam_date">Date</x-sortable-column>
+                    <x-sortable-column column="total_marks">Marks</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 

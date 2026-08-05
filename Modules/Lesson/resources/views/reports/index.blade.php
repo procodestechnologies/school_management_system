@@ -66,12 +66,12 @@
                 @else
                     <flux:table>
                         <flux:table.columns>
-                            <flux:table.column>Type</flux:table.column>
-                            <flux:table.column>Period</flux:table.column>
-                            <flux:table.column>Total</flux:table.column>
-                            <flux:table.column>Attended</flux:table.column>
-                            <flux:table.column>Not Attended</flux:table.column>
-                            <flux:table.column>Recovered</flux:table.column>
+                            <x-sortable-column column="type">Type</x-sortable-column>
+                            <x-sortable-column column="period_start">Period</x-sortable-column>
+                            <x-sortable-column column="total_lessons">Total</x-sortable-column>
+                            <x-sortable-column column="attended_count">Attended</x-sortable-column>
+                            <x-sortable-column column="not_attended_count">Not Attended</x-sortable-column>
+                            <x-sortable-column column="recovered_count">Recovered</x-sortable-column>
                             <flux:table.column>Actions</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>

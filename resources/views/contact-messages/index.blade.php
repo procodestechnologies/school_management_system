@@ -18,10 +18,10 @@
             @else
                 <flux:table>
                     <flux:table.columns>
-                        <flux:table.column>{{ __('From') }}</flux:table.column>
-                        <flux:table.column>{{ __('Topic') }}</flux:table.column>
+                        <x-sortable-column column="name">{{ __('From') }}</x-sortable-column>
+                        <x-sortable-column column="topic">{{ __('Topic') }}</x-sortable-column>
                         <flux:table.column>{{ __('Message') }}</flux:table.column>
-                        <flux:table.column>{{ __('Received') }}</flux:table.column>
+                        <x-sortable-column column="created_at">{{ __('Received') }}</x-sortable-column>
                         <flux:table.column>{{ __('Actions') }}</flux:table.column>
                     </flux:table.columns>
 

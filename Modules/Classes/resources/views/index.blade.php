@@ -16,12 +16,12 @@
         <flux:card>
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column>Name</flux:table.column>
-                    <flux:table.column>Level</flux:table.column>
+                    <x-sortable-column column="name">Name</x-sortable-column>
+                    <x-sortable-column column="level">Level</x-sortable-column>
                     <flux:table.column>Institution</flux:table.column>
                     <flux:table.column>Class Teacher</flux:table.column>
                     <flux:table.column>Students</flux:table.column>
-                    <flux:table.column>Capacity</flux:table.column>
+                    <x-sortable-column column="capacity">Capacity</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Models\Devices;
 use App\Models\User;
 use Athwari\LaravelZktecoAdms\Models\ZktecoAttendanceLog;
@@ -16,6 +17,8 @@ use Modules\Student\Models\StudentDetails;
  */
 class AnalyticsService
 {
+    use Sortable;
+
     /**
      * Build the full stats payload for the given user, scoped to what their
      * role is allowed to see.
@@ -48,7 +51,12 @@ class AnalyticsService
             'users_by_role' => $this->usersByRole(),
             'active_count'=>User::whereStatus('active')->get()->count(),
             'devices_count' => Devices::all()->count(),
-            'recent_institutions' => Institution::with('owner')->latest()->take(5)->get(),
+            'recent_institutions' => $this->applySort(
+                Institution::with('owner'),
+                sortable: ['name', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->take(5)->get(),
         ];
     }
 
@@ -72,7 +80,12 @@ class AnalyticsService
             'overdue_fees_count' => (clone $feeQuery)->whereColumn('amount_paid', '<', 'amount')
                 ->whereDate('due_date', '<', today())
                 ->count(),
-            'recent_fees' => (clone $feeQuery)->with('student')->latest()->take(5)->get(),
+            'recent_fees' => $this->applySort(
+                (clone $feeQuery)->with('student'),
+                sortable: ['title', 'amount', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->take(5)->get(),
         ];
 
         if ($financeOnly) {
@@ -107,7 +120,12 @@ class AnalyticsService
      */
     public function parentStats(User $user): array
     {
-        $children = StudentDetails::where('parent_id', $user->id)->with('student', 'institution')->get();
+        $children = $this->applySort(
+            StudentDetails::where('parent_id', $user->id)->with('student', 'institution'),
+            sortable: ['admission_number', 'enrollment_status'],
+            defaultColumn: 'admission_number',
+            defaultDirection: 'asc',
+        )->get();
         $childIds = $children->pluck('student_id');
 
         $feeQuery = Fee::where('parent_id', $user->id);
@@ -128,7 +146,12 @@ class AnalyticsService
                 ->whereIn('pin', $childIds->map(fn ($id) => (string) $id))
                 ->whereDate('occurred_at', today())
                 ->count(),
-            'recent_fees' => (clone $feeQuery)->with('student')->latest()->take(5)->get(),
+            'recent_fees' => $this->applySort(
+                (clone $feeQuery)->with('student'),
+                sortable: ['title', 'amount', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->take(5)->get(),
         ];
     }
 
@@ -161,7 +184,12 @@ class AnalyticsService
             'fees_billed' => (float) ($feeTotals->billed ?? 0),
             'fees_collected' => (float) ($feeTotals->collected ?? 0),
             'fees_outstanding' => (float) ($feeTotals->billed ?? 0) - (float) ($feeTotals->collected ?? 0),
-            'recent_fees' => (clone $feeQuery)->latest()->take(5)->get(),
+            'recent_fees' => $this->applySort(
+                clone $feeQuery,
+                sortable: ['title', 'amount', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->take(5)->get(),
         ];
     }
 
