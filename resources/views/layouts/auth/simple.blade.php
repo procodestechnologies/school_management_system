@@ -24,6 +24,8 @@
             </flux:toast.group>
         @endpersist
 
+        <livewire:chat-widget />
+
         @fluxScripts
     </body>
 </html>
