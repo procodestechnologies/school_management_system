@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevicesController;
 use App\Http\Controllers\ModuleController;
@@ -8,7 +9,11 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HasInstitution;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::view('/', 'frontend.home')->name('home');
+Route::view('/about', 'frontend.about')->name('about');
+Route::view('/services', 'frontend.services')->name('services');
+Route::view('/plans', 'frontend.plans')->name('plans');
+Route::view('/contact', 'frontend.contact')->name('contact');
 // make sure to add the EnsureAccountIsActive middleware to all routes
 
 Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboard')->group(function () {
@@ -17,6 +22,7 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     // handled entirely by the create/edit Livewire components.
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
+    Route::resource('messages', ContactMessageController::class)->only(['index', 'show'])->names('messages');
 });
 Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
 require __DIR__ . '/settings.php';

@@ -255,8 +255,9 @@ new class extends Component
 ?>
 <div class="fixed bottom-6 right-6 z-50">
     @unless ($open)
+        <span class="pointer-events-none absolute inset-0 animate-ping rounded-full bg-indigo-500/40"></span>
         <button wire:click="toggle" type="button"
-            class="flex size-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            class="relative flex size-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition hover:scale-105 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
             aria-label="Open chat assistant">
             <flux:icon icon="chat-bubble-left-right" class="size-6" />
         </button>

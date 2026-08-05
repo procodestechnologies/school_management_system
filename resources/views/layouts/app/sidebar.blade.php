@@ -39,6 +39,10 @@
                     :current="request()->routeIs('institution.index')" wire:navigate>
                     {{ __('Institutions') }}
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="envelope" :href="route('messages.index')"
+                    :current="request()->routeIs('messages.*')" wire:navigate>
+                    {{ __('Messages') }}
+                </flux:sidebar.item>
             @endhasrole
             @if (isDirector())
                 <flux:sidebar.item icon="device-phone-mobile" :href="route('devices.index')"
