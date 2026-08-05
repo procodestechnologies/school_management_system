@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Institution\Models\Institution;
 
@@ -144,7 +145,7 @@ class InstitutionController extends Controller
         // Validate the request
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:institutions,code,'.$id,
+            'code' => 'required|string|max:50|unique:institutions,code,' . $id,
             'type' => 'required|string|in:School,College,University,Training Centre',
             'education_level' => 'nullable|string|max:100',
             'timezone' => 'required|string|max:50',
@@ -153,7 +154,7 @@ class InstitutionController extends Controller
             'max_electives' => 'nullable|integer|gte:min_electives',
 
             // Contact Information
-            'email' => 'required|email|max:255|unique:institutions,email,'.$id,
+            'email' => 'required|email|max:255|unique:institutions,email,' . $id,
             'phone' => 'required|string|max:20',
             'alternate_phone' => 'nullable|string|max:20',
             'website' => 'nullable|url|max:255',
@@ -187,15 +188,37 @@ class InstitutionController extends Controller
 
             // Handle logo upload
             if ($request->hasFile('logo')) {
+                $uploadedLogo = $request->file('logo');
+
+                Log::debug('Institution logo upload received', [
+                    'institution_id' => $institution->id,
+                    'client_name' => $uploadedLogo->getClientOriginalName(),
+                    'client_mime' => $uploadedLogo->getClientMimeType(),
+                    'size' => $uploadedLogo->getSize(),
+                    'is_valid' => $uploadedLogo->isValid(),
+                    'upload_error_code' => $uploadedLogo->getError(),
+                ]);
+
                 if ($institution->logo && Storage::disk('cloudinary')->exists($institution->logo)) {
                     Storage::disk('cloudinary')->delete($institution->logo);
                 }
 
-                $validated['logo'] = $request->file('logo')->store('institutions/logos', 'cloudinary');
+                $validated['logo'] = $uploadedLogo->store('institutions/logos', 'cloudinary');
+
+                Log::debug('Institution logo stored on Cloudinary', [
+                    'institution_id' => $institution->id,
+                    'stored_path' => $validated['logo'],
+                ]);
             }
 
             // Update the institution
             $institution->update($validated);
+
+            Log::debug('Institution update persisted', [
+                'institution_id' => $institution->id,
+                'logo_after_save' => $institution->fresh()->logo,
+                'logo_key_was_present_in_validated' => array_key_exists('logo', $validated),
+            ]);
 
             // Optional: Log the update activity
             // ActivityLog::create([
@@ -211,21 +234,34 @@ class InstitutionController extends Controller
 
             // Redirect to show page with success message
             return redirect()->route('institution.edit', $institution->id)
-                ->with('success', 'Institution "'.$institution->name.'" has been updated successfully.');
+                ->with('success', 'Institution "' . $institution->name . '" has been updated successfully.');
         } catch (ModelNotFoundException $e) {
             // Institution not found
             return redirect()->route('institution.index')
                 ->with('error', 'Institution not found.');
         } catch (QueryException $e) {
             // Database error
+            Log::error('Institution update failed with a database error', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Database error: '.$e->getMessage());
-        } catch (\Exception $e) {
-            // General error
+                ->with('error', 'Database error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // General error - \Throwable (not just \Exception) so a logo
+            // upload failure of any kind is surfaced instead of silently
+            // producing a save with no logo and no visible error.
+            Log::error('Institution update failed', [
+                'institution_id' => $id,
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+            ]);
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'An error occurred while updating the institution. Please try again.');
+                ->with('error', 'An error occurred while updating the institution: ' . $e->getMessage());
         }
     }
 
@@ -257,6 +293,6 @@ class InstitutionController extends Controller
             'approved_by_id' => $this->user->id,
         ]);
 
-        return back()->with('success', 'Institution "'.$institution->name.'" has been approved.');
+        return back()->with('success', 'Institution "' . $institution->name . '" has been approved.');
     }
 }

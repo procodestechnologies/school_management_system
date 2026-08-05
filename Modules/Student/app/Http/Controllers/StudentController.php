@@ -54,7 +54,12 @@ class StudentController extends Controller
 
         $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
 
-        return view('student::create', compact('institutions'));
+        // A parent can have more than one student - list existing parents so
+        // the Director can link a new student to one instead of creating a
+        // duplicate parent account every time.
+        $existingParents = User::role('Parent')->with('children')->orderBy('name')->get();
+
+        return view('student::create', compact('institutions', 'existingParents'));
     }
 
     /**
@@ -86,7 +91,14 @@ class StudentController extends Controller
             'state' => 'nullable|string|max:100',
             'country' => 'nullable|string|max:100',
 
-            // Parent
+            // Parent - either link an existing parent account (a parent can
+            // have more than one student) or fill in the fields below to
+            // create a new one.
+            'parent_id' => ['nullable', 'exists:users,id', function ($attribute, $value, $fail) {
+                if ($value && ! User::find($value)?->hasRole('Parent')) {
+                    $fail('The selected parent account is not valid.');
+                }
+            }],
             'parent_name' => 'nullable|string|max:255',
             'parent_phone' => 'nullable|string|max:20',
             'parent_email' => 'nullable|email|max:255',
@@ -107,9 +119,14 @@ class StudentController extends Controller
         ]);
         try {
             DB::transaction(function () use ($request, $validated) {
-                // 1. Create Parent User (if parent details are provided)
+                // 1. Resolve the parent: link an existing parent account if
+                // one was selected (a parent can have more than one
+                // student), otherwise create a new one if any parent
+                // details were provided.
                 $parent = null;
-                if (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
+                if (! empty($validated['parent_id'])) {
+                    $parent = User::find($validated['parent_id']);
+                } elseif (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
                     $parent = User::create([
                         'name' => $validated['parent_name'] ?? 'Parent',
                         'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
@@ -141,6 +158,7 @@ class StudentController extends Controller
                         'email',
                         'password',
                         'is_active',
+                        'parent_id',
                         'parent_name',
                         'parent_phone',
                         'profile_image',

@@ -3,6 +3,7 @@
 namespace Modules\FeeManagement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Services\FeeReminderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -11,6 +12,10 @@ use Modules\Student\Models\StudentDetails;
 
 class FeeManagementController extends Controller
 {
+    public function __construct(
+        private readonly FeeReminderService $reminderService,
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -27,7 +32,43 @@ class FeeManagementController extends Controller
             $fees = $fees->where('status', $request->string('status'));
         }
 
-        return view('feemanagement::index', compact('fees'));
+        $defaulterQuery = Fee::query();
+        $this->scopeToViewer($defaulterQuery);
+        $defaulterCount = (clone $defaulterQuery)
+            ->whereColumn('amount_paid', '<', 'amount')
+            ->whereNotNull('parent_id')
+            ->pluck('parent_id')
+            ->unique()
+            ->count();
+
+        return view('feemanagement::index', compact('fees', 'defaulterCount'));
+    }
+
+    /**
+     * Send a consolidated fee-balance reminder (email + SMS) to every
+     * parent with at least one outstanding fee, scoped the same way the
+     * listing itself is.
+     */
+    public function sendReminders()
+    {
+        abort_unless(Auth::user()->can('create feemanagement'), 403);
+
+        $query = Fee::query();
+        $this->scopeToViewer($query);
+
+        $result = $this->reminderService->sendForDefaulters($query);
+
+        if ($result['parents_notified'] === 0) {
+            return redirect()->route('feemanagement.index')
+                ->with('success', 'No outstanding fee balances to remind anyone about.');
+        }
+
+        $message = "Reminders sent to {$result['parents_notified']} parent(s) - {$result['emails_sent']} email(s), {$result['sms_sent']} SMS.";
+        if ($result['skipped_no_contact'] > 0) {
+            $message .= " {$result['skipped_no_contact']} parent(s) skipped - no email or phone on file.";
+        }
+
+        return redirect()->route('feemanagement.index')->with('success', $message);
     }
 
     /**

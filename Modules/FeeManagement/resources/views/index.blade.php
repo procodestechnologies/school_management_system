@@ -16,6 +16,15 @@
         <div class="mb-2 flex flex-row justify-between">
             @can('create feemanagement')
                 <flux:button href="{{ route('feemanagement.create') }}">Add Fee</flux:button>
+
+                <form action="{{ route('feemanagement.send-reminders') }}" method="POST"
+                    onsubmit="return confirm('Send a fee balance reminder (email + SMS) to {{ $defaulterCount }} parent(s) with an outstanding balance?');">
+                    @csrf
+                    <flux:button type="submit" variant="primary" color="amber" icon="bell-alert"
+                        :disabled="$defaulterCount === 0">
+                        Send Payment Reminders{{ $defaulterCount > 0 ? " ({$defaulterCount})" : '' }}
+                    </flux:button>
+                </form>
             @endcan
         </div>
 

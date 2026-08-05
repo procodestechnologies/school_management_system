@@ -144,7 +144,45 @@
                     {{-- Parent Details --}}
                     <h5 class="text-md font-semibold text-gray-800 mb-3">Parent Details</h5>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="mb-4">
+                        <span class="text-sm font-medium text-gray-700 block mb-2">A parent can have more than one
+                            student - link an existing parent account, or add a new one.</span>
+                        <div class="flex gap-6">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="parent_mode" value="new" id="parent_mode_new"
+                                    {{ old('parent_mode', old('parent_id') ? 'existing' : 'new') === 'new' ? 'checked' : '' }}
+                                    class="text-blue-600 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Add new parent</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="parent_mode" value="existing" id="parent_mode_existing"
+                                    {{ old('parent_mode', old('parent_id') ? 'existing' : 'new') === 'existing' ? 'checked' : '' }}
+                                    class="text-blue-600 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">Link existing parent</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="existing-parent-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 hidden">
+                        <div>
+                            <flux:select name="parent_id" label="Select Parent"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <flux:select.option value="">Select Parent</flux:select.option>
+                                @foreach ($existingParents as $existingParent)
+                                    <flux:select.option value="{{ $existingParent->id }}"
+                                        data-institution-ids="{{ $existingParent->children->pluck('institution_id')->unique()->implode(' ') }}"
+                                        :selected="old('parent_id') == $existingParent->id">
+                                        {{ $existingParent->name }} ({{ $existingParent->email }}) &mdash;
+                                        {{ $existingParent->children->count() }}
+                                        {{ $existingParent->children->count() === 1 ? 'child' : 'children' }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="parent_id" class="mt-1 text-sm text-red-600" />
+                        </div>
+                    </div>
+
+                    <div id="new-parent-fields" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 
                         <div>
                             <flux:input type="text" name="parent_name" label="Parent Name"
@@ -260,4 +298,50 @@
         </div>
 
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const newFields = document.getElementById('new-parent-fields');
+            const existingFields = document.getElementById('existing-parent-fields');
+            const modeRadios = document.querySelectorAll('input[name="parent_mode"]');
+            const institutionSelect = document.getElementById('institution_id') ||
+                document.querySelector('select[name="institution_id"]');
+            const parentSelect = document.querySelector('select[name="parent_id"]');
+
+            function applyMode() {
+                const checked = document.querySelector('input[name="parent_mode"]:checked');
+                const mode = checked ? checked.value : 'new';
+                newFields.classList.toggle('hidden', mode !== 'new');
+                existingFields.classList.toggle('hidden', mode !== 'existing');
+            }
+
+            // Hides parent options that don't belong to the selected
+            // institution, so a Director can't accidentally link a student
+            // to an unrelated parent from a different school.
+            function filterParentsByInstitution() {
+                if (! institutionSelect || ! parentSelect) {
+                    return;
+                }
+
+                const institutionId = institutionSelect.value;
+                const currentValue = parentSelect.value;
+
+                Array.from(parentSelect.options).forEach(function(option) {
+                    if (!option.value || option.value === currentValue) {
+                        option.hidden = false;
+                        return;
+                    }
+
+                    const ids = (option.dataset.institutionIds || '').split(' ').filter(Boolean);
+                    option.hidden = institutionId !== '' && ids.length > 0 && !ids.includes(institutionId);
+                });
+            }
+
+            modeRadios.forEach(radio => radio.addEventListener('change', applyMode));
+            institutionSelect?.addEventListener('change', filterParentsByInstitution);
+
+            applyMode();
+            filterParentsByInstitution();
+        });
+    </script>
 </x-layouts::app>
