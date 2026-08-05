@@ -93,8 +93,17 @@ class PermissionSeeder extends Seeder
         // 2. Director Role (Manages a single school end-to-end)
         $director = Role::firstOrCreate(['name' => 'Director', 'guard_name' => 'web']);
         $directorPermissions = Permission::whereIn('name', [
-            // Their school's profile: view/edit only, not create/delete
+            // Their school's profile: view/edit, plus creating it in the
+            // first place (self-service onboarding). Note: institution
+            // creation is still gated by ownership in the controller, not
+            // this permission - a brand-new user has no role/permissions at
+            // all until they self-create their first institution, so
+            // gating creation behind a permission check would make
+            // onboarding impossible. This grant exists for completeness of
+            // the Director's documented capabilities, not as the actual
+            // enforcement mechanism.
             'view institution',
+            'create institution',
             'edit institution',
             'update institution',
 
@@ -178,7 +187,11 @@ class PermissionSeeder extends Seeder
         ])->get();
         $student->syncPermissions($studentPermissions);
 
-        // 6. Teacher Role (View their school's academic data, no management)
+        // 6. Teacher Role (Views their school's academic data; can only
+        // record results for the subjects/classes they're timetabled to
+        // teach. No lesson-attendance or report-card access - those are
+        // Director/Parent/Student concerns - and no curriculum access,
+        // which is Director-only.
         $teacher = Role::firstOrCreate(['name' => 'Teacher', 'guard_name' => 'web']);
         $teacherPermissions = Permission::whereIn('name', [
             'view student',
@@ -186,11 +199,8 @@ class PermissionSeeder extends Seeder
             'view examination',
             'view timetable',
             'view classes',
-            'view curriculum',
-            'view lesson', 'create lesson', 'edit lesson', 'update lesson', 'export lesson',
-            'view result',
+            'view result', 'create result', 'edit result', 'update result',
             'view subject',
-            'view reportcard',
             'view dashboard',
             'view report',
         ])->get();

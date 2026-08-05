@@ -56,7 +56,6 @@ class Institution extends Model
         'principal_phone',
 
         // Academic
-        'curriculum',
         'education_level',
         'min_electives',
         'max_electives',
@@ -67,6 +66,9 @@ class Institution extends Model
         // Status
         'status',
         'is_active',
+        'is_approved',
+        'approved_at',
+        'approved_by_id',
 
         // Subscription
         'subscription_plan',
@@ -114,9 +116,9 @@ class Institution extends Model
         return $this->hasMany(Fee::class);
     }
 
-    public function curriculum()
+    public function curricula()
     {
-        return $this->belongsTo(Curriculum::class, 'curriculum');
+        return $this->hasMany(Curriculum::class);
     }
 
     public function teachers()

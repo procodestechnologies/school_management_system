@@ -73,12 +73,12 @@
                                         variant="primary" color="yellow">edit</flux:button>
                                 @endcan
                                 @can('delete result')
-                                    <form action="{{ route('result.destroy', $result->id) }}" method="POST"
-                                        class="inline" onsubmit="return confirm('Remove this result?');">
+                                    <form action="{{ route('result.destroy', $result->id) }}" method="POST" class="inline"
+                                        onsubmit="return confirm('Remove this result?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" icon="trash" variant="primary"
-                                            color="red">delete</flux:button>
+                                        <flux:button type="submit" icon="trash" variant="primary" color="red">delete
+                                        </flux:button>
                                     </form>
                                 @endcan
                             </flux:table.cell>
@@ -93,5 +93,8 @@
                 </flux:table.rows>
             </flux:table>
         </flux:card>
+        <div class="mt-4">
+            {{ $results->withQueryString()->links() }}
+        </div>
     </div>
 </x-layouts::app>

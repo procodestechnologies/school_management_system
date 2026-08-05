@@ -15,15 +15,15 @@ class Curriculum extends Model
     /**
      * The attributes that are mass assignable.
      */
-    protected $fillable = ['name', 'status'];
+    protected $fillable = ['institution_id', 'name', 'status'];
 
     // protected static function newFactory(): CurriculumFactory
     // {
     //     // return CurriculumFactory::new();
     // }
 
-    public function institutions()
+    public function institution()
     {
-        return $this->hasMany(Institution::class, 'curriculum');
+        return $this->belongsTo(Institution::class);
     }
 }

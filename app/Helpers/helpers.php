@@ -56,3 +56,29 @@ if (! function_exists('isDirector')) {
         return Auth::user()->hasRole('Director');
     }
 }
+if (! function_exists('institutionApproved')) {
+    function institutionApproved(): bool
+    {
+        $user = Auth::user();
+
+        if (! $user || isAdmin()) {
+            return true;
+        }
+
+        // Staff/dependents never own an institution and can't exist yet
+        // under a still-pending Director, so nothing to gate for them.
+        if ($user->hasAnyRole(['Parent', 'Student', 'Teacher', 'Accountant'])) {
+            return true;
+        }
+
+        $institution = $user->institution()->first();
+
+        // No institution yet is the onboarding case, handled separately by
+        // HasInstitution - not an "unapproved" case for this helper.
+        if (! $institution) {
+            return true;
+        }
+
+        return (bool) $institution->is_approved;
+    }
+}

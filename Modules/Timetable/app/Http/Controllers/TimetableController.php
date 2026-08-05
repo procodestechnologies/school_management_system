@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
@@ -28,40 +29,54 @@ class TimetableController extends Controller
         $user = Auth::user();
         $isStudent = $user->hasRole('Student');
         $isParent = $user->hasRole('Parent');
+        $isTeacher = $user->hasRole('Teacher');
 
-        if ($isStudent) {
-            // A student doesn't pick a class - they only ever see their own.
-            $classIds = collect([StudentDetails::where('student_id', $user->id)->value('class_id')]);
-        } elseif ($isParent) {
-            // A parent doesn't pick from every class either - only the
-            // class(es) their own children are in.
-            $classIds = StudentDetails::where('parent_id', $user->id)->pluck('class_id');
-        }
+        $classes = collect();
+        $selectedClass = null;
+        $showPicker = false;
+        $days = self::DAYS;
 
-        if ($isStudent || $isParent) {
-            $classIds = $classIds->filter()->map(fn ($id) => (int) $id)->unique()->values();
-            $classes = SchoolClass::whereIn('id', $classIds)->orderBy('name')->get();
+        if ($isTeacher) {
+            // A teacher doesn't pick a class either - they see every lesson
+            // they're assigned to teach, across all of their classes, for
+            // the whole week.
+            $entries = TimetableEntry::with(['schoolClass'])
+                ->where('teacher_id', $user->id)
+                ->get();
         } else {
-            $classes = $this->scopedClasses();
-        }
+            if ($isStudent) {
+                // A student doesn't pick a class - they only ever see their own.
+                $classIds = collect([StudentDetails::where('student_id', $user->id)->value('class_id')]);
+            } elseif ($isParent) {
+                // A parent doesn't pick from every class either - only the
+                // class(es) their own children are in.
+                $classIds = StudentDetails::where('parent_id', $user->id)->pluck('class_id');
+            }
 
-        // Hide the picker whenever there's nothing to actually choose
-        // between: always for a student, and for a parent whose children
-        // all share the same class.
-        $showPicker = ! $isStudent && ! ($isParent && $classes->count() <= 1);
+            if ($isStudent || $isParent) {
+                $classIds = $classIds->filter()->map(fn ($id) => (int) $id)->unique()->values();
+                $classes = SchoolClass::whereIn('id', $classIds)->orderBy('name')->get();
+            } else {
+                $classes = $this->scopedClasses();
+            }
+
+            // Hide the picker whenever there's nothing to actually choose
+            // between: always for a student, and for a parent whose children
+            // all share the same class.
+            $showPicker = ! $isStudent && ! ($isParent && $classes->count() <= 1);
+
+            $classId = $request->integer('class_id') ?: $classes->first()?->id;
+            $selectedClass = $classId ? $classes->firstWhere('id', $classId) : null;
+
+            $entries = $selectedClass
+                ? TimetableEntry::with(['teacher'])->where('class_id', $selectedClass->id)->get()
+                : collect();
+        }
 
         $grid = null;
         $periods = collect();
-        $days = self::DAYS;
 
-        $classId = $request->integer('class_id') ?: $classes->first()?->id;
-        $selectedClass = $classId ? $classes->firstWhere('id', $classId) : null;
-
-        if ($selectedClass) {
-            $entries = TimetableEntry::with(['teacher'])
-                ->where('class_id', $selectedClass->id)
-                ->get();
-
+        if ($isTeacher || $selectedClass) {
             $periods = $entries
                 ->map(fn (TimetableEntry $e) => $e->start_time?->format('H:i').'-'.$e->end_time?->format('H:i'))
                 ->unique()
@@ -75,7 +90,7 @@ class TimetableController extends Controller
             }
         }
 
-        return view('timetable::index', compact('classes', 'selectedClass', 'grid', 'periods', 'days', 'isStudent', 'isParent', 'showPicker'));
+        return view('timetable::index', compact('classes', 'selectedClass', 'grid', 'periods', 'days', 'isStudent', 'isParent', 'isTeacher', 'showPicker'));
     }
 
     /**
@@ -174,6 +189,7 @@ class TimetableController extends Controller
         abort_unless(Auth::user()->can('create timetable'), 403);
 
         $validated = $this->validated($request);
+        $this->assertNoTeacherConflict($validated);
 
         TimetableEntry::create($validated);
 
@@ -217,6 +233,7 @@ class TimetableController extends Controller
 
         $entry = $this->scopedEntry($id);
         $validated = $this->validated($request);
+        $this->assertNoTeacherConflict($validated, $entry->id);
 
         $entry->update($validated);
 
@@ -262,6 +279,30 @@ class TimetableController extends Controller
             ->value('id');
 
         return $validated;
+    }
+
+    /**
+     * Rejects assigning a teacher to two overlapping day+time slots across
+     * different classes. A slot with no teacher assigned is always fine.
+     */
+    private function assertNoTeacherConflict(array $validated, ?int $excludeId = null): void
+    {
+        if (empty($validated['teacher_id'])) {
+            return;
+        }
+
+        $conflict = TimetableEntry::where('teacher_id', $validated['teacher_id'])
+            ->where('day_of_week', $validated['day_of_week'])
+            ->where('start_time', '<', $validated['end_time'])
+            ->where('end_time', '>', $validated['start_time'])
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
+
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'This teacher is already scheduled for another class at this day and time.',
+            ]);
+        }
     }
 
     private function scopeToViewer($query): void

@@ -44,16 +44,16 @@
                                 <flux:button href="{{ route('subject.show', $subject->id) }}" icon="eye"
                                     variant="primary" color="emerald">view</flux:button>
                                 @can('edit subject')
-                                    <flux:button href="{{ route('subject.edit', $subject->id) }}"
-                                        icon="pencil" variant="primary" color="yellow">edit</flux:button>
+                                    <flux:button href="{{ route('subject.edit', $subject->id) }}" icon="pencil"
+                                        variant="primary" color="yellow">edit</flux:button>
                                 @endcan
                                 @can('delete subject')
                                     <form action="{{ route('subject.destroy', $subject->id) }}" method="POST"
                                         class="inline" onsubmit="return confirm('Remove this subject?');">
                                         @csrf
                                         @method('DELETE')
-                                        <flux:button type="submit" icon="trash" variant="primary"
-                                            color="red">delete</flux:button>
+                                        <flux:button type="submit" icon="trash" variant="primary" color="red">delete
+                                        </flux:button>
                                     </form>
                                 @endcan
                             </flux:table.cell>
@@ -68,5 +68,8 @@
                 </flux:table.rows>
             </flux:table>
         </flux:card>
+        <div class="mt-4">
+            {{ $subjects->links() }}
+        </div>
     </div>
 </x-layouts::app>

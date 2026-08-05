@@ -16,6 +16,7 @@
                     <flux:table.column>Code</flux:table.column>
                     <flux:table.column>Phone</flux:table.column>
                     <flux:table.column>Email</flux:table.column>
+                    <flux:table.column>Status</flux:table.column>
                     <flux:table.column>Created At</flux:table.column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
@@ -30,6 +31,11 @@
                             <flux:table.cell>{{ $institute->code }}</flux:table.cell>
                             <flux:table.cell>{{ $institute->phone }}</flux:table.cell>
                             <flux:table.cell>{{ $institute->email }}</flux:table.cell>
+                            <flux:table.cell>
+                                <flux:badge :color="$institute->is_approved ? 'emerald' : 'amber'">
+                                    {{ $institute->is_approved ? 'Approved' : 'Pending' }}
+                                </flux:badge>
+                            </flux:table.cell>
                             <flux:table.cell>{{ $institute->created_at->diffForHumans() }}</flux:table.cell>
                             <flux:table.cell>
                                 @if (institutionOwner($institute->owner->id))

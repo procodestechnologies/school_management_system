@@ -16,9 +16,9 @@
             </div>
 
             <div class="p-6">
-                <h5 class="text-md font-semibold text-gray-800 mb-3">Schools Using This Curriculum</h5>
-                @if ($curriculum->institutions->isEmpty())
-                    <p class="text-sm text-gray-500">No institutions are using this curriculum yet.</p>
+                <h5 class="text-md font-semibold text-gray-800 mb-3">Institution</h5>
+                @if (! $curriculum->institution)
+                    <p class="text-sm text-gray-500">No institution is set for this curriculum.</p>
                 @else
                     <flux:table>
                         <flux:table.columns>
@@ -27,17 +27,15 @@
                             <flux:table.column>Status</flux:table.column>
                         </flux:table.columns>
                         <flux:table.rows>
-                            @foreach ($curriculum->institutions as $institution)
-                                <flux:table.row>
-                                    <flux:table.cell>{{ $institution->name }}</flux:table.cell>
-                                    <flux:table.cell>{{ $institution->type }}</flux:table.cell>
-                                    <flux:table.cell>
-                                        <flux:badge :color="$institution->is_active ? 'emerald' : 'zinc'">
-                                            {{ ucfirst($institution->status ?? 'unknown') }}
-                                        </flux:badge>
-                                    </flux:table.cell>
-                                </flux:table.row>
-                            @endforeach
+                            <flux:table.row>
+                                <flux:table.cell>{{ $curriculum->institution->name }}</flux:table.cell>
+                                <flux:table.cell>{{ $curriculum->institution->type }}</flux:table.cell>
+                                <flux:table.cell>
+                                    <flux:badge :color="$curriculum->institution->is_active ? 'emerald' : 'zinc'">
+                                        {{ ucfirst($curriculum->institution->status ?? 'unknown') }}
+                                    </flux:badge>
+                                </flux:table.cell>
+                            </flux:table.row>
                         </flux:table.rows>
                     </flux:table>
                 @endif

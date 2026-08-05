@@ -125,15 +125,35 @@
                 });
             }
 
+            // When a field has exactly one real (visible) choice, there's
+            // nothing meaningful left to pick - select it automatically so
+            // the cascade doesn't stay locked behind a redundant click.
+            function autoSelectIfOnlyChoice(select) {
+                if (select.value) {
+                    return false;
+                }
+
+                const visible = Array.from(select.options).filter(o => o.value && !o.hidden);
+                if (visible.length === 1) {
+                    select.value = visible[0].value;
+                    return true;
+                }
+
+                return false;
+            }
+
             function applyClassFilters() {
                 filterOptions(studentSelect, classSelect.value, 'classId', 'Select a class first', 'Select Student');
                 filterOptions(examinationSelect, classSelect.value, 'classId', 'Select a class first',
                     'Select Examination');
+                autoSelectIfOnlyChoice(studentSelect);
+                autoSelectIfOnlyChoice(examinationSelect);
             }
 
             function applyInstitutionFilter() {
                 filterOptions(classSelect, institutionSelect.value, 'institutionId', 'Select an institution first',
                     'Select Class');
+                autoSelectIfOnlyChoice(classSelect);
             }
 
             // Institution -> Class -> {Student, Examination}. Changing a
@@ -153,6 +173,7 @@
                 applyClassFilters();
             });
 
+            autoSelectIfOnlyChoice(institutionSelect);
             applyInstitutionFilter();
             applyClassFilters();
         });

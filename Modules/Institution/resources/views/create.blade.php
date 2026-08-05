@@ -32,15 +32,6 @@
                         </div>
 
                         <div>
-                            <flux:select name="curriculum" label="Curriculum"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                @foreach ($curricula as $curriculum)
-                                    <flux:select.option value="{{ $curriculum->id }}">{{ $curriculum->name }}
-                                    </flux:select.option>
-                                @endforeach
-                            </flux:select>
-                        </div>
-                        <div>
                             <flux:select name="type" label="Institution Type"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 <flux:select.option value="School">School</flux:select.option>

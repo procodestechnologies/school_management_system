@@ -21,7 +21,7 @@ class SubjectController extends Controller
         $query = Subject::with('institution');
         $this->scopeToViewer($query);
 
-        $subjects = $query->orderBy('name')->get();
+        $subjects = $query->orderBy('name')->paginate(10);
 
         return view('subject::index', compact('subjects'));
     }

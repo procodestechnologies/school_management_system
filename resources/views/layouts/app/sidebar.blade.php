@@ -46,7 +46,7 @@
                     {{ __('Devices') }}
                 </flux:sidebar.item>
             @endif
-            @if (hasInstitutions() && !isAdmin())
+            @if (hasInstitutions() && !isAdmin() && institutionApproved())
                
                 @hasrole('Student')
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('selections.index')"

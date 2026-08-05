@@ -10,7 +10,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 
 class InstitutionController extends Controller
@@ -48,16 +47,15 @@ class InstitutionController extends Controller
      * Institution creation is the self-service "onboard my school" flow: any
      * authenticated user without an institution yet may reach it (this is
      * how a Director account comes into being). Once a user owns a school
-     * they can no longer create another one unless they're an Admin, who
-     * owns the platform and may onboard schools on a client's behalf.
+     * they can no longer create another one. Admins own the platform, not a
+     * school, and may never create one - their role in this flow is to
+     * approve a self-created institution afterward, not to create it.
      */
     public function create()
     {
-        abort_if(! isAdmin() && $this->user->institution()->exists(), 403);
+        abort_if(isAdmin() || $this->user->institution()->exists(), 403);
 
-        $curricula = Curriculum::all();
-
-        return view('institution::create', compact('curricula'));
+        return view('institution::create');
     }
 
     /**
@@ -65,11 +63,10 @@ class InstitutionController extends Controller
      */
     public function store(Request $request)
     {
-        abort_if(! isAdmin() && $this->user->institution()->exists(), 403);
+        abort_if(isAdmin() || $this->user->institution()->exists(), 403);
 
         $data = $request->validate([
             'name' => 'required|string',
-            'curriculum' => 'required|int',
             'code' => 'required',
             'type' => 'required',
             'email' => 'required',
@@ -88,17 +85,20 @@ class InstitutionController extends Controller
             $data['logo'] = $request->file('logo')->store('institutions/logos', 'public');
         }
 
+        // New institutions start unapproved regardless of the column's
+        // default (which only exists to grandfather in institutions that
+        // existed before the approval workflow was introduced).
+        $data['is_approved'] = false;
+
         $user = $request->user();
         $user->institution()->create($data);
 
-        // Owning a school makes this user its Director, unless they already
-        // hold a higher-privilege role (e.g. Admin creating it on their
-        // behalf).
-        if (! $user->hasAnyRole(['Admin', 'Director'])) {
+        // Owning a school makes this user its Director.
+        if (! $user->hasRole('Director')) {
             $user->assignRole('Director');
         }
 
-        return redirect()->route('institution.index')->with('success', 'Institution created successfully!');
+        return redirect()->route('institution.index')->with('success', 'Institution created successfully! It will be reviewed by an Admin before it becomes fully active.');
     }
 
     /**
@@ -126,9 +126,7 @@ class InstitutionController extends Controller
             403
         );
 
-        $curricula = Curriculum::all();
-
-        return view('institution::edit', compact('curricula', 'institution'));
+        return view('institution::edit', compact('institution'));
     }
 
     /**
@@ -148,7 +146,6 @@ class InstitutionController extends Controller
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50|unique:institutions,code,'.$id,
             'type' => 'required|string|in:School,College,University,Training Centre',
-            'curriculum' => 'required|exists:curricula,id',
             'education_level' => 'nullable|string|max:100',
             'timezone' => 'required|string|max:50',
             'logo' => 'nullable|image|max:2048',
@@ -243,5 +240,23 @@ class InstitutionController extends Controller
         $institution->delete();
 
         return redirect()->route('institution.index');
+    }
+
+    /**
+     * Approve a self-created institution, unlocking full access for its
+     * Director. Admins review and approve; they never create institutions
+     * themselves.
+     */
+    public function approve(Institution $institution)
+    {
+        abort_unless(isAdmin(), 403);
+
+        $institution->update([
+            'is_approved' => true,
+            'approved_at' => now(),
+            'approved_by_id' => $this->user->id,
+        ]);
+
+        return back()->with('success', 'Institution "'.$institution->name.'" has been approved.');
     }
 }

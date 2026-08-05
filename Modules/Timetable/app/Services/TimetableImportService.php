@@ -114,6 +114,12 @@ class TimetableImportService
                 }
             }
 
+            if ($teacherId && $this->hasTeacherConflict($teacherId, $day, $startTime, $endTime, $class->id, $toInsert)) {
+                $errors[] = "Row {$rowNumber}: teacher is already scheduled for another class on {$day} at {$startTime}-{$endTime}.";
+
+                continue;
+            }
+
             $room = isset($columns['room']) ? trim((string) ($row[$columns['room']] ?? '')) : null;
 
             $toInsert[] = [
@@ -143,6 +149,35 @@ class TimetableImportService
         });
 
         return ['created' => count($toInsert), 'skipped' => $skipped, 'errors' => $errors, 'warnings' => $warnings];
+    }
+
+    /**
+     * Rejects a teacher being double-booked into an overlapping slot for a
+     * different class - checks both rows already queued in this same
+     * import batch (all for the class being imported) and existing DB rows
+     * for every other class (the class being replaced is excluded since
+     * its old entries are about to be deleted anyway).
+     *
+     * @param  array<int, array<string, mixed>>  $toInsert
+     */
+    private function hasTeacherConflict(int $teacherId, string $day, string $start, string $end, int $excludeClassId, array $toInsert): bool
+    {
+        $overlaps = fn (string $aStart, string $aEnd, string $bStart, string $bEnd) => $aStart < $bEnd && $aEnd > $bStart;
+
+        foreach ($toInsert as $row) {
+            if ($row['teacher_id'] === $teacherId
+                && $row['day_of_week'] === $day
+                && $overlaps($row['start_time'], $row['end_time'], $start, $end)) {
+                return true;
+            }
+        }
+
+        return TimetableEntry::where('teacher_id', $teacherId)
+            ->where('day_of_week', $day)
+            ->where('class_id', '!=', $excludeClassId)
+            ->where('start_time', '<', $end)
+            ->where('end_time', '>', $start)
+            ->exists();
     }
 
     /**

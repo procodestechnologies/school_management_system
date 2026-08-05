@@ -53,12 +53,13 @@
                             <flux:table.cell>{{ number_format($fee->amount_paid, 2) }}</flux:table.cell>
                             <flux:table.cell>{{ number_format($fee->balance, 2) }}</flux:table.cell>
                             <flux:table.cell>
-                                <flux:badge :color="match ($fee->status) {
-                                    'paid' => 'emerald',
-                                    'partial' => 'amber',
-                                    'overdue' => 'red',
-                                    default => 'zinc',
-                                }">
+                                <flux:badge
+                                    :color="match ($fee->status) {
+                                                                        'paid' => 'emerald',
+                                                                        'partial' => 'amber',
+                                                                        'overdue' => 'red',
+                                                                        default => 'zinc',
+                                                                    }">
                                     {{ ucfirst($fee->status) }}
                                 </flux:badge>
                             </flux:table.cell>
@@ -96,5 +97,8 @@
                 </flux:table.rows>
             </flux:table>
         </flux:card>
+        <div class="mt-4">
+            {{ $fees->links() }}
+        </div>
     </div>
 </x-layouts::app>

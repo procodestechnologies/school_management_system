@@ -21,7 +21,7 @@ class FeeManagementController extends Controller
         $query = Fee::with(['student.studentUserDetails', 'institution', 'parent']);
         $this->scopeToViewer($query);
 
-        $fees = $query->latest()->get();
+        $fees = $query->latest()->paginate(10);
 
         if ($request->filled('status')) {
             $fees = $fees->where('status', $request->string('status'));

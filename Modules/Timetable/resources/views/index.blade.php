@@ -8,7 +8,9 @@
         @endif
 
         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            @if ($showPicker)
+            @if ($isTeacher)
+                <flux:heading size="lg">My Timetable</flux:heading>
+            @elseif ($showPicker)
                 <form method="GET" action="{{ route('timetable.index') }}" class="flex items-center gap-2">
                     <flux:select name="class_id" onchange="this.form.submit()">
                         <flux:select.option value="">Select a class&hellip;</flux:select.option>
@@ -35,7 +37,69 @@
             </div>
         </div>
 
-        @if (($isStudent || $isParent) && $classes->isEmpty())
+        @if ($isTeacher)
+            @if ($periods->isEmpty())
+                <flux:card class="text-center py-10">
+                    <flux:text class="text-zinc-500">
+                        You have no timetable entries assigned yet. Contact your school administrator.
+                    </flux:text>
+                </flux:card>
+            @else
+                <flux:card>
+                    <div class="mb-4">
+                        <flux:heading size="lg">Weekly Timetable</flux:heading>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-sm">
+                            <thead>
+                                <tr>
+                                    <th class="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-left">
+                                        Day
+                                    </th>
+                                    @foreach ($periods as $period)
+                                        <th class="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-center whitespace-nowrap">
+                                            {{ $period }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($days as $day)
+                                    @continue(!isset($grid[$day]))
+                                    <tr>
+                                        <td class="border border-zinc-200 dark:border-zinc-700 px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800">
+                                            {{ $day }}
+                                        </td>
+                                        @foreach ($periods as $period)
+                                            @php $entry = $grid[$day][$period] ?? null; @endphp
+                                            <td class="border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-center">
+                                                @if ($entry)
+                                                    <a href="{{ route('timetable.show', $entry->id) }}"
+                                                        class="block hover:underline">
+                                                        <span class="font-medium">{{ $entry->subject }}</span>
+                                                        <span class="block text-xs text-zinc-500">
+                                                            {{ $entry->schoolClass?->name ?? $entry->class_name }}
+                                                        </span>
+                                                        @if ($entry->room)
+                                                            <span class="block text-xs text-zinc-500">
+                                                                {{ $entry->room }}
+                                                            </span>
+                                                        @endif
+                                                    </a>
+                                                @else
+                                                    <span class="text-zinc-300 dark:text-zinc-600">&mdash;</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </flux:card>
+            @endif
+        @elseif (($isStudent || $isParent) && $classes->isEmpty())
             <flux:card class="text-center py-10">
                 <flux:text class="text-zinc-500">
                     @if ($isStudent)

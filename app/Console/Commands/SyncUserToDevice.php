@@ -40,7 +40,7 @@ class SyncUserToDevice extends Command
             $studentsQuery->where('institution_id', $institutionId);
         }
 
-        $students = $studentsQuery->get();
+        $students = $studentsQuery->paginate(10);
 
         if ($students->isEmpty()) {
             $this->warn('No matching active students found.');
@@ -48,7 +48,7 @@ class SyncUserToDevice extends Command
             return self::SUCCESS;
         }
 
-        $devicesByInstitution = Devices::where('is_active', true)
+        $devicesByInstitution = Devices::whereIsActive(true)
             ->when($this->option('device'), fn ($query, $serial) => $query->where('serial_number', $serial))
             ->get()
             ->groupBy('institution_id');

@@ -50,8 +50,9 @@
                         <span class="px-3 py-1 text-sm font-medium rounded-full bg-purple-100 text-purple-800">
                             {{ $institution->type }}
                         </span>
-                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-indigo-100 text-indigo-800">
-                            {{ $institution->curriculum->name ?? 'N/A' }}
+                        <span
+                            class="px-3 py-1 text-sm font-medium rounded-full {{ $institution->is_approved ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800' }}">
+                            {{ $institution->is_approved ? 'Approved' : 'Pending Approval' }}
                         </span>
                     </div>
                     <span class="text-sm text-gray-500">
@@ -83,11 +84,6 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Type</label>
                             <p class="mt-1 text-sm text-gray-900">{{ $institution->type }}</p>
-                        </div>
-                        <div>
-                            <label
-                                class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Curriculum</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ $institution->curriculum->name ?? 'Not Set' }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Education
@@ -303,6 +299,15 @@
 
             {{-- Footer Actions --}}
             <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+                @if (isAdmin() && ! $institution->is_approved)
+                    <form action="{{ route('institution.approve', $institution->id) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit"
+                            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition duration-150">
+                            Approve Institution
+                        </button>
+                    </form>
+                @endif
                 @if (institutionOwner($institution->owner->id))
                     <form action="{{ route('institution.destroy', $institution->id) }}" method="POST"
                         class="inline">

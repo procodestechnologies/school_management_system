@@ -21,6 +21,16 @@
                 @method('PUT')
 
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <flux:select name="institution_id" label="Institution">
+                        <flux:select.option value="">Select Institution</flux:select.option>
+                        @foreach ($institutions as $institution)
+                            <flux:select.option value="{{ $institution->id }}"
+                                :selected="old('institution_id', $curriculum->institution_id) == $institution->id">
+                                {{ $institution->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+
                     <flux:input label="Name" value="{{ old('name', $curriculum->name) }}" name="name"
                         placeholder="e.g CBC/8.4.4" required />
 
