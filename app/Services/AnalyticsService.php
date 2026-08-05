@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Http\Controllers\Concerns\Sortable;
+use App\Models\ContactMessage;
 use App\Models\Devices;
 use App\Models\User;
 use Athwari\LaravelZktecoAdms\Models\ZktecoAttendanceLog;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
@@ -42,22 +44,125 @@ class AnalyticsService
     public function systemStats(): array
     {
         $feeTotals = Fee::selectRaw('SUM(amount) as billed, SUM(amount_paid) as collected')->first();
+        $billed = (float) ($feeTotals->billed ?? 0);
+        $collected = (float) ($feeTotals->collected ?? 0);
+
+        $devices = Devices::with('zktecoDevice')->get();
 
         return [
             'scope' => 'system',
+
+            // Institutions
             'institutions_count' => Institution::count(),
             'active_institutions_count' => Institution::where('is_active', true)->count(),
-            'all_users_except_admin'=>User::withoutRole('Admin')->get()->count(),
+            'pending_approvals_count' => Institution::where('is_approved', false)->count(),
+            'institutions_by_type' => Institution::query()
+                ->selectRaw('type, COUNT(*) as total')
+                ->groupBy('type')
+                ->pluck('total', 'type'),
+            'institution_growth' => $this->monthlyCounts(Institution::query()),
+
+            // Users
+            'all_users_except_admin' => User::withoutRole('Admin')->count(),
             'users_by_role' => $this->usersByRole(),
-            'active_count'=>User::whereStatus('active')->get()->count(),
-            'devices_count' => Devices::all()->count(),
+            'active_count' => User::where('status', 'active')->count(),
+
+            // Students
+            'students_count' => StudentDetails::count(),
+            'active_students_count' => StudentDetails::where('enrollment_status', 'active')->count(),
+            'student_growth' => $this->monthlyCounts(StudentDetails::query()),
+
+            // Fees
+            'fees_billed' => $billed,
+            'fees_collected' => $collected,
+            'fees_outstanding' => $billed - $collected,
+            'fee_collection_rate' => $billed > 0 ? round($collected / $billed * 100) : 0,
+            'fees_by_status' => $this->feesByStatus(Fee::query()),
+            'fee_collection_trend' => $this->monthlyFeeTrend(Fee::query()),
+
+            // Devices & attendance
+            'devices_count' => $devices->count(),
+            'devices_online_count' => $devices->filter(fn (Devices $device) => $device->zktecoDevice?->isOnline())->count(),
+            'attendance_today_count' => ZktecoAttendanceLog::whereDate('occurred_at', today())->count(),
+
+            // Actionable / recent activity
+            'pending_institutions' => Institution::with('owner')
+                ->where('is_approved', false)
+                ->oldest()
+                ->get(),
             'recent_institutions' => $this->applySort(
                 Institution::with('owner'),
                 sortable: ['name', 'created_at'],
                 defaultColumn: 'created_at',
                 defaultDirection: 'desc',
             )->take(5)->get(),
+            'recent_contact_messages' => ContactMessage::latest()->take(5)->get(),
         ];
+    }
+
+    /**
+     * Month-by-month row counts for the last N months (oldest first),
+     * including months with zero rows, keyed by a display label. Grouped in
+     * PHP rather than a SQL date-format function so it behaves identically
+     * across the app's MySQL and test-suite SQLite connections.
+     */
+    private function monthlyCounts(Builder $query, int $months = 6): array
+    {
+        $start = now()->subMonths($months - 1)->startOfMonth();
+
+        $counts = (clone $query)
+            ->where('created_at', '>=', $start)
+            ->get(['created_at'])
+            ->groupBy(fn ($row) => $row->created_at->format('Y-m'))
+            ->map->count();
+
+        $trend = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $trend[$month->format('M Y')] = $counts->get($month->format('Y-m'), 0);
+        }
+
+        return $trend;
+    }
+
+    /**
+     * Month-by-month billed vs. collected fee totals for the last N months
+     * (oldest first), including months with no activity.
+     */
+    private function monthlyFeeTrend(Builder $query, int $months = 6): array
+    {
+        $start = now()->subMonths($months - 1)->startOfMonth();
+
+        $grouped = $query->where('created_at', '>=', $start)
+            ->get(['created_at', 'amount', 'amount_paid'])
+            ->groupBy(fn ($row) => $row->created_at->format('Y-m'));
+
+        $trend = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $bucket = $grouped->get($month->format('Y-m'), collect());
+
+            $trend[$month->format('M Y')] = [
+                'billed' => (float) $bucket->sum('amount'),
+                'collected' => (float) $bucket->sum('amount_paid'),
+            ];
+        }
+
+        return $trend;
+    }
+
+    /**
+     * Fee counts by their computed status (paid/partial/overdue/pending).
+     * `status` is a PHP accessor, not a column, so this groups in memory
+     * rather than via SQL - acceptable at this app's scale, and consistent
+     * with how the rest of this service already aggregates fees.
+     */
+    private function feesByStatus(Builder $query): array
+    {
+        return $query->get(['amount', 'amount_paid', 'due_date'])
+            ->groupBy('status')
+            ->map->count()
+            ->toArray();
     }
 
     /**
@@ -71,15 +176,21 @@ class AnalyticsService
         $feeQuery = Fee::whereIn('institution_id', $institutionIds);
         $feeTotals = (clone $feeQuery)->selectRaw('SUM(amount) as billed, SUM(amount_paid) as collected')->first();
 
+        $billed = (float) ($feeTotals->billed ?? 0);
+        $collected = (float) ($feeTotals->collected ?? 0);
+
         $stats = [
             'scope' => 'institution',
             'institution' => $institution,
-            'fees_billed' => (float) ($feeTotals->billed ?? 0),
-            'fees_collected' => (float) ($feeTotals->collected ?? 0),
-            'fees_outstanding' => (float) ($feeTotals->billed ?? 0) - (float) ($feeTotals->collected ?? 0),
+            'fees_billed' => $billed,
+            'fees_collected' => $collected,
+            'fees_outstanding' => $billed - $collected,
+            'fee_collection_rate' => $billed > 0 ? round($collected / $billed * 100) : 0,
             'overdue_fees_count' => (clone $feeQuery)->whereColumn('amount_paid', '<', 'amount')
                 ->whereDate('due_date', '<', today())
                 ->count(),
+            'fees_by_status' => $this->feesByStatus(clone $feeQuery),
+            'fee_collection_trend' => $this->monthlyFeeTrend(clone $feeQuery),
             'recent_fees' => $this->applySort(
                 (clone $feeQuery)->with('student'),
                 sortable: ['title', 'amount', 'created_at'],
@@ -96,22 +207,29 @@ class AnalyticsService
             ->whereNotNull('zkteco_device_id')
             ->pluck('zkteco_device_id');
 
+        $devices = Devices::whereIn('institution_id', $institutionIds)->with('zktecoDevice')->get();
+        $studentQuery = StudentDetails::whereIn('institution_id', $institutionIds);
+
         return $stats + [
-            'students_count' => StudentDetails::whereIn('institution_id', $institutionIds)->count(),
+            'students_count' => (clone $studentQuery)->count(),
+            'active_students_count' => (clone $studentQuery)->where('enrollment_status', 'active')->count(),
             'parents_count' => $institution?->parents()->count() ?? 0,
-            'devices_count' => Devices::whereIn('institution_id', $institutionIds)->count(),
+            'devices_count' => $devices->count(),
+            'devices_online_count' => $devices->filter(fn (Devices $device) => $device->zktecoDevice?->isOnline())->count(),
             'attendance_today_count' => ZktecoAttendanceLog::whereIn('device_id', $deviceIds)
                 ->whereDate('occurred_at', today())
                 ->count(),
-            'enrollment_by_status' => StudentDetails::whereIn('institution_id', $institutionIds)
+            'student_growth' => $this->monthlyCounts(clone $studentQuery),
+            'enrollment_by_status' => (clone $studentQuery)
                 ->selectRaw('enrollment_status, COUNT(*) as total')
                 ->groupBy('enrollment_status')
                 ->pluck('total', 'enrollment_status'),
-            'recent_students' => StudentDetails::whereIn('institution_id', $institutionIds)
-                ->with('student')
-                ->latest()
-                ->take(5)
-                ->get(),
+            'recent_students' => $this->applySort(
+                (clone $studentQuery)->with('student'),
+                sortable: ['admission_number', 'enrollment_status', 'created_at'],
+                defaultColumn: 'created_at',
+                defaultDirection: 'desc',
+            )->take(5)->get(),
         ];
     }
 

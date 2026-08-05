@@ -12,10 +12,10 @@
         {{-- flux table showing devices for the user institution --}}
         <flux:table>
             <flux:table.columns>
-                <flux:table.column>Institution Name</flux:table.column>
-                <flux:table.column>Device Name</flux:table.column>
-                <flux:table.column>Device IP</flux:table.column>
-                <flux:table.column>Device Serial Number</flux:table.column>
+                <x-sortable-column column="institution">Institution Name</x-sortable-column>
+                <x-sortable-column column="device_name">Device Name</x-sortable-column>
+                <x-sortable-column column="ip_address">Device IP</x-sortable-column>
+                <x-sortable-column column="serial_number">Device Serial Number</x-sortable-column>
                 <flux:table.column>Status</flux:table.column>
                 <flux:table.column>Actions</flux:table.column>
             </flux:table.columns>

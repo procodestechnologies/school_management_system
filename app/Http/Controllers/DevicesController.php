@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\Sortable;
 use App\Models\Devices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class DevicesController extends Controller
 {
+    use Sortable;
+
     public function index()
     {
         $institutions = Auth::user()->institution()->get();
@@ -16,6 +19,18 @@ class DevicesController extends Controller
         $devices = $institutions->flatMap(function ($institution) {
             return $institution->devices()->with('zktecoDevice', 'institution')->get();
         });
+
+        $devices = $this->sortCollection(
+            $devices,
+            sortable: [
+                'institution' => fn (Devices $device) => $device->institution->name,
+                'device_name' => fn (Devices $device) => $device->zktecoDevice?->name,
+                'ip_address' => fn (Devices $device) => $device->zktecoDevice?->ip_address,
+                'serial_number' => 'serial_number',
+            ],
+            defaultColumn: 'serial_number',
+            defaultDirection: 'asc',
+        );
 
         $deviceCount = $devices->count();
         return view('layouts.devices.index', compact('devices', 'deviceCount'));
