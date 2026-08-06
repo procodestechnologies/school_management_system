@@ -3,18 +3,22 @@
 namespace Modules\Report\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\AnalyticsExportService;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\FeeManagement\Models\Fee;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function __construct(private AnalyticsService $analytics) {}
+    public function __construct(
+        private AnalyticsService $analytics,
+        private AnalyticsExportService $export,
+    ) {}
 
-    /**
-     * Display the analytics report for the authenticated user's role.
-     */
     public function index()
     {
         abort_unless(Auth::user()->can('view report'), 403);
@@ -25,19 +29,43 @@ class ReportController extends Controller
     }
 
     /**
-     * Export the viewer's fee records as CSV.
+     * Admins and Directors get the full "export everything" workbook
+     * (institutions/users/students/parents/fees/devices/attendance/messages,
+     * scoped to what they're allowed to see); everyone else who can export
+     * keeps the simpler fees-only CSV, since their own records are already
+     * the full extent of what they can see.
      */
     public function export(Request $request)
     {
-        abort_unless(Auth::user()->can('export report'), 403);
-
         $user = Auth::user();
 
+        abort_unless($user->can('export report'), 403);
+
+        if ($user->hasRole('Admin') || $user->hasRole('Director')) {
+            return $this->exportWorkbook($user);
+        }
+
+        return $this->exportFeesCsv($user);
+    }
+
+    private function exportWorkbook(User $user): StreamedResponse
+    {
+        ['filename' => $filename, 'spreadsheet' => $spreadsheet] = $this->export->forUser($user);
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function exportFeesCsv(User $user): StreamedResponse
+    {
         $query = Fee::with(['student', 'institution']);
 
-        if ($user->hasRole('Admin')) {
-            // no scoping
-        } elseif ($user->hasRole('Parent')) {
+        if ($user->hasRole('Parent')) {
             $query->where('parent_id', $user->id);
         } elseif ($user->hasRole('Student')) {
             $query->where('student_id', $user->id);

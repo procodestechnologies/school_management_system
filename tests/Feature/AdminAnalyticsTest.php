@@ -76,3 +76,109 @@ test('the admin can approve a pending institution from the dashboard', function 
     $response->assertRedirect();
     expect($institution->fresh()->is_approved)->toBeTrue();
 });
+
+test("the admin's dashboard redirects straight to the analytics page", function () {
+    $admin = makeAnalyticsAdmin();
+    $this->actingAs($admin);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertRedirect(route('report.index'));
+});
+
+test('a director sees a robust analytics dashboard for their own institution', function () {
+    $director = User::factory()->create();
+    $director->assignRole('Director');
+
+    $institution = makeInstitution(['user_id' => $director->id, 'name' => 'Riverside Academy']);
+
+    \Modules\FeeManagement\Models\Fee::create([
+        'institution_id' => $institution->id,
+        'student_id' => User::factory()->create()->id,
+        'title' => 'Term 1 Tuition',
+        'amount' => 10000,
+        'amount_paid' => 4000,
+    ]);
+
+    $this->actingAs($director);
+
+    $response = $this->get(route('report.index'));
+
+    $response->assertOk();
+    $response->assertSee('Riverside Academy');
+    $response->assertSee('Fee Collection Trend');
+    $response->assertSee('Student Enrollment');
+    $response->assertSee('Enrollment Status');
+    $response->assertSee('Recent Students');
+    $response->assertSee('Term 1 Tuition');
+    $response->assertDontSee('Institutions by Type');
+});
+
+test('the admin export contains every entity, system-wide', function () {
+    $admin = makeAnalyticsAdmin();
+    $this->actingAs($admin);
+
+    makeInstitution(['name' => 'Riverside Academy']);
+
+    $response = $this->get(route('report.export'));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+        streamedResponseToTempFile($response)
+    );
+
+    expect($spreadsheet->getSheetNames())->toEqual([
+        'Institutions', 'Users', 'Students', 'Parents', 'Fees', 'Devices', 'Attendance (30 days)', 'Contact Messages',
+    ]);
+});
+
+test("a director's export only covers their own institution", function () {
+    $director = User::factory()->create();
+    $director->assignRole('Director');
+
+    $institution = makeInstitution(['user_id' => $director->id, 'name' => 'Riverside Academy']);
+    $otherInstitution = makeInstitution(['name' => 'Someone Elses School']);
+
+    \Modules\FeeManagement\Models\Fee::create([
+        'institution_id' => $institution->id,
+        'student_id' => User::factory()->create()->id,
+        'title' => 'Term 1 Tuition',
+        'amount' => 10000,
+        'amount_paid' => 4000,
+    ]);
+    \Modules\FeeManagement\Models\Fee::create([
+        'institution_id' => $otherInstitution->id,
+        'student_id' => User::factory()->create()->id,
+        'title' => 'Someone Elses Fee',
+        'amount' => 5000,
+        'amount_paid' => 0,
+    ]);
+
+    $this->actingAs($director);
+
+    $response = $this->get(route('report.export'));
+
+    $response->assertOk();
+    $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+        streamedResponseToTempFile($response)
+    );
+
+    expect($spreadsheet->getSheetNames())->toEqual(['Students', 'Parents', 'Fees', 'Devices', 'Attendance (30 days)']);
+
+    $feesSheet = $spreadsheet->getSheetByName('Fees')->toArray();
+    $titles = array_column($feesSheet, 1);
+    expect($titles)->toContain('Term 1 Tuition');
+    expect($titles)->not->toContain('Someone Elses Fee');
+});
+
+function streamedResponseToTempFile(\Illuminate\Testing\TestResponse $response): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'export-test-').'.xlsx';
+    file_put_contents($path, $response->streamedContent());
+
+    return $path;
+}

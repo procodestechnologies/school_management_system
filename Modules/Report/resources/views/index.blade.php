@@ -18,7 +18,11 @@
 
             @can('export report')
                 <flux:button href="{{ route('report.export') }}" icon="arrow-down-tray" variant="primary">
-                    Export Fees CSV
+                    @if (auth()->user()->hasRole('Admin') || auth()->user()->hasRole('Director'))
+                        Export Full Report
+                    @else
+                        Export Fees CSV
+                    @endif
                 </flux:button>
             @endcan
         </div>
@@ -259,104 +263,207 @@
             {{-- ===================== DIRECTOR / ACCOUNTANT: INSTITUTION-SCOPED ===================== --}}
         @elseif ($stats['scope'] === 'institution')
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <flux:heading size="lg" class="-mb-2">{{ $stats['institution']?->name }}</flux:heading>
+
+            {{-- KPI tiles --}}
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
                 @if (isset($stats['students_count']))
                     <flux:card class="space-y-1">
-                        <flux:text class="text-zinc-500">Students</flux:text>
+                        <div class="flex items-center gap-2 text-zinc-500">
+                            <flux:icon icon="user-group" class="size-4" />
+                            <flux:text>Students</flux:text>
+                        </div>
                         <flux:heading size="xl">{{ $stats['students_count'] }}</flux:heading>
+                        <flux:text class="text-xs text-zinc-500">
+                            {{ $stats['active_students_count'] }} active
+                            @if (end($stats['student_growth']))
+                                &middot; +{{ end($stats['student_growth']) }} this month
+                            @endif
+                        </flux:text>
                     </flux:card>
+
                     <flux:card class="space-y-1">
-                        <flux:text class="text-zinc-500">Parents</flux:text>
+                        <div class="flex items-center gap-2 text-zinc-500">
+                            <flux:icon icon="users" class="size-4" />
+                            <flux:text>Parents</flux:text>
+                        </div>
                         <flux:heading size="xl">{{ $stats['parents_count'] }}</flux:heading>
-                    </flux:card>
-                    <flux:card class="space-y-1">
-                        <flux:text class="text-zinc-500">Devices</flux:text>
-                        <flux:heading size="xl">{{ $stats['devices_count'] }}</flux:heading>
-                    </flux:card>
-                    <flux:card class="space-y-1">
-                        <flux:text class="text-zinc-500">Attendance Today</flux:text>
-                        <flux:heading size="xl">{{ $stats['attendance_today_count'] }}</flux:heading>
+                        <flux:text class="text-xs text-zinc-500">linked to a student</flux:text>
                     </flux:card>
                 @endif
-            </div>
 
-            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <flux:card class="space-y-3">
-                    <flux:heading size="lg">Fee Collection — {{ $stats['institution']?->name }}</flux:heading>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Collected {{ $currency($stats['fees_collected']) }}</span>
-                        <span class="text-zinc-500">Billed {{ $currency($stats['fees_billed']) }}</span>
+                <flux:card class="space-y-1">
+                    <div class="flex items-center gap-2 text-zinc-500">
+                        <flux:icon icon="banknotes" class="size-4" />
+                        <flux:text>Fee Collection</flux:text>
                     </div>
-                    <div class="h-2 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
-                        <div class="h-2 rounded-full bg-emerald-500"
-                            style="width: {{ $pct($stats['fees_collected'], $stats['fees_billed']) }}%"></div>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <flux:text class="text-amber-600">Outstanding: {{ $currency($stats['fees_outstanding']) }}
-                        </flux:text>
-                        <flux:text class="text-red-600">{{ $stats['overdue_fees_count'] }} overdue</flux:text>
-                    </div>
+                    <flux:heading size="xl">{{ $stats['fee_collection_rate'] }}%</flux:heading>
+                    <flux:text class="text-xs text-amber-600 dark:text-amber-500">
+                        {{ $currency($stats['fees_outstanding']) }} outstanding
+                    </flux:text>
                 </flux:card>
 
-                @if (isset($stats['enrollment_by_status']))
-                    <flux:card class="space-y-3">
-                        <flux:heading size="lg">Enrollment Status</flux:heading>
-                        @php $maxEnroll = $stats['enrollment_by_status']->max() ?: 1; @endphp
-                        <div class="space-y-2">
-                            @forelse ($stats['enrollment_by_status'] as $status => $count)
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span>{{ ucfirst($status) }}</span>
-                                        <span class="text-zinc-500">{{ $count }}</span>
-                                    </div>
-                                    <div class="h-2 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
-                                        <div class="h-2 rounded-full bg-sky-500"
-                                            style="width: {{ $pct($count, $maxEnroll) }}%"></div>
-                                    </div>
-                                </div>
-                            @empty
-                                <flux:text class="text-zinc-500">No students yet.</flux:text>
-                            @endforelse
+                <flux:card class="space-y-1">
+                    <div class="flex items-center gap-2 text-zinc-500">
+                        <flux:icon icon="exclamation-triangle" class="size-4" />
+                        <flux:text>Overdue Fees</flux:text>
+                    </div>
+                    <flux:heading size="xl"
+                        class="{{ $stats['overdue_fees_count'] > 0 ? 'text-red-600 dark:text-red-500' : '' }}">
+                        {{ $stats['overdue_fees_count'] }}
+                    </flux:heading>
+                    <flux:text class="text-xs text-zinc-500">need a reminder</flux:text>
+                </flux:card>
+
+                @if (isset($stats['students_count']))
+                    <flux:card class="space-y-1">
+                        <div class="flex items-center gap-2 text-zinc-500">
+                            <flux:icon icon="clock" class="size-4" />
+                            <flux:text>Attendance Today</flux:text>
                         </div>
+                        <flux:heading size="xl">{{ $stats['attendance_today_count'] }}</flux:heading>
+                        <flux:text class="text-xs text-zinc-500">check-ins today</flux:text>
+                    </flux:card>
+
+                    <flux:card class="space-y-1">
+                        <div class="flex items-center gap-2 text-zinc-500">
+                            <flux:icon icon="device-phone-mobile" class="size-4" />
+                            <flux:text>Devices Online</flux:text>
+                        </div>
+                        <flux:heading size="xl">{{ $stats['devices_online_count'] }}/{{ $stats['devices_count'] }}</flux:heading>
+                        <flux:text class="text-xs text-zinc-500">biometric devices connected</flux:text>
                     </flux:card>
                 @endif
             </div>
 
-            <flux:card>
-                <flux:heading size="lg" class="mb-4">Recent Fees</flux:heading>
-                <flux:table>
-                    <flux:table.columns>
-                        <flux:table.column>Student</flux:table.column>
-                        <x-sortable-column column="title">Title</x-sortable-column>
-                        <x-sortable-column column="amount">Amount</x-sortable-column>
-                        <flux:table.column>Balance</flux:table.column>
-                        <flux:table.column>Status</flux:table.column>
-                    </flux:table.columns>
-                    <flux:table.rows>
-                        @forelse ($stats['recent_fees'] as $fee)
-                            <flux:table.row>
-                                <flux:table.cell>{{ $fee->student?->name }}</flux:table.cell>
-                                <flux:table.cell>{{ $fee->title }}</flux:table.cell>
-                                <flux:table.cell>{{ $currency($fee->amount) }}</flux:table.cell>
-                                <flux:table.cell>{{ $currency($fee->balance) }}</flux:table.cell>
-                                <flux:table.cell>
-                                    <flux:badge :color="match ($fee->status) {
-                                        'paid' => 'emerald',
-                                        'partial' => 'amber',
-                                        'overdue' => 'red',
-                                        default => 'zinc',
-                                    }">{{ ucfirst($fee->status) }}</flux:badge>
-                                </flux:table.cell>
-                            </flux:table.row>
-                        @empty
-                            <flux:table.row>
-                                <flux:table.cell colspan="5" class="text-center text-zinc-500">No fee records yet.
-                                </flux:table.cell>
-                            </flux:table.row>
-                        @endforelse
-                    </flux:table.rows>
-                </flux:table>
-            </flux:card>
+            {{-- Trends --}}
+            <div class="grid grid-cols-1 gap-4 {{ isset($stats['student_growth']) ? 'lg:grid-cols-2' : '' }}">
+                @if (isset($stats['student_growth']))
+                    <flux:card>
+                        <flux:heading size="lg" class="mb-1">Student Enrollment</flux:heading>
+                        <flux:text class="mb-4 text-sm text-zinc-500">New students, last 6 months</flux:text>
+                        <x-charts.trend-bars :data="$stats['student_growth']" color="emerald" :height="112" />
+                    </flux:card>
+                @endif
+
+                <flux:card>
+                    <flux:heading size="lg" class="mb-1">Fee Collection Trend</flux:heading>
+                    <flux:text class="mb-4 text-sm text-zinc-500">Billed vs. collected, last 6 months</flux:text>
+                    <x-charts.grouped-trend-bars :data="$stats['fee_collection_trend']"
+                        :series="['billed' => 'Billed', 'collected' => 'Collected']" :height="112"
+                        :formatter="fn ($v) => $currency($v)" />
+                </flux:card>
+            </div>
+
+            {{-- Distributions --}}
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                @if (isset($stats['enrollment_by_status']))
+                    <flux:card>
+                        <flux:heading size="lg" class="mb-4">Enrollment Status</flux:heading>
+                        @php
+                            $enrollColors = [
+                                'active' => 'emerald',
+                                'transferred' => 'sky',
+                                'graduated' => 'indigo',
+                                'dropped' => 'zinc',
+                                'suspended' => 'amber',
+                                'expelled' => 'red',
+                                'withdrawn' => 'zinc',
+                            ];
+                        @endphp
+                        <x-charts.distribution-bars :data="collect($stats['enrollment_by_status'])
+                            ->map(fn ($count, $status) => ['label' => ucfirst($status), 'value' => $count, 'color' => $enrollColors[$status] ?? 'indigo'])
+                            ->values()
+                            ->all()" />
+                    </flux:card>
+                @endif
+
+                <flux:card>
+                    <flux:heading size="lg" class="mb-4">Fee Status</flux:heading>
+                    @php
+                        $feeStatusMeta = [
+                            'paid' => ['label' => 'Paid', 'color' => 'emerald'],
+                            'partial' => ['label' => 'Partial', 'color' => 'amber'],
+                            'overdue' => ['label' => 'Overdue', 'color' => 'red'],
+                            'pending' => ['label' => 'Pending', 'color' => 'zinc'],
+                        ];
+                    @endphp
+                    <x-charts.distribution-bars :data="collect($feeStatusMeta)
+                        ->map(fn ($meta, $key) => ['label' => $meta['label'], 'value' => $stats['fees_by_status'][$key] ?? 0, 'color' => $meta['color']])
+                        ->values()
+                        ->all()" />
+                </flux:card>
+            </div>
+
+            {{-- Recent activity --}}
+            <div class="grid grid-cols-1 gap-4 {{ isset($stats['recent_students']) ? 'lg:grid-cols-2' : '' }}">
+                <flux:card>
+                    <flux:heading size="lg" class="mb-4">Recent Fees</flux:heading>
+                    <flux:table>
+                        <flux:table.columns>
+                            <flux:table.column>Student</flux:table.column>
+                            <x-sortable-column column="title">Title</x-sortable-column>
+                            <x-sortable-column column="amount">Amount</x-sortable-column>
+                            <flux:table.column>Balance</flux:table.column>
+                            <flux:table.column>Status</flux:table.column>
+                        </flux:table.columns>
+                        <flux:table.rows>
+                            @forelse ($stats['recent_fees'] as $fee)
+                                <flux:table.row>
+                                    <flux:table.cell>{{ $fee->student?->name }}</flux:table.cell>
+                                    <flux:table.cell>{{ $fee->title }}</flux:table.cell>
+                                    <flux:table.cell>{{ $currency($fee->amount) }}</flux:table.cell>
+                                    <flux:table.cell>{{ $currency($fee->balance) }}</flux:table.cell>
+                                    <flux:table.cell>
+                                        <flux:badge :color="match ($fee->status) {
+                                            'paid' => 'emerald',
+                                            'partial' => 'amber',
+                                            'overdue' => 'red',
+                                            default => 'zinc',
+                                        }">{{ ucfirst($fee->status) }}</flux:badge>
+                                    </flux:table.cell>
+                                </flux:table.row>
+                            @empty
+                                <flux:table.row>
+                                    <flux:table.cell colspan="5" class="text-center text-zinc-500">No fee records yet.
+                                    </flux:table.cell>
+                                </flux:table.row>
+                            @endforelse
+                        </flux:table.rows>
+                    </flux:table>
+                </flux:card>
+
+                @if (isset($stats['recent_students']))
+                    <flux:card>
+                        <flux:heading size="lg" class="mb-4">Recent Students</flux:heading>
+                        <flux:table>
+                            <flux:table.columns>
+                                <flux:table.column>Name</flux:table.column>
+                                <x-sortable-column column="admission_number">Admission No.</x-sortable-column>
+                                <x-sortable-column column="enrollment_status">Status</x-sortable-column>
+                            </flux:table.columns>
+                            <flux:table.rows>
+                                @forelse ($stats['recent_students'] as $studentDetails)
+                                    <flux:table.row>
+                                        <flux:table.cell>{{ $studentDetails->student?->name }}</flux:table.cell>
+                                        <flux:table.cell>{{ $studentDetails->admission_number }}</flux:table.cell>
+                                        <flux:table.cell>
+                                            <flux:badge :color="$studentDetails->is_active ? 'emerald' : 'zinc'">
+                                                {{ ucfirst($studentDetails->enrollment_status) }}
+                                            </flux:badge>
+                                        </flux:table.cell>
+                                    </flux:table.row>
+                                @empty
+                                    <flux:table.row>
+                                        <flux:table.cell colspan="3" class="text-center text-zinc-500">No students yet.
+                                        </flux:table.cell>
+                                    </flux:table.row>
+                                @endforelse
+                            </flux:table.rows>
+                        </flux:table>
+                    </flux:card>
+                @endif
+            </div>
 
             {{-- ===================== PARENT ===================== --}}
         @elseif ($stats['scope'] === 'parent')
