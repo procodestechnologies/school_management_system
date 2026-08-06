@@ -3,6 +3,7 @@
 namespace Modules\Institution\Models;
 
 use App\Models\Devices;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -82,9 +83,38 @@ class Institution extends Model
     // {
     //     // return InstitutionFactory::new();
     // }
+    protected function casts(): array
+    {
+        return [
+            'subscription_expires_at' => 'datetime',
+        ];
+    }
+
     public function owner()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(Plan::class, 'subscription_plan');
+    }
+
+    /**
+     * A plan with no expiry date is treated as not time-limited.
+     */
+    public function subscriptionActive(): bool
+    {
+        return ! $this->subscription_expires_at || $this->subscription_expires_at->isFuture();
+    }
+
+    public function hasModule(string $module): bool
+    {
+        if (! $this->plan || ! $this->subscriptionActive()) {
+            return false;
+        }
+
+        return $this->plan->hasModule($module);
     }
 
     public function devices()

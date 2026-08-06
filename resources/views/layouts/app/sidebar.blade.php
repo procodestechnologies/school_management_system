@@ -39,6 +39,10 @@
                     :current="request()->routeIs('institution.index')" wire:navigate>
                     {{ __('Institutions') }}
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="credit-card" :href="route('admin.plans.index')"
+                    :current="request()->routeIs('admin.plans.*')" wire:navigate>
+                    {{ __('Plans') }}
+                </flux:sidebar.item>
                 <flux:sidebar.item icon="envelope" :href="route('messages.index')"
                     :current="request()->routeIs('messages.*')" wire:navigate>
                     {{ __('Messages') }}
@@ -179,7 +183,7 @@
                         }
                     @endphp
 
-                    @if ($canAccess)
+                    @if ($canAccess && institutionHasModule($module->getName()))
                         <flux:sidebar.item icon="{{ $icon }}"
                             :href="route($moduleName.
                                 '.index')"

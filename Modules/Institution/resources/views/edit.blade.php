@@ -315,18 +315,11 @@
                                 <flux:select name="subscription_plan" label="Subscription Plan"
                                     class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                     <option value="">Select Plan</option>
-                                    <option value="Free"
-                                        {{ old('subscription_plan', $institution->subscription_plan) == 'Free' ? 'selected' : '' }}>
-                                        Free</option>
-                                    <option value="Basic"
-                                        {{ old('subscription_plan', $institution->subscription_plan) == 'Basic' ? 'selected' : '' }}>
-                                        Basic</option>
-                                    <option value="Premium"
-                                        {{ old('subscription_plan', $institution->subscription_plan) == 'Premium' ? 'selected' : '' }}>
-                                        Premium</option>
-                                    <option value="Enterprise"
-                                        {{ old('subscription_plan', $institution->subscription_plan) == 'Enterprise' ? 'selected' : '' }}>
-                                        Enterprise</option>
+                                    @foreach ($plans as $plan)
+                                        <option value="{{ $plan->id }}"
+                                            {{ (string) old('subscription_plan', $institution->subscription_plan) === (string) $plan->id ? 'selected' : '' }}>
+                                            {{ $plan->name }}</option>
+                                    @endforeach
                                 </flux:select>
                                 @error('subscription_plan')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

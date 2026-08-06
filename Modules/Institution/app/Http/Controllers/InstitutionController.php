@@ -4,6 +4,7 @@ namespace Modules\Institution\Http\Controllers;
 
 use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -135,7 +136,9 @@ class InstitutionController extends Controller
             403
         );
 
-        return view('institution::edit', compact('institution'));
+        $plans = Plan::where('is_active', true)->orderBy('name')->get();
+
+        return view('institution::edit', compact('institution', 'plans'));
     }
 
     /**
@@ -177,7 +180,7 @@ class InstitutionController extends Controller
             // Additional Information
             'principal_name' => 'nullable|string|max:255',
             'principal_phone' => 'nullable|string|max:20',
-            'subscription_plan' => 'nullable|string',
+            'subscription_plan' => 'nullable|exists:plans,id',
             'subscription_expires_at' => 'nullable|date|after:today',
             'notes' => 'nullable|string',
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevicesController;
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SyncStudentToDeviceController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HasInstitution;
@@ -22,6 +23,7 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     // handled entirely by the create/edit Livewire components.
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
+    Route::resource('admin/plans', PlanController::class)->names('admin.plans')->except(['show']);
     Route::resource('messages', ContactMessageController::class)->only(['index', 'show'])->names('messages');
 });
 Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);

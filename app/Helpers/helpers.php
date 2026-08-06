@@ -82,3 +82,43 @@ if (! function_exists('institutionApproved')) {
         return (bool) $institution->is_approved;
     }
 }
+if (! function_exists('currentInstitution')) {
+    function currentInstitution(): ?Institution
+    {
+        $user = Auth::user();
+
+        if (! $user || isAdmin()) {
+            return null;
+        }
+
+        if ($user->hasRole('Student')) {
+            return $user->studentInstitution;
+        }
+
+        if ($user->hasRole('Teacher')) {
+            return $user->teacherUserDetails?->institution;
+        }
+
+        if ($user->hasRole('Parent')) {
+            return $user->parentInstitution;
+        }
+
+        // Director (and any other role that owns an institution directly).
+        return $user->institution()->first();
+    }
+}
+if (! function_exists('institutionHasModule')) {
+    function institutionHasModule(string $module): bool
+    {
+        // Admins aren't scoped to an institution's plan, and an
+        // unresolvable institution (e.g. an Accountant with no plan
+        // linkage yet) shouldn't be locked out over gaps in that lookup.
+        $institution = currentInstitution();
+
+        if (isAdmin() || ! $institution) {
+            return true;
+        }
+
+        return $institution->hasModule($module);
+    }
+}

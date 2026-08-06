@@ -246,7 +246,7 @@
                             <label
                                 class="block text-xs font-medium text-gray-500 uppercase tracking-wider">Subscription
                                 Plan</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ $institution->subscription_plan ?? 'Not set' }}
+                            <p class="mt-1 text-sm text-gray-900">{{ $institution->plan->name ?? 'Not set' }}
                             </p>
                         </div>
                         <div>
