@@ -24,7 +24,7 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
     Route::resource('admin/plans', PlanController::class)->names('admin.plans')->except(['show']);
-    Route::resource('messages', ContactMessageController::class)->only(['index', 'show'])->names('messages');
+    Route::resource('messages', ContactMessageController::class)->names('messages');
 });
 Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
 require __DIR__ . '/settings.php';

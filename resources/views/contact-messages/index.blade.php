@@ -6,7 +6,12 @@
                 {{ __('Submissions from the public contact form') }}
             </flux:text>
         </div>
-
+        @if (session('success'))
+            <flux:toast>
+                <flux:heading>{{ __('Success') }}</flux:heading>
+                <flux:text>{{ session('success') }}</flux:text>
+            </flux:toast>
+        @endif
         <flux:card>
             @if ($messages->isEmpty())
                 <div class="py-12 text-center">
@@ -29,8 +34,10 @@
                         @foreach ($messages as $contactMessage)
                             <flux:table.row>
                                 <flux:table.cell>
-                                    <div class="font-medium text-zinc-900 dark:text-white">{{ $contactMessage->name }}</div>
-                                    <div class="text-sm text-zinc-500 dark:text-zinc-400">{{ $contactMessage->email }}</div>
+                                    <div class="font-medium text-zinc-900 dark:text-white">{{ $contactMessage->name }}
+                                    </div>
+                                    <div class="text-sm text-zinc-500 dark:text-zinc-400">{{ $contactMessage->email }}
+                                    </div>
                                 </flux:table.cell>
                                 <flux:table.cell>
                                     <flux:badge color="indigo">
@@ -46,6 +53,15 @@
                                         variant="primary" color="emerald">
                                         {{ __('View') }}
                                     </flux:button>
+                                    <form action="{{ route('messages.destroy', $contactMessage) }}" method="POST"
+                                        class="inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <flux:button type="submit" icon="trash" variant="primary" color="red"
+                                            onclick="return confirm('{{ __('Are you sure you want to delete this message?') }}')">
+                                            {{ __('Delete') }}
+                                        </flux:button>
+                                    </form>
                                 </flux:table.cell>
                             </flux:table.row>
                         @endforeach

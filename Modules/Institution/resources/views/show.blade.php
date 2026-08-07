@@ -7,7 +7,7 @@
                 class="border-b border-gray-200 px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     @if ($institution->logo)
-                        <img src="{{ Storage::disk('cloudinary')->url($institution->logo) }}" alt="{{ $institution->name }}"
+                        <img src="{{ Storage::disk('public')->url($institution->logo) }}" alt="{{ $institution->name }}"
                             class="h-12 w-auto rounded border border-gray-200 bg-white p-1">
                     @endif
                     <div>

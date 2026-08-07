@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\Devices;
 use App\Models\User;
+use App\Services\ImageCompressionService;
 use App\Services\ProfilePhotoResolver;
 use App\Services\ZKTecoUserSyncService;
 use Exception;
@@ -26,6 +27,7 @@ class StudentController extends Controller
     public function __construct(
         private readonly ZKTecoUserSyncService $syncService,
         private readonly ProfilePhotoResolver $photoResolver,
+        private readonly ImageCompressionService $imageCompressor,
     ) {}
 
     /**
@@ -190,8 +192,10 @@ class StudentController extends Controller
 
                 // Handle profile photo upload
                 if ($request->hasFile('profile_image')) {
-                    $studentData['profile_photo'] = $request->file('profile_image')
-                        ->store('students/photos', 'cloudinary');
+                    $studentData['profile_photo'] = $this->imageCompressor->store(
+                        $request->file('profile_image'),
+                        'students/photos',
+                    );
                 }
 
                 // 4. Create Student Details using the relationship
@@ -292,11 +296,14 @@ class StudentController extends Controller
 
                 // Handle profile photo upload: replace and delete the old file if a new one was sent
                 if ($request->hasFile('profile_image')) {
-                    if ($studentDetails->profile_photo && Storage::disk('cloudinary')->exists($studentDetails->profile_photo)) {
-                        Storage::disk('cloudinary')->delete($studentDetails->profile_photo);
+                    if ($studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)) {
+                        Storage::disk('public')->delete($studentDetails->profile_photo);
                     }
 
-                    $studentData['profile_photo'] = $request->file('profile_image')->store('students/photos', 'cloudinary');
+                    $studentData['profile_photo'] = $this->imageCompressor->store(
+                        $request->file('profile_image'),
+                        'students/photos',
+                    );
                 }
 
                 // Update student details

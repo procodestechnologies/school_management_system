@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * ZKTeco device sync needs a real local filesystem path to push a photo's
- * actual bytes onto biometric hardware. Profile photos live on Cloudinary,
- * which has no local path, so this downloads the photo to a temp file for
- * the duration of the callback and cleans it up afterward.
+ * actual bytes onto biometric hardware. Profile photos live on the local
+ * "public" disk, so this just resolves the stored path to its absolute
+ * filesystem path.
  */
 class ProfilePhotoResolver
 {
@@ -24,19 +24,12 @@ class ProfilePhotoResolver
             return $callback(null);
         }
 
-        $disk = Storage::disk('cloudinary');
+        $disk = Storage::disk('public');
 
         if (! $disk->exists($storedPath)) {
             return $callback(null);
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'photo_').'.jpg';
-        file_put_contents($tempPath, $disk->get($storedPath));
-
-        try {
-            return $callback($tempPath);
-        } finally {
-            @unlink($tempPath);
-        }
+        return $callback($disk->path($storedPath));
     }
 }

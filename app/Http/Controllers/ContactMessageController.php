@@ -34,4 +34,12 @@ class ContactMessageController extends Controller
             'message' => $message,
         ]);
     }
+    public function destroy(ContactMessage $message)
+    {
+        abort_unless(isAdmin(), 403);
+
+        $message->delete();
+
+        return redirect()->route('messages.index')->with('success', 'Message deleted successfully.');
+    }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\ImageCompressionService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -26,8 +27,9 @@ class InstitutionController extends Controller
 
     public array $institution;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ImageCompressionService $imageCompressor,
+    ) {
         $this->user = Auth::user();
     }
 
@@ -92,7 +94,7 @@ class InstitutionController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            $data['logo'] = $request->file('logo')->store('institutions/logos', 'cloudinary');
+            $data['logo'] = $this->imageCompressor->store($request->file('logo'), 'institutions/logos');
         }
 
         // New institutions start unapproved regardless of the column's
@@ -210,13 +212,13 @@ class InstitutionController extends Controller
                     'upload_error_code' => $uploadedLogo->getError(),
                 ]);
 
-                if ($institution->logo && Storage::disk('cloudinary')->exists($institution->logo)) {
-                    Storage::disk('cloudinary')->delete($institution->logo);
+                if ($institution->logo && Storage::disk('public')->exists($institution->logo)) {
+                    Storage::disk('public')->delete($institution->logo);
                 }
 
-                $validated['logo'] = $uploadedLogo->store('institutions/logos', 'cloudinary');
+                $validated['logo'] = $this->imageCompressor->store($uploadedLogo, 'institutions/logos');
 
-                Log::debug('Institution logo stored on Cloudinary', [
+                Log::debug('Institution logo stored locally', [
                     'institution_id' => $institution->id,
                     'stored_path' => $validated['logo'],
                 ]);
