@@ -11,6 +11,13 @@ class HasInstitution
 {
     /**
      * Handle an incoming request.
+     *
+     * A Director may own more than one institution, so beyond just having
+     * one, they need one chosen as "active" - everything else (dashboard,
+     * billing, modules) runs against that one. With exactly one
+     * institution and nothing chosen yet, it's auto-activated so a
+     * single-school Director never sees an extra step; with more than
+     * one, they're sent to the institutions index to pick.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -33,10 +40,44 @@ class HasInstitution
             return $next($request);
         }
 
+        $institutionCount = $user->institution()->count();
+
         // Anyone else without an institution yet (a brand new sign-up, or a
         // Director who hasn't registered their school) is sent to onboard.
-        if ($user->institution()->count() === 0) {
+        if ($institutionCount === 0) {
             return redirect()->route('institution.create');
+        }
+
+        // The institution routes themselves - including where choosing
+        // happens - always stay reachable, regardless of active-selection
+        // state.
+        if ($request->is('dashboard/institutions*')) {
+            return $next($request);
+        }
+
+        // A previously-chosen institution that's no longer owned (lost,
+        // transferred) leaves a stale pointer - treat it as unset.
+        if ($user->active_institution_id && ! $user->institution()->where('id', $user->active_institution_id)->exists()) {
+            $user->update(['active_institution_id' => null]);
+            $user->unsetRelation('activeInstitution');
+        }
+
+        if (! $user->active_institution_id) {
+            if ($institutionCount === 1) {
+                $user->update(['active_institution_id' => $user->institution()->value('id')]);
+                // Global middleware earlier in this same request (approval/
+                // payment gates) may have already resolved and cached
+                // activeInstitution as null via currentInstitution() -
+                // without this, that stale cache would leak into the rest
+                // of the request (sidebar, controllers) despite the id
+                // being updated.
+                $user->unsetRelation('activeInstitution');
+
+                return $next($request);
+            }
+
+            return redirect()->route('institution.index')
+                ->with('warning', 'Choose which school to manage.');
         }
 
         return $next($request);

@@ -28,7 +28,7 @@ class SendReadyReportCards extends Command
         $skipped = 0;
 
         foreach ($reportCards as $reportCard) {
-            if (! $reportCard->student || ! $completionService->isStillComplete($reportCard->student, $reportCard->term)) {
+            if (! $reportCard->student || ! $reportCard->academic_year || ! $completionService->isStillComplete($reportCard->student, $reportCard->term, $reportCard->academic_year)) {
                 $reportCard->delete();
                 $skipped++;
 

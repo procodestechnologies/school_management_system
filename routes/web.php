@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevicesController;
@@ -17,6 +18,11 @@ Route::view('/plans', 'frontend.plans')->name('plans');
 Route::view('/contact', 'frontend.contact')->name('contact');
 // make sure to add the EnsureAccountIsActive middleware to all routes
 
+// Paystack calls this directly, unauthenticated - no session, no CSRF
+// token. Kept outside /dashboard so the payment-gate middleware never
+// touches it either.
+Route::post('billing/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
+
 Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboard')->group(function () {
     Route::get('', DashboardController::class)->name('dashboard');
     // store/show aren't implemented - device creation and viewing are
@@ -25,6 +31,9 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
     Route::resource('admin/plans', PlanController::class)->names('admin.plans')->except(['show']);
     Route::resource('messages', ContactMessageController::class)->names('messages');
+    Route::get('billing', [BillingController::class, 'show'])->name('billing.show');
+    Route::post('billing/pay', [BillingController::class, 'initiate'])->name('billing.initiate');
+    Route::get('billing/callback', [BillingController::class, 'callback'])->name('billing.callback');
+    Route::get('students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent'])->name('students.sync-device');
 });
-Route::get('/students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent']);
 require __DIR__ . '/settings.php';

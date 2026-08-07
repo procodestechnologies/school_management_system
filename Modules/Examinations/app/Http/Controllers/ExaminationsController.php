@@ -43,7 +43,7 @@ class ExaminationsController extends Controller
     {
         abort_unless(Auth::user()->can('create examination'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $classes = $this->scopedClasses();
         $subjects = $this->scopedSubjects();
 
@@ -84,7 +84,7 @@ class ExaminationsController extends Controller
         abort_unless(Auth::user()->can('edit examination'), 403);
 
         $examination = $this->scopedExamination($id);
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $classes = $this->scopedClasses();
         $subjects = $this->scopedSubjects();
 
@@ -122,7 +122,7 @@ class ExaminationsController extends Controller
     private function validated(Request $request): array
     {
         $validated = $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'class_id' => 'required|exists:classes,id',
             'title' => 'required|string|max:255',
             'subject_id' => 'required|exists:subjects,id',
@@ -140,6 +140,16 @@ class ExaminationsController extends Controller
         // are now the source of truth.
         $validated['class_name'] = SchoolClass::find($validated['class_id'])?->name;
         $validated['subject_name'] = Subject::find($validated['subject_id'])?->name;
+
+        // Term labels repeat every year ("Second Term" happens annually),
+        // so the exam date's year is what actually distinguishes them.
+        $validated['academic_year'] = \Carbon\Carbon::parse($validated['exam_date'])->year;
+
+        // Never trust a client-submitted institution_id for a non-admin -
+        // it's always whichever institution is currently active for them.
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         return $validated;
     }
@@ -169,7 +179,7 @@ class ExaminationsController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedExamination(int $id): Examination
@@ -189,7 +199,7 @@ class ExaminationsController extends Controller
         $query = SchoolClass::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderBy('name')->get();
@@ -204,7 +214,7 @@ class ExaminationsController extends Controller
         $query = Subject::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderBy('name')->get();

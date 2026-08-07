@@ -196,7 +196,7 @@ class LessonController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedLesson(int $id, array $with = []): Lesson
@@ -237,7 +237,7 @@ class LessonController extends Controller
         $query = SchoolClass::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderBy('name')->get();

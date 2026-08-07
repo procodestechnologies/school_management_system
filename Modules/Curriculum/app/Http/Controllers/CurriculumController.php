@@ -33,7 +33,7 @@ class CurriculumController extends Controller
     {
         abort_unless(Auth::user()->can('create curriculum'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('curriculum::create', compact('institutions'));
     }
@@ -73,7 +73,7 @@ class CurriculumController extends Controller
         abort_unless(Auth::user()->can('edit curriculum'), 403);
 
         $curriculum = $this->scopedCurriculum($id);
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('curriculum::edit', compact('curriculum', 'institutions'));
     }
@@ -108,11 +108,17 @@ class CurriculumController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+        $validated = $request->validate([
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'name' => 'required|string|max:255',
             'status' => 'required|in:active,dismissed',
         ]);
+
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
+
+        return $validated;
     }
 
     private function scopeToViewer($query): void
@@ -133,7 +139,7 @@ class CurriculumController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedCurriculum(int $id): Curriculum

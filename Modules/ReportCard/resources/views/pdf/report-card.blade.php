@@ -213,6 +213,49 @@
         </tr>
     </table>
 
+    @if ($termHistory->count() > 1)
+        <table class="subjects">
+            <thead>
+                <tr>
+                    <th colspan="4">Performance Trend — {{ $reportCard->academic_year }}</th>
+                </tr>
+                <tr>
+                    <th>Term</th>
+                    <th>Mean Percentage</th>
+                    <th>Mean Grade</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $previous = null; @endphp
+                @foreach ($termHistory as $entry)
+                    @php
+                        $delta = ($previous && $entry->mean_percentage !== null && $previous->mean_percentage !== null)
+                            ? round($entry->mean_percentage - $previous->mean_percentage, 2)
+                            : null;
+                    @endphp
+                    <tr>
+                        <td>{{ $entry->term }}</td>
+                        <td>{{ $entry->mean_percentage !== null ? number_format($entry->mean_percentage, 2).'%' : '—' }}</td>
+                        <td>{{ $entry->mean_grade ?? '—' }}</td>
+                        <td>
+                            @if ($delta === null)
+                                —
+                            @elseif ($delta > 0)
+                                &#9650; Improved by {{ number_format(abs($delta), 2) }} pts
+                            @elseif ($delta < 0)
+                                &#9660; Declined by {{ number_format(abs($delta), 2) }} pts
+                            @else
+                                No change
+                            @endif
+                        </td>
+                    </tr>
+                    @php $previous = $entry; @endphp
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <div class="prose">{!! $closingHtml !!}</div>
 
     @if ($signatoryName)

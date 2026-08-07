@@ -18,6 +18,9 @@
                     <x-sortable-column column="email">Email</x-sortable-column>
                     <flux:table.column>Status</flux:table.column>
                     <x-sortable-column column="created_at">Created At</x-sortable-column>
+                    @hasrole('Director')
+                        <flux:table.column>Active</flux:table.column>
+                    @endhasrole
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 
@@ -37,6 +40,18 @@
                                 </flux:badge>
                             </flux:table.cell>
                             <flux:table.cell>{{ $institute->created_at->diffForHumans() }}</flux:table.cell>
+                            @hasrole('Director')
+                                <flux:table.cell>
+                                    @if (auth()->user()->active_institution_id === $institute->id)
+                                        <flux:badge color="emerald">Active</flux:badge>
+                                    @elseif (institutionOwner($institute->owner->id))
+                                        <form action="{{ route('institution.choose', $institute->id) }}" method="POST">
+                                            @csrf
+                                            <flux:button size="sm" type="submit">Choose</flux:button>
+                                        </form>
+                                    @endif
+                                </flux:table.cell>
+                            @endhasrole
                             <flux:table.cell>
                                 @if (institutionOwner($institute->owner->id))
                                     <flux:button href="{{ route('institution.edit', $institute->id) }}" icon='pencil'

@@ -25,7 +25,7 @@ class ReportSettingsController extends Controller
         $institution = $this->resolveInstitution($request);
 
         if (! $institution) {
-            $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+            $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
             return view('reportcard::settings', [
                 'institution' => null,
@@ -41,7 +41,7 @@ class ReportSettingsController extends Controller
 
         $template = ReportTemplate::firstOrNew(['institution_id' => $institution->id]);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('reportcard::settings', compact('institution', 'institutions', 'gradingBands', 'template'));
     }
@@ -103,7 +103,7 @@ class ReportSettingsController extends Controller
 
         $band = GradingBand::findOrFail($id);
 
-        abort_unless(isAdmin() || Auth::user()->institution()->pluck('id')->contains($band->institution_id), 403);
+        abort_unless(isAdmin() || $band->institution_id === currentInstitution()?->id, 403);
 
         $institutionId = $band->institution_id;
         $band->delete();
@@ -118,11 +118,9 @@ class ReportSettingsController extends Controller
             return $request->filled('institution_id') ? Institution::find($request->integer('institution_id')) : null;
         }
 
-        $institutionId = $request->integer('institution_id') ?: null;
-        $owned = Auth::user()->institution();
-
-        return $institutionId
-            ? $owned->where('id', $institutionId)->first()
-            : $owned->first();
+        // Non-admins (Director/Accountant) only ever manage settings for
+        // whichever institution is currently active for them - never an
+        // arbitrary one they merely own.
+        return currentInstitution();
     }
 }

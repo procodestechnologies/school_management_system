@@ -249,7 +249,7 @@ class FeeManagementController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     /**
@@ -261,7 +261,7 @@ class FeeManagementController extends Controller
         $query = StudentDetails::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query;

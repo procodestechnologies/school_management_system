@@ -27,7 +27,7 @@ class TeacherController extends Controller
         $query = TeacherDetails::with(['teacher', 'institution']);
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         $teachers = $this->applySort(
@@ -47,7 +47,7 @@ class TeacherController extends Controller
     {
         abort_unless(Auth::user()->can('create teacher'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('teacher::create', compact('institutions'));
     }
@@ -63,7 +63,7 @@ class TeacherController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'phone' => 'nullable|string|max:20',
             'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number',
             'department' => 'nullable|string|max:255',
@@ -74,6 +74,10 @@ class TeacherController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
+
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         try {
             DB::transaction(function () use ($request, $validated) {
@@ -128,7 +132,7 @@ class TeacherController extends Controller
 
         $this->authorizeAccessTo($teacherDetails);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('teacher::edit', compact('teacherDetails', 'institutions'));
     }
@@ -147,7 +151,7 @@ class TeacherController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,'.$id,
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'phone' => 'nullable|string|max:20',
             'employee_number' => 'nullable|string|max:100|unique:teacher_details,employee_number,'.$teacherDetails->id,
             'department' => 'nullable|string|max:255',
@@ -158,6 +162,10 @@ class TeacherController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
+
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         try {
             DB::transaction(function () use ($request, $validated, $teacherDetails) {
@@ -201,8 +209,8 @@ class TeacherController extends Controller
     }
 
     /**
-     * Ensure a non-admin viewer only manages teachers from their own
-     * institution(s).
+     * Ensure a non-admin viewer only manages teachers from their currently
+     * active institution.
      */
     private function authorizeAccessTo(TeacherDetails $teacherDetails): void
     {
@@ -210,8 +218,6 @@ class TeacherController extends Controller
             return;
         }
 
-        $institutionIds = Auth::user()->institution()->pluck('id');
-
-        abort_unless($institutionIds->contains($teacherDetails->institution_id), 403);
+        abort_unless($teacherDetails->institution_id === currentInstitution()?->id, 403);
     }
 }

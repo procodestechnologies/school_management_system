@@ -161,23 +161,30 @@ class ResultController extends Controller
     {
         $result->loadMissing(['student', 'examination']);
 
-        if (! $result->examination?->term || ! $result->student) {
+        if (! $result->examination?->term || ! $result->examination?->academic_year || ! $result->student) {
             return;
         }
 
-        app(ReportCardCompletionService::class)->handle($result->student, $result->examination->term);
+        app(ReportCardCompletionService::class)->handle($result->student, $result->examination->term, $result->examination->academic_year);
     }
 
     private function validated(Request $request): array
     {
         $validated = $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'class_id' => 'required|exists:classes,id',
             'student_id' => 'required|exists:users,id',
             'examination_id' => 'required|exists:examinations,id',
             'marks_obtained' => 'required|numeric|min:0',
             'remarks' => 'nullable|string',
         ]);
+
+        // Never trust a client-submitted institution_id for a non-admin -
+        // it's always whichever institution is currently active/assigned
+        // for them.
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         $examination = Examination::find($validated['examination_id']);
         if ($examination && $validated['marks_obtained'] > $examination->total_marks) {
@@ -254,7 +261,7 @@ class ResultController extends Controller
             return $institution ? collect([$institution]) : collect();
         }
 
-        return $user->institution;
+        return collect([currentInstitution()])->filter();
     }
 
     private function scopeToViewer($query): void
@@ -302,7 +309,7 @@ class ResultController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedResult(int $id): Result
@@ -331,7 +338,7 @@ class ResultController extends Controller
         $query = SchoolClass::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderBy('name')->get();
@@ -368,7 +375,7 @@ class ResultController extends Controller
         $query = Examination::with('subject');
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         $query->when($classId, fn ($q) => $q->where('class_id', $classId));
@@ -410,7 +417,7 @@ class ResultController extends Controller
         $query = Examination::with('subject');
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderByDesc('exam_date')
@@ -438,7 +445,7 @@ class ResultController extends Controller
         $query = StudentDetails::with('student');
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->get();

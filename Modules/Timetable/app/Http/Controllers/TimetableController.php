@@ -173,7 +173,7 @@ class TimetableController extends Controller
     {
         abort_unless(Auth::user()->can('create timetable'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
         $classes = $this->scopedClasses();
         $days = self::DAYS;
@@ -216,7 +216,7 @@ class TimetableController extends Controller
         abort_unless(Auth::user()->can('edit timetable'), 403);
 
         $entry = $this->scopedEntry($id);
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
         $classes = $this->scopedClasses();
         $days = self::DAYS;
@@ -256,7 +256,7 @@ class TimetableController extends Controller
     private function validated(Request $request): array
     {
         $validated = $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'class_id' => 'required|exists:classes,id',
             'teacher_id' => 'nullable|exists:users,id',
             'subject' => 'required|string|max:255',
@@ -266,6 +266,12 @@ class TimetableController extends Controller
             'room' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
         ]);
+
+        // Never trust a client-submitted institution_id for a non-admin -
+        // it's always whichever institution is currently active for them.
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         // Keep the legacy class_name column in sync for anything still
         // reading it directly, though class_id is now the source of truth.
@@ -330,7 +336,7 @@ class TimetableController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedEntry(int $id, array $with = []): TimetableEntry
@@ -350,8 +356,8 @@ class TimetableController extends Controller
         $query = User::role('Teacher')->with('teacherUserDetails');
 
         if (! isAdmin()) {
-            $institutionIds = Auth::user()->institution()->pluck('id');
-            $query->whereHas('teacherUserDetails', fn ($q) => $q->whereIn('institution_id', $institutionIds));
+            $activeInstitutionId = currentInstitution()?->id ?? 0;
+            $query->whereHas('teacherUserDetails', fn ($q) => $q->where('institution_id', $activeInstitutionId));
         }
 
         return $query->get();
@@ -366,7 +372,7 @@ class TimetableController extends Controller
         $query = SchoolClass::query();
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query->orderBy('name')->get();

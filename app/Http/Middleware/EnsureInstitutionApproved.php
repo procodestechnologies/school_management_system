@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureInstitutionApproved
@@ -22,9 +21,7 @@ class EnsureInstitutionApproved
         }
 
         if (! institutionApproved()) {
-            $institution = Auth::user()->institution()->first();
-
-            return redirect()->route('institution.show', $institution->id)
+            return redirect()->route('institution.show', currentInstitution()->id)
                 ->with('warning', 'Your institution is awaiting Admin approval. Most features will unlock once approved.');
         }
 

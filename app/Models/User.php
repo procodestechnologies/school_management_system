@@ -33,7 +33,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'zkteco_synced', 'zkteco_synced_at', 'zkteco_sync_error'])]
+#[Fillable(['name', 'email', 'password', 'zkteco_synced', 'zkteco_synced_at', 'zkteco_sync_error', 'active_institution_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -73,6 +73,16 @@ class User extends Authenticatable implements PasskeyUser
     public function institution()
     {
         return $this->hasMany(Institution::class);
+    }
+
+    /**
+     * The institution a Director is currently "running the system as" -
+     * one of possibly several they own. See HasInstitution for how/when
+     * this gets set.
+     */
+    public function activeInstitution()
+    {
+        return $this->belongsTo(Institution::class, 'active_institution_id');
     }
 
     public function studentUserDetails()

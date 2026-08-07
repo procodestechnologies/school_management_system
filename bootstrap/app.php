@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureInstitutionApproved;
+use App\Http\Middleware\EnsureInstitutionHasPaid;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->use([EnsureAccountIsActive::class, EnsureInstitutionApproved::class]);
+        $middleware->use([EnsureAccountIsActive::class, EnsureInstitutionApproved::class, EnsureInstitutionHasPaid::class]);
+        $middleware->validateCsrfTokens(except: ['billing/webhook']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

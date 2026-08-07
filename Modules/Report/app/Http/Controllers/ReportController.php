@@ -70,7 +70,7 @@ class ReportController extends Controller
         } elseif ($user->hasRole('Student')) {
             $query->where('student_id', $user->id);
         } else {
-            $query->whereIn('institution_id', $user->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         $fees = $query->latest()->get();

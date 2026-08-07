@@ -71,10 +71,11 @@ if (! function_exists('institutionApproved')) {
             return true;
         }
 
-        $institution = $user->institution()->first();
+        $institution = currentInstitution();
 
-        // No institution yet is the onboarding case, handled separately by
-        // HasInstitution - not an "unapproved" case for this helper.
+        // No active institution yet (onboarding, or not chosen among
+        // several) is handled separately by HasInstitution - not an
+        // "unapproved" case for this helper.
         if (! $institution) {
             return true;
         }
@@ -103,8 +104,10 @@ if (! function_exists('currentInstitution')) {
             return $user->parentInstitution;
         }
 
-        // Director (and any other role that owns an institution directly).
-        return $user->institution()->first();
+        // Director (and any other role that owns institutions directly) -
+        // whichever one they've chosen as active, not just "the first
+        // one" - see HasInstitution for how/when this gets set.
+        return $user->activeInstitution;
     }
 }
 if (! function_exists('institutionHasModule')) {
@@ -120,5 +123,62 @@ if (! function_exists('institutionHasModule')) {
         }
 
         return $institution->hasModule($module);
+    }
+}
+if (! function_exists('institutionHasPaid')) {
+    function institutionHasPaid(): bool
+    {
+        $user = Auth::user();
+
+        if (! $user || isAdmin()) {
+            return true;
+        }
+
+        // Staff/dependents never own the subscription - paying for it is
+        // the Director's/institution's concern, not theirs.
+        if ($user->hasAnyRole(['Parent', 'Student', 'Teacher', 'Accountant'])) {
+            return true;
+        }
+
+        $institution = currentInstitution();
+
+        // No institution yet is the onboarding case, handled by
+        // HasInstitution - not an "unpaid" case for this helper.
+        if (! $institution) {
+            return true;
+        }
+
+        return $institution->hasActiveSubscription();
+    }
+}
+if (! function_exists('institutionInPaymentGracePeriod')) {
+    function institutionInPaymentGracePeriod(): bool
+    {
+        $institution = currentInstitution();
+
+        if (! $institution) {
+            return true;
+        }
+
+        // Grace period counts from whichever happened most recently: the
+        // institution's last paid plan expiring, or (for one that's never
+        // paid at all) its approval date.
+        $anchor = $institution->subscription_expires_at ?? $institution->approved_at ?? $institution->created_at;
+
+        return ! $anchor || now()->lessThanOrEqualTo($anchor->copy()->addDays(14));
+    }
+}
+if (! function_exists('institutionCanUpgrade')) {
+    function institutionCanUpgrade(): bool
+    {
+        $institution = currentInstitution();
+
+        if (! $institution) {
+            return false;
+        }
+
+        $currentPrice = $institution->hasActiveSubscription() ? (float) $institution->plan->price : -1;
+
+        return \App\Models\Plan::where('is_active', true)->where('price', '>', $currentPrice)->exists();
     }
 }

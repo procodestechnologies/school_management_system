@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\Sortable;
 use App\Models\Devices;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class DevicesController extends Controller
@@ -14,11 +13,13 @@ class DevicesController extends Controller
 
     public function index()
     {
-        $institutions = Auth::user()->institution()->get();
+        $query = Devices::with('zktecoDevice', 'institution');
 
-        $devices = $institutions->flatMap(function ($institution) {
-            return $institution->devices()->with('zktecoDevice', 'institution')->get();
-        });
+        if (! isAdmin()) {
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
+        }
+
+        $devices = $query->get();
 
         $devices = $this->sortCollection(
             $devices,
@@ -41,6 +42,8 @@ class DevicesController extends Controller
     }
     public function edit(Devices $device)
     {
+        abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
+
         // The matching ZktecoDevice may not exist yet - the physical unit
         // could still be offline and never have connected to the ADMS
         // server, so this must not 404 on a missing match.
@@ -50,6 +53,8 @@ class DevicesController extends Controller
     }
     public function update(Request $request, Devices $device)
     {
+        abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
+
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
             'ip_address' => 'nullable|ip',
@@ -73,7 +78,8 @@ class DevicesController extends Controller
     }
     public function destroy(Request $request, Devices $device)
     {
-        $device = Devices::findOrFail($device->id);
+        abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
+
         $device->delete();
         return redirect()->route('devices.index')->with('success', 'Device deleted successfully.');
     }

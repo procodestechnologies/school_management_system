@@ -43,7 +43,7 @@ class SubjectController extends Controller
     {
         abort_unless(Auth::user()->can('create subject'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('subject::create', compact('institutions'));
     }
@@ -89,7 +89,7 @@ class SubjectController extends Controller
         abort_unless(Auth::user()->can('edit subject'), 403);
 
         $subject = $this->scopedSubject($id);
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         return view('subject::edit', compact('subject', 'institutions'));
     }
@@ -125,13 +125,17 @@ class SubjectController extends Controller
     private function validated(Request $request): array
     {
         $validated = $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
         ]);
 
         $validated['is_compulsory'] = $request->boolean('is_compulsory');
         $validated['is_active'] = $request->boolean('is_active', true);
+
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
         return $validated;
     }
@@ -161,7 +165,7 @@ class SubjectController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedSubject(int $id, array $with = []): Subject

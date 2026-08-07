@@ -119,10 +119,7 @@ class AttendanceController extends Controller
      */
     private function resolveInstitutionId(User $user): ?int
     {
-        return $user->institution()->value('id')
-            ?? $user->parentInstitution?->id
-            ?? $user->studentInstitution?->id
-            ?? $user->teacherUserDetails?->institution_id;
+        return currentInstitution()?->id;
     }
 
     /**
@@ -142,8 +139,9 @@ class AttendanceController extends Controller
             return collect([$user->teacherUserDetails?->institution_id])->filter()->values();
         }
 
-        // Director/Accountant/other institution owners.
-        return $user->institution()->pluck('id');
+        // Director/Accountant/other institution owners - just the one
+        // currently active, not every institution they own.
+        return collect([currentInstitution()?->id])->filter()->values();
     }
 
     /**

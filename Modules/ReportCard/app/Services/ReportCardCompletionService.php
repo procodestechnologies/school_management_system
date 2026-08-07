@@ -4,6 +4,7 @@ namespace Modules\ReportCard\Services;
 
 use App\Models\User;
 use Modules\ReportCard\Models\ReportCard;
+use Modules\ReportCard\Support\TermParser;
 use Modules\Result\Models\Result;
 use Modules\Selections\Models\SubjectSelection;
 use Modules\Student\Models\StudentDetails;
@@ -17,7 +18,7 @@ class ReportCardCompletionService
      * so, mark their report card as "ready" to be sent (the actual send
      * happens later, on a delay - see the SendReadyReportCards command).
      */
-    public function handle(User $student, string $term): void
+    public function handle(User $student, string $term, int $academicYear): void
     {
         $studentDetails = StudentDetails::where('student_id', $student->id)->first();
 
@@ -34,7 +35,7 @@ class ReportCardCompletionService
         }
 
         $coveredSubjectIds = Result::where('student_id', $student->id)
-            ->whereHas('examination', fn ($q) => $q->where('term', $term)->whereIn('subject_id', $requiredSubjectIds))
+            ->whereHas('examination', fn ($q) => $q->where('term', $term)->where('academic_year', $academicYear)->whereIn('subject_id', $requiredSubjectIds))
             ->with('examination:id,subject_id')
             ->get()
             ->pluck('examination.subject_id')
@@ -45,10 +46,11 @@ class ReportCardCompletionService
         }
 
         ReportCard::firstOrCreate(
-            ['student_id' => $student->id, 'term' => $term],
+            ['student_id' => $student->id, 'term' => $term, 'academic_year' => $academicYear],
             [
                 'institution_id' => $studentDetails->institution_id,
                 'class_id' => (int) $studentDetails->class_id,
+                'term_number' => TermParser::number($term),
                 'status' => 'ready',
                 'completed_at' => now(),
             ]
@@ -60,7 +62,7 @@ class ReportCardCompletionService
      * term - used to re-verify freshness right before actually sending,
      * since results may have been corrected/removed during the send delay.
      */
-    public function isStillComplete(User $student, string $term): bool
+    public function isStillComplete(User $student, string $term, int $academicYear): bool
     {
         $studentDetails = StudentDetails::where('student_id', $student->id)->first();
 
@@ -75,7 +77,7 @@ class ReportCardCompletionService
         }
 
         $coveredSubjectIds = Result::where('student_id', $student->id)
-            ->whereHas('examination', fn ($q) => $q->where('term', $term)->whereIn('subject_id', $requiredSubjectIds))
+            ->whereHas('examination', fn ($q) => $q->where('term', $term)->where('academic_year', $academicYear)->whereIn('subject_id', $requiredSubjectIds))
             ->with('examination:id,subject_id')
             ->get()
             ->pluck('examination.subject_id')

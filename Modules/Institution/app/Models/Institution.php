@@ -3,6 +3,7 @@
 namespace Modules\Institution\Models;
 
 use App\Models\Devices;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -73,6 +74,7 @@ class Institution extends Model
 
         // Subscription
         'subscription_plan',
+        'subscription_started_at',
         'subscription_expires_at',
 
         // Optional
@@ -86,6 +88,8 @@ class Institution extends Model
     protected function casts(): array
     {
         return [
+            'approved_at' => 'datetime',
+            'subscription_started_at' => 'datetime',
             'subscription_expires_at' => 'datetime',
         ];
     }
@@ -115,6 +119,53 @@ class Institution extends Model
         }
 
         return $this->plan->hasModule($module);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Whether there's a currently-usable plan - has one assigned, and it
+     * hasn't expired. Distinct from subscriptionActive(), which alone
+     * treats "no expiry date" as active even when no plan has ever been
+     * chosen.
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscription_plan !== null && $this->subscriptionActive();
+    }
+
+    /**
+     * Total successfully paid since the current subscription window
+     * started. A lapsed/never-started subscription has nothing counted
+     * towards it - see amountDueForPlan().
+     */
+    public function amountPaidThisWindow(): float
+    {
+        if (! $this->subscription_started_at) {
+            return 0.0;
+        }
+
+        return (float) $this->payments()
+            ->where('status', 'successful')
+            ->where('paid_at', '>=', $this->subscription_started_at)
+            ->sum('amount');
+    }
+
+    /**
+     * What's left to pay to reach the given plan: its price, minus
+     * whatever's already been paid this window. Only counts prior payments
+     * while the current subscription is still active - a lapsed
+     * subscription always owes the plan's full price to start a fresh
+     * window (see BillingController::finalize()).
+     */
+    public function amountDueForPlan(Plan $plan): float
+    {
+        $alreadyPaid = $this->hasActiveSubscription() ? $this->amountPaidThisWindow() : 0.0;
+
+        return max(0.0, (float) $plan->price - $alreadyPaid);
     }
 
     public function devices()

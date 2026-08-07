@@ -44,8 +44,8 @@ class ParentController extends Controller
             return view('parent::index', compact('parents', 'institution'));
         }
 
-        // Regular user - get parents from their institution
-        $institution = $user->institution()->first();
+        // Regular user - get parents from their currently active institution
+        $institution = currentInstitution();
 
         // Handle case where user has no institution
         if (! $institution) {
@@ -267,15 +267,15 @@ class ParentController extends Controller
         $query = StudentDetails::whereNull('parent_id')->with(['student', 'institution']);
 
         if (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         return $query;
     }
 
     /**
-     * Ensure a non-admin viewer only manages parents with a child in one of
-     * their own institutions.
+     * Ensure a non-admin viewer only manages parents with a child in their
+     * currently active institution.
      */
     private function authorizeAccessTo(User $parent): void
     {
@@ -283,14 +283,14 @@ class ParentController extends Controller
             return;
         }
 
-        $institutionIds = Auth::user()->institution()->pluck('id');
+        $activeInstitutionId = currentInstitution()?->id;
 
         $children = StudentDetails::where('parent_id', $parent->id)->get();
 
         // A parent with no children at all isn't claimed by any institution
         // yet, so any Director can manage/link them. Otherwise at least one
-        // child must be in the viewer's institution.
-        $accessible = $children->isEmpty() || $children->whereIn('institution_id', $institutionIds)->isNotEmpty();
+        // child must be in the viewer's active institution.
+        $accessible = $children->isEmpty() || $children->where('institution_id', $activeInstitutionId)->isNotEmpty();
 
         abort_unless($accessible, 403);
     }

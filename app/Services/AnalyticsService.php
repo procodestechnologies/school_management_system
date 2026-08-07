@@ -166,12 +166,15 @@ class AnalyticsService
     }
 
     /**
-     * Director/Accountant: everything scoped to the institutions they own.
+     * Director/Accountant: everything scoped to whichever single
+     * institution the Director currently has active - not every school
+     * they own, since the rest of the system now runs institution-based
+     * rather than user-based (see HasInstitution).
      */
     public function institutionStats(User $user, bool $financeOnly = false): array
     {
-        $institutionIds = $user->institution()->pluck('id');
-        $institution = $user->institution()->first();
+        $institution = $user->activeInstitution;
+        $institutionIds = $institution ? collect([$institution->id]) : collect();
 
         $feeQuery = Fee::whereIn('institution_id', $institutionIds);
         $feeTotals = (clone $feeQuery)->selectRaw('SUM(amount) as billed, SUM(amount_paid) as collected')->first();

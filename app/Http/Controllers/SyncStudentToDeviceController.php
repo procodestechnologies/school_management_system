@@ -42,6 +42,8 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
+        abort_unless(isAdmin() || $studentDetails->institution_id === currentInstitution()?->id, 403);
+
         $devices = Devices::where('institution_id', $studentDetails->institution_id)
             ->where('is_active', true)
             ->get();
@@ -165,8 +167,13 @@ class SyncStudentToDeviceController extends Controller
             ], 404);
         }
 
-        // Check if device exists and is active
+        abort_unless(isAdmin() || $studentDetails->institution_id === currentInstitution()?->id, 403);
+
+        // Check if device exists, is active, and belongs to the student's
+        // own institution - otherwise a device serial from a different
+        // school could be targeted directly.
         $device = Devices::where('serial_number', $deviceSerial)
+            ->where('institution_id', $studentDetails->institution_id)
             ->where('is_active', true)
             ->first();
 

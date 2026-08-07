@@ -17,6 +17,8 @@ class ReportCard extends Model
         'student_id',
         'class_id',
         'term',
+        'academic_year',
+        'term_number',
         'mean_percentage',
         'mean_grade',
         'status',
@@ -26,6 +28,8 @@ class ReportCard extends Model
     ];
 
     protected $casts = [
+        'academic_year' => 'integer',
+        'term_number' => 'integer',
         'mean_percentage' => 'decimal:2',
         'completed_at' => 'datetime',
         'sent_at' => 'datetime',

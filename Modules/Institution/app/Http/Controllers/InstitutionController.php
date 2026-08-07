@@ -57,15 +57,15 @@ class InstitutionController extends Controller
      * Show the form for creating a new resource.
      *
      * Institution creation is the self-service "onboard my school" flow: any
-     * authenticated user without an institution yet may reach it (this is
-     * how a Director account comes into being). Once a user owns a school
-     * they can no longer create another one. Admins own the platform, not a
-     * school, and may never create one - their role in this flow is to
-     * approve a self-created institution afterward, not to create it.
+     * authenticated user may reach it (this is how a Director account comes
+     * into being) - and a Director may own several schools, so having one
+     * already is no longer a block. Admins own the platform, not a school,
+     * and may never create one - their role in this flow is to approve a
+     * self-created institution afterward, not to create it.
      */
     public function create()
     {
-        abort_if(isAdmin() || $this->user->institution()->exists(), 403);
+        abort_if(isAdmin(), 403);
 
         return view('institution::create');
     }
@@ -75,7 +75,7 @@ class InstitutionController extends Controller
      */
     public function store(Request $request)
     {
-        abort_if(isAdmin() || $this->user->institution()->exists(), 403);
+        abort_if(isAdmin(), 403);
 
         $data = $request->validate([
             'name' => 'required|string',
@@ -307,5 +307,20 @@ class InstitutionController extends Controller
         ]);
 
         return back()->with('success', 'Institution "' . $institution->name . '" has been approved.');
+    }
+
+    /**
+     * Set which of a Director's institutions the rest of the system
+     * (dashboard, billing, modules) runs as for them. Remembered across
+     * logins until they choose a different one.
+     */
+    public function choose(Institution $institution)
+    {
+        abort_unless($institution->user_id === $this->user->id, 403);
+
+        $this->user->update(['active_institution_id' => $institution->id]);
+
+        return redirect()->route('dashboard')
+            ->with('success', 'Now managing "' . $institution->name . '".');
     }
 }

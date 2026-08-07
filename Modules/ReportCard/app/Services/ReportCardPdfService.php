@@ -3,6 +3,7 @@
 namespace Modules\ReportCard\Services;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Modules\ReportCard\Models\ReportCard;
 use Modules\ReportCard\Models\ReportTemplate;
@@ -24,7 +25,7 @@ class ReportCardPdfService
         $student = $reportCard->student;
 
         $results = Result::where('student_id', $reportCard->student_id)
-            ->whereHas('examination', fn ($q) => $q->where('term', $reportCard->term))
+            ->whereHas('examination', fn ($q) => $q->where('term', $reportCard->term)->where('academic_year', $reportCard->academic_year))
             ->with('examination.subject')
             ->get()
             ->sortBy(fn ($result) => $result->examination?->subject?->name);
@@ -62,6 +63,7 @@ class ReportCardPdfService
         $closingHtml = nl2br(str_replace($search, $replace, e($template?->closing_text ?: $defaultClosing)));
 
         $logoDataUri = $this->logoDataUri($institution);
+        $termHistory = $this->termHistory($reportCard);
 
         $pdf = Pdf::loadView('reportcard::pdf.report-card', [
             'institution' => $institution,
@@ -75,6 +77,7 @@ class ReportCardPdfService
             'signatoryName' => $template?->signatory_name,
             'signatoryTitle' => $template?->signatory_title,
             'logoDataUri' => $logoDataUri,
+            'termHistory' => $termHistory,
         ]);
 
         $path = "report-cards/{$reportCard->id}.pdf";
@@ -83,6 +86,27 @@ class ReportCardPdfService
         $reportCard->update(['pdf_path' => $path]);
 
         return $path;
+    }
+
+    /**
+     * The student's completed report cards for this academic year, up to
+     * and including the current term, ordered so the PDF can show a
+     * term-over-term performance trend. If the current term's name
+     * couldn't be parsed into a term number (see TermParser), there's no
+     * reliable way to say what counts as "earlier" this year, so this
+     * falls back to just the current report card on its own.
+     */
+    private function termHistory(ReportCard $reportCard): Collection
+    {
+        if (! $reportCard->academic_year || ! $reportCard->term_number) {
+            return collect([$reportCard]);
+        }
+
+        return ReportCard::where('student_id', $reportCard->student_id)
+            ->where('academic_year', $reportCard->academic_year)
+            ->where('term_number', '<=', $reportCard->term_number)
+            ->orderBy('term_number')
+            ->get(['id', 'term', 'term_number', 'mean_percentage', 'mean_grade']);
     }
 
     private function logoDataUri($institution): ?string

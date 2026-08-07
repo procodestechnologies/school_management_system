@@ -42,7 +42,7 @@ class ClassesController extends Controller
     {
         abort_unless(Auth::user()->can('create classes'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
 
         return view('classes::create', compact('institutions', 'teachers'));
@@ -92,7 +92,7 @@ class ClassesController extends Controller
         abort_unless(Auth::user()->can('edit classes'), 403);
 
         $schoolClass = $this->scopedClass($id);
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
 
         return view('classes::edit', compact('schoolClass', 'institutions', 'teachers'));
@@ -128,13 +128,21 @@ class ClassesController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'institution_id' => 'required|exists:institutions,id',
+        $validated = $request->validate([
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'name' => 'required|string|max:255',
             'level' => 'nullable|string|max:100',
             'class_teacher_id' => 'nullable|exists:users,id',
             'capacity' => 'nullable|integer|min:1',
         ]);
+
+        // Never trust a client-submitted institution_id for a non-admin -
+        // it's always whichever institution is currently active for them.
+        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
+
+        return $validated;
     }
 
     private function scopeToViewer($query): void
@@ -162,7 +170,7 @@ class ClassesController extends Controller
             return;
         }
 
-        $query->whereIn('institution_id', $user->institution()->pluck('id'));
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
     private function scopedClass(int $id, array $with = []): SchoolClass
@@ -182,8 +190,8 @@ class ClassesController extends Controller
         $query = User::role('Teacher')->with('teacherUserDetails');
 
         if (! isAdmin()) {
-            $institutionIds = Auth::user()->institution()->pluck('id');
-            $query->whereHas('teacherUserDetails', fn ($q) => $q->whereIn('institution_id', $institutionIds));
+            $activeInstitutionId = currentInstitution()?->id ?? 0;
+            $query->whereHas('teacherUserDetails', fn ($q) => $q->where('institution_id', $activeInstitutionId));
         }
 
         return $query->get();

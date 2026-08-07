@@ -21,6 +21,7 @@ class Examination extends Model
         'subject_name',
         'class_name',
         'term',
+        'academic_year',
         'exam_date',
         'start_time',
         'end_time',
@@ -30,6 +31,7 @@ class Examination extends Model
     ];
 
     protected $casts = [
+        'academic_year' => 'integer',
         'exam_date' => 'date',
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',

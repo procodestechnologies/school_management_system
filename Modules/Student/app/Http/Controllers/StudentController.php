@@ -42,7 +42,7 @@ class StudentController extends Controller
         if (Auth::user()->hasRole('Parent')) {
             $query->where('parent_id', Auth::id());
         } elseif (! isAdmin()) {
-            $query->whereIn('institution_id', Auth::user()->institution()->pluck('id'));
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
         $students = $this->applySort(
@@ -62,7 +62,10 @@ class StudentController extends Controller
     {
         abort_unless(Auth::user()->can('create student'), 403);
 
-        $institutions = isAdmin() ? Institution::all() : Auth::user()->institution;
+        // Non-admins never choose an institution here - the student is
+        // always created under whichever one is currently active for them
+        // (see store()). Only Admin, who isn't scoped to one, still picks.
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         // A parent can have more than one student - list existing parents so
         // the Director can link a new student to one instead of creating a
@@ -92,7 +95,7 @@ class StudentController extends Controller
             'profile_image' => 'required|image|max:2048',
             'admission_number' => 'nullable|string|max:100',
             'student_number' => 'nullable|string|max:100',
-            'institution_id' => 'required|exists:institutions,id',
+            'institution_id' => ['nullable', 'exists:institutions,id'],
             'enrollment_status' => 'nullable|in:active,expelled,graduated,suspended,transferred,withdrawn,dropped',
 
             // Address
@@ -127,6 +130,17 @@ class StudentController extends Controller
             'notes' => 'nullable|string',
             'is_active' => 'nullable|boolean',
         ]);
+
+        // Never trust a client-submitted institution_id for a non-admin -
+        // the student is always created under whichever institution is
+        // currently active for the acting Director. Only Admin, who isn't
+        // scoped to one, may pick explicitly.
+        $validated['institution_id'] = isAdmin()
+            ? $validated['institution_id']
+            : currentInstitution()?->id;
+
+        abort_unless($validated['institution_id'], 422, 'No institution selected.');
+
         try {
             DB::transaction(function () use ($request, $validated) {
                 // 1. Resolve the parent: link an existing parent account if
@@ -220,6 +234,7 @@ class StudentController extends Controller
     public function show(User $student)
     {
         abort_unless(Auth::user()->can('view student'), 403);
+        $this->authorizeStudentAccess($student);
 
         return view('student::show', compact('student'));
     }
@@ -231,10 +246,11 @@ class StudentController extends Controller
     {
         abort_unless(Auth::user()->can('edit student'), 403);
 
-        $institutions = Institution::all();
         $student = User::whereId($id)->with('studentParent', 'studentUserDetails', 'studentInstitution')->first();
+        abort_unless($student, 404);
+        $this->authorizeStudentAccess($student);
 
-        return view('student::edit', compact('student', 'institutions'));
+        return view('student::edit', compact('student'));
     }
 
     /**
@@ -243,6 +259,10 @@ class StudentController extends Controller
     public function update(Request $request, $id)
     {
         abort_unless(Auth::user()->can('update student'), 403);
+
+        $student = User::findOrFail($id);
+        $this->authorizeStudentAccess($student);
+
         // Validate the request
         $validated = $request->validate([
             // Personal
@@ -252,7 +272,6 @@ class StudentController extends Controller
             'profile_image' => 'nullable|image|max:2048',
             'admission_number' => 'nullable|string|max:100',
             'student_number' => 'nullable|string|max:100',
-            'institution_id' => 'required|exists:institutions,id',
             'enrollment_status' => 'nullable|in:active,expelled,graduated,suspended,transferred,withdrawn,dropped',
 
             // Address
@@ -398,10 +417,46 @@ class StudentController extends Controller
         abort_unless(Auth::user()->can('delete student'), 403);
 
         $user = User::findOrFail($id);
+        $this->authorizeStudentAccess($user);
         $user->studentParent->delete();
         $user->delete();
 
         return redirect()->route('student.index')->with('success', 'Sutudent and Parent successfully removed from institution!');
+    }
+
+    /**
+     * Guards against acting on a student outside the caller's own scope:
+     * a Parent may only reach their own children, a Student only
+     * themselves, and everyone else (Director/Teacher/Accountant) only
+     * students in whichever institution is currently active for them.
+     * Admin is unrestricted.
+     */
+    private function authorizeStudentAccess(User $student): void
+    {
+        if (isAdmin()) {
+            return;
+        }
+
+        $user = Auth::user();
+
+        if ($user->hasRole('Parent')) {
+            abort_unless(
+                StudentDetails::where('student_id', $student->id)->where('parent_id', $user->id)->exists(),
+                403
+            );
+
+            return;
+        }
+
+        if ($user->hasRole('Student')) {
+            abort_unless($student->id === $user->id, 403);
+
+            return;
+        }
+
+        $studentInstitutionId = StudentDetails::where('student_id', $student->id)->value('institution_id');
+
+        abort_unless($studentInstitutionId && $studentInstitutionId === currentInstitution()?->id, 403);
     }
 
     /**

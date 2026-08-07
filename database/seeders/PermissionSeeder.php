@@ -55,6 +55,9 @@ class PermissionSeeder extends Seeder
             'report' => ['view', 'create', 'export'],
             'account' => ['view', 'create', 'edit', 'update', 'delete'],
             'finance' => ['view', 'create', 'edit', 'update', 'delete'],
+            // 'create billing' covers initiating a subscription payment,
+            // not full CRUD - there's nothing to edit/delete on a payment.
+            'billing' => ['view', 'create'],
         ];
 
         // Create permissions for each module
@@ -124,6 +127,9 @@ class PermissionSeeder extends Seeder
             'view account', 'create account', 'edit account', 'update account',
             'view finance', 'create finance', 'edit finance', 'update finance',
 
+            // Subscription/billing - viewing plans and paying for them.
+            'view billing', 'create billing',
+
             // Reporting and their own dashboard
             'view report', 'create report', 'export report',
             'view dashboard',
@@ -148,6 +154,8 @@ class PermissionSeeder extends Seeder
             'create finance',
             'edit finance',
             'update finance',
+            'view billing',
+            'create billing',
             'view report',
             'create report',
             'export report',

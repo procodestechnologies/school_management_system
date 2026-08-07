@@ -49,7 +49,8 @@
                 <flux:table.columns>
                     <flux:table.column>Student</flux:table.column>
                     <flux:table.column>Class</flux:table.column>
-                    <flux:table.column>Examination</flux:table.column>
+                    <flux:table.column class="truncate">Examination</flux:table.column>
+                    <flux:table.column>Term</flux:table.column>
                     <x-sortable-column column="marks_obtained">Marks</x-sortable-column>
                     <x-sortable-column column="grade">Grade</x-sortable-column>
                     <flux:table.column>Actions</flux:table.column>
@@ -61,6 +62,7 @@
                             <flux:table.cell>{{ $result->student?->name }}</flux:table.cell>
                             <flux:table.cell>{{ $result->schoolClass?->name }}</flux:table.cell>
                             <flux:table.cell>{{ $result->examination?->title }}</flux:table.cell>
+                            <flux:table.cell>{{ $result->examination?->term ?? '—' }}</flux:table.cell>
                             <flux:table.cell>
                                 {{ $result->marks_obtained }} / {{ $result->examination?->total_marks }}
                             </flux:table.cell>

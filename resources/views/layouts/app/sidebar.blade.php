@@ -17,6 +17,13 @@
         </flux:sidebar.header>
 
         <flux:sidebar.nav>
+            @if (currentInstitution())
+                <div class="px-2 pt-1 pb-2">
+                    <flux:text size="sm" class="font-semibold text-zinc-700 dark:text-zinc-200 truncate block">
+                        {{ currentInstitution()->name }}
+                    </flux:text>
+                </div>
+            @endif
             <flux:sidebar.group :heading="__('Platform')" class="grid">
                 <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')"
                     wire:navigate>
@@ -49,12 +56,28 @@
                 </flux:sidebar.item>
             @endhasrole
             @if (isDirector())
-                <flux:sidebar.item icon="device-phone-mobile" :href="route('devices.index')"
-                    :current="request()->routeIs('devices.index')" wire:navigate>
-                    {{ __('Devices') }}
-                </flux:sidebar.item>
+                @if (! currentInstitution())
+                    {{-- Nothing chosen yet (first login, or owns several
+                    schools) - the institutions index, where choosing
+                    happens, is the only thing to show until then. --}}
+                    <flux:sidebar.item icon="building-library" :href="route('institution.index')"
+                        :current="request()->routeIs('institution.*')" wire:navigate>
+                        {{ __('Institutions') }}
+                    </flux:sidebar.item>
+                @else
+                    <flux:sidebar.item icon="device-phone-mobile" :href="route('devices.index')"
+                        :current="request()->routeIs('devices.index')" wire:navigate>
+                        {{ __('Devices') }}
+                    </flux:sidebar.item>
+                    @if (institutionCanUpgrade())
+                        <flux:sidebar.item icon="arrow-trending-up" :href="route('billing.show')"
+                            :current="request()->routeIs('billing.*')" wire:navigate>
+                            {{ currentInstitution()->hasActiveSubscription() ? __('Upgrade Plan') : __('Choose a Plan') }}
+                        </flux:sidebar.item>
+                    @endif
+                @endif
             @endif
-            @if (hasInstitutions() && !isAdmin() && institutionApproved())
+            @if (hasInstitutions() && !isAdmin() && institutionApproved() && currentInstitution())
                
                 @hasrole('Student')
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('selections.index')"
