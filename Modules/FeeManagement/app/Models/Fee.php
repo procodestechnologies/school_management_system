@@ -45,6 +45,11 @@ class Fee extends Model
         return $this->belongsTo(User::class, 'parent_id');
     }
 
+    public function payments()
+    {
+        return $this->hasMany(FeePayment::class);
+    }
+
     public function getBalanceAttribute(): float
     {
         return round((float) $this->amount - (float) $this->amount_paid, 2);

@@ -40,4 +40,14 @@ return [
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
+    ],
+
+    'tesseract' => [
+        // Only needed if the tesseract binary isn't on PATH.
+        'executable' => env('TESSERACT_PATH'),
+    ],
+
 ];

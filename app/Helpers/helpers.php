@@ -125,6 +125,18 @@ if (! function_exists('institutionHasModule')) {
         return $institution->hasModule($module);
     }
 }
+if (! function_exists('institutionHasFeature')) {
+    function institutionHasFeature(string $feature): bool
+    {
+        $institution = currentInstitution();
+
+        if (isAdmin() || ! $institution) {
+            return true;
+        }
+
+        return $institution->hasFeature($feature);
+    }
+}
 if (! function_exists('institutionHasPaid')) {
     function institutionHasPaid(): bool
     {

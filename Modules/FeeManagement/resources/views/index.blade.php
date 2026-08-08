@@ -17,6 +17,12 @@
             @can('create feemanagement')
                 <flux:button href="{{ route('feemanagement.create') }}">Add Fee</flux:button>
 
+                @if (institutionHasFeature('ai_receipt_scanning'))
+                    <flux:button href="{{ route('feemanagement.receipts.create') }}" icon="sparkles" color="purple">
+                        Scan Receipt (AI)
+                    </flux:button>
+                @endif
+
                 <form action="{{ route('feemanagement.send-reminders') }}" method="POST"
                     onsubmit="return confirm('Send a fee balance reminder (email + SMS) to {{ $defaulterCount }} parent(s) with an outstanding balance?');">
                     @csrf

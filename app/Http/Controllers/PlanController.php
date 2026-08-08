@@ -82,6 +82,8 @@ class PlanController extends Controller
             'billing_cycle' => 'required|in:monthly,yearly,lifetime',
             'modules' => 'array',
             'modules.*' => 'string|in:'.implode(',', Plan::MODULES),
+            'features' => 'array',
+            'features.*' => 'string|in:'.implode(',', array_keys(Plan::FEATURES)),
             'is_active' => 'boolean',
         ]);
 

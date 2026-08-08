@@ -1,5 +1,6 @@
 @php
     $selectedModules = old('modules', $plan->modules ?? []);
+    $selectedFeatures = old('features', $plan->features ?? []);
 @endphp
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -61,6 +62,23 @@
             @endforeach
         </div>
         @error('modules')
+            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+        @enderror
+    </div>
+
+    <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Pro features</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            @foreach (\App\Models\Plan::FEATURES as $key => $label)
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" name="features[]" value="{{ $key }}"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        {{ in_array($key, $selectedFeatures) ? 'checked' : '' }} />
+                    {{ $label }}
+                </label>
+            @endforeach
+        </div>
+        @error('features')
             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
         @enderror
     </div>

@@ -121,6 +121,15 @@ class Institution extends Model
         return $this->plan->hasModule($module);
     }
 
+    public function hasFeature(string $feature): bool
+    {
+        if (! $this->plan || ! $this->subscriptionActive()) {
+            return false;
+        }
+
+        return $this->plan->hasFeature($feature);
+    }
+
     public function payments()
     {
         return $this->hasMany(Payment::class);

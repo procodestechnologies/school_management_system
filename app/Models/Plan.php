@@ -34,6 +34,14 @@ class Plan extends Model
         'ReportCard',
     ];
 
+    /**
+     * Pro-tier capabilities *within* a module a plan already has - distinct
+     * from MODULES, which grants a whole module or nothing.
+     */
+    public const FEATURES = [
+        'ai_receipt_scanning' => 'AI Receipt Scanning (Fee Management)',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
@@ -41,6 +49,7 @@ class Plan extends Model
         'price',
         'billing_cycle',
         'modules',
+        'features',
         'is_active',
     ];
 
@@ -48,6 +57,7 @@ class Plan extends Model
     {
         return [
             'modules' => 'array',
+            'features' => 'array',
             'price' => 'decimal:2',
             'is_active' => 'boolean',
         ];
@@ -61,5 +71,10 @@ class Plan extends Model
     public function hasModule(string $module): bool
     {
         return in_array($module, $this->modules ?? [], true);
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        return in_array($feature, $this->features ?? [], true);
     }
 }
