@@ -5,6 +5,7 @@ namespace Modules\ReportCard\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Institution\Models\Institution;
 
@@ -23,8 +24,10 @@ class ReportCard extends Model
         'mean_grade',
         'status',
         'pdf_path',
+        'download_token',
         'completed_at',
         'sent_at',
+        'downloaded_at',
     ];
 
     protected $casts = [
@@ -33,6 +36,7 @@ class ReportCard extends Model
         'mean_percentage' => 'decimal:2',
         'completed_at' => 'datetime',
         'sent_at' => 'datetime',
+        'downloaded_at' => 'datetime',
     ];
 
     public function institution()
@@ -53,5 +57,27 @@ class ReportCard extends Model
     public function isSent(): bool
     {
         return $this->status === 'sent';
+    }
+
+    /**
+     * Whether the one-time download link has already been spent.
+     */
+    public function isDownloaded(): bool
+    {
+        return $this->downloaded_at !== null;
+    }
+
+    /**
+     * Issue a fresh download token, replacing any previous one - so a
+     * re-send invalidates the link from the earlier delivery rather than
+     * leaving two working links out in the wild.
+     */
+    public function issueDownloadToken(): string
+    {
+        $token = Str::random(32);
+
+        $this->update(['download_token' => $token, 'downloaded_at' => null]);
+
+        return $token;
     }
 }

@@ -33,7 +33,7 @@ trait Sortable
      * query-string params, in memory.
      *
      * @param  array<string, string|callable>  $sortable  map of allowed sort
-     *                                                     keys to either an attribute name or a value-extracting callback
+     *                                                    keys to either an attribute name or a value-extracting callback
      */
     protected function sortCollection(Collection $collection, array $sortable, string $defaultColumn, string $defaultDirection = 'asc'): Collection
     {

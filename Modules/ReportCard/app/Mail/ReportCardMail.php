@@ -18,7 +18,7 @@ class ReportCardMail extends Mailable implements ShouldQueue
         public ReportCard $reportCard,
         public User $student,
         public Institution $institution,
-        public string $pdfAbsolutePath,
+        public string $downloadUrl,
     ) {}
 
     public function build()
@@ -30,10 +30,7 @@ class ReportCardMail extends Mailable implements ShouldQueue
                 'student' => $this->student,
                 'institution' => $this->institution,
                 'reportCard' => $this->reportCard,
-            ])
-            ->attach($this->pdfAbsolutePath, [
-                'as' => "{$this->student->name}-report-card.pdf",
-                'mime' => 'application/pdf',
+                'downloadUrl' => $this->downloadUrl,
             ]);
     }
 }

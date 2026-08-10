@@ -1,5 +1,6 @@
 <?php
 
+use Carbon\Carbon;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ return new class extends Migration
 
         foreach (DB::table('report_cards')->select('id', 'term', 'completed_at')->get() as $reportCard) {
             DB::table('report_cards')->where('id', $reportCard->id)->update([
-                'academic_year' => \Carbon\Carbon::parse($reportCard->completed_at)->year,
+                'academic_year' => Carbon::parse($reportCard->completed_at)->year,
                 'term_number' => TermParser::number($reportCard->term),
             ]);
         }

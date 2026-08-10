@@ -1,13 +1,20 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\PermissionSeeder;
+use Illuminate\Testing\TestResponse;
+use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
-use Spatie\Permission\Models\Role;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+
+// These controllers gate on permissions ('view report', 'export report'),
+// not just role names, so the real roles and permissions have to exist.
+beforeEach(function () {
+    $this->seed(PermissionSeeder::class);
+});
 
 function makeAnalyticsAdmin(): User
 {
-    Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-
     $user = User::factory()->create();
     $user->assignRole('Admin');
 
@@ -74,7 +81,8 @@ test('the admin can approve a pending institution from the dashboard', function 
     $response = $this->post(route('institution.approve', $institution));
 
     $response->assertRedirect();
-    expect($institution->fresh()->is_approved)->toBeTrue();
+    // Not cast to boolean on the model, so the driver hands back int 1.
+    expect($institution->fresh()->is_approved)->toBeTruthy();
 });
 
 test("the admin's dashboard redirects straight to the analytics page", function () {
@@ -91,8 +99,11 @@ test('a director sees a robust analytics dashboard for their own institution', f
     $director->assignRole('Director');
 
     $institution = makeInstitution(['user_id' => $director->id, 'name' => 'Riverside Academy']);
+    // Reports don't sit behind HasInstitution, so nothing picks the active
+    // institution here the way landing on /dashboard first would.
+    $director->update(['active_institution_id' => $institution->id]);
 
-    \Modules\FeeManagement\Models\Fee::create([
+    Fee::create([
         'institution_id' => $institution->id,
         'student_id' => User::factory()->create()->id,
         'title' => 'Term 1 Tuition',
@@ -125,7 +136,7 @@ test('the admin export contains every entity, system-wide', function () {
     $response->assertOk();
     $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+    $spreadsheet = IOFactory::load(
         streamedResponseToTempFile($response)
     );
 
@@ -141,14 +152,14 @@ test("a director's export only covers their own institution", function () {
     $institution = makeInstitution(['user_id' => $director->id, 'name' => 'Riverside Academy']);
     $otherInstitution = makeInstitution(['name' => 'Someone Elses School']);
 
-    \Modules\FeeManagement\Models\Fee::create([
+    Fee::create([
         'institution_id' => $institution->id,
         'student_id' => User::factory()->create()->id,
         'title' => 'Term 1 Tuition',
         'amount' => 10000,
         'amount_paid' => 4000,
     ]);
-    \Modules\FeeManagement\Models\Fee::create([
+    Fee::create([
         'institution_id' => $otherInstitution->id,
         'student_id' => User::factory()->create()->id,
         'title' => 'Someone Elses Fee',
@@ -163,7 +174,7 @@ test("a director's export only covers their own institution", function () {
     $response->assertOk();
     $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load(
+    $spreadsheet = IOFactory::load(
         streamedResponseToTempFile($response)
     );
 
@@ -175,7 +186,7 @@ test("a director's export only covers their own institution", function () {
     expect($titles)->not->toContain('Someone Elses Fee');
 });
 
-function streamedResponseToTempFile(\Illuminate\Testing\TestResponse $response): string
+function streamedResponseToTempFile(TestResponse $response): string
 {
     $path = tempnam(sys_get_temp_dir(), 'export-test-').'.xlsx';
     file_put_contents($path, $response->streamedContent());

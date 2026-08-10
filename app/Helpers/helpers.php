@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Plan;
+use App\Models\Setting;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Modules\Institution\Models\Institution;
@@ -125,6 +127,18 @@ if (! function_exists('institutionHasModule')) {
         return $institution->hasModule($module);
     }
 }
+if (! function_exists('featureEnabled')) {
+    /**
+     * Whether a platform-wide feature toggle (managed from the admin site
+     * settings page) is switched on - e.g. 'sms', 'email_notifications'.
+     * Distinct from institutionHasFeature(), which gates a plan's pro-tier
+     * features rather than a global on/off switch.
+     */
+    function featureEnabled(string $key): bool
+    {
+        return Setting::isEnabled($key);
+    }
+}
 if (! function_exists('institutionHasFeature')) {
     function institutionHasFeature(string $feature): bool
     {
@@ -191,6 +205,6 @@ if (! function_exists('institutionCanUpgrade')) {
 
         $currentPrice = $institution->hasActiveSubscription() ? (float) $institution->plan->price : -1;
 
-        return \App\Models\Plan::where('is_active', true)->where('price', '>', $currentPrice)->exists();
+        return Plan::where('is_active', true)->where('price', '>', $currentPrice)->exists();
     }
 }

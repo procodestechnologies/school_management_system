@@ -6,13 +6,14 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
+use Modules\FeeManagement\Models\Fee;
 
 class FeePaymentReminder extends Notification
 {
     use Queueable;
 
     /**
-     * @param  Collection<int, \Modules\FeeManagement\Models\Fee>  $fees  This parent's outstanding fees (any institution/student mix)
+     * @param  Collection<int, Fee>  $fees  This parent's outstanding fees (any institution/student mix)
      */
     public function __construct(private readonly Collection $fees) {}
 

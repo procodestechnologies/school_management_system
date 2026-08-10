@@ -2,23 +2,26 @@
 
 namespace Modules\ReportCard\Console\Commands;
 
+use App\Services\SmsService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use Modules\ReportCard\Mail\ReportCardMail;
 use Modules\ReportCard\Models\ReportCard;
 use Modules\ReportCard\Services\ReportCardCompletionService;
 use Modules\ReportCard\Services\ReportCardPdfService;
-use Modules\Student\Models\StudentDetails;
 
 class SendReadyReportCards extends Command
 {
     protected $signature = 'reportcards:send-ready';
 
-    protected $description = "Generate and email report cards that have been ready for at least a day, giving directors time to correct results before parents see them";
+    protected $description = 'Send parents a one-time download link (email and SMS) for report cards that have been ready for at least a day, giving directors time to correct results before parents see them';
 
-    public function handle(ReportCardCompletionService $completionService, ReportCardPdfService $pdfService): int
-    {
+    public function handle(
+        ReportCardCompletionService $completionService,
+        ReportCardPdfService $pdfService,
+        SmsService $smsService,
+    ): int {
         $reportCards = ReportCard::where('status', 'ready')
             ->where('completed_at', '<=', now()->subDay())
             ->with(['student', 'institution'])
@@ -35,9 +38,15 @@ class SendReadyReportCards extends Command
                 continue;
             }
 
-            $studentDetails = StudentDetails::where('student_id', $reportCard->student_id)->first();
+            // Resolved through the parent's own User/ParentDetails records -
+            // student_details has no parent_email/parent_phone columns of
+            // its own, despite the model listing them as fillable.
+            $parent = $reportCard->student->studentParent;
 
-            if (! $studentDetails?->parent_email) {
+            $email = featureEnabled('email_notifications') ? $parent?->email : null;
+            $phone = featureEnabled('sms') ? $parent?->parent?->parent_phone : null;
+
+            if (! $email && ! $phone) {
                 $skipped++;
 
                 continue;
@@ -45,14 +54,30 @@ class SendReadyReportCards extends Command
 
             $pdfService->generate($reportCard);
 
-            $absolutePath = Storage::disk('public')->path($reportCard->pdf_path);
+            $downloadUrl = route('reportcard.download', $reportCard->issueDownloadToken());
 
-            Mail::to($studentDetails->parent_email)->send(new ReportCardMail(
-                $reportCard,
-                $reportCard->student,
-                $reportCard->institution,
-                $absolutePath,
-            ));
+            if ($email) {
+                Mail::to($email)->send(new ReportCardMail(
+                    $reportCard,
+                    $reportCard->student,
+                    $reportCard->institution,
+                    $downloadUrl,
+                ));
+            }
+
+            if ($phone) {
+                $sms = $smsService->send(
+                    (int) preg_replace('/\D/', '', $phone),
+                    "{$reportCard->student->name}'s report card for {$reportCard->term} is ready. Download it here (link works once): {$downloadUrl}",
+                );
+
+                if (! ($sms['success'] ?? false)) {
+                    Log::warning('Report card SMS failed', [
+                        'report_card_id' => $reportCard->id,
+                        'error' => $sms['error'] ?? $sms['reason'] ?? null,
+                    ]);
+                }
+            }
 
             $reportCard->update(['status' => 'sent', 'sent_at' => now()]);
             $sent++;

@@ -4,6 +4,7 @@ namespace Modules\Examinations\Http\Controllers;
 
 use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
@@ -143,7 +144,7 @@ class ExaminationsController extends Controller
 
         // Term labels repeat every year ("Second Term" happens annually),
         // so the exam date's year is what actually distinguishes them.
-        $validated['academic_year'] = \Carbon\Carbon::parse($validated['exam_date'])->year;
+        $validated['academic_year'] = Carbon::parse($validated['exam_date'])->year;
 
         // Never trust a client-submitted institution_id for a non-admin -
         // it's always whichever institution is currently active for them.

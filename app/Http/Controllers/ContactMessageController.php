@@ -34,6 +34,7 @@ class ContactMessageController extends Controller
             'message' => $message,
         ]);
     }
+
     public function destroy(ContactMessage $message)
     {
         abort_unless(isAdmin(), 403);

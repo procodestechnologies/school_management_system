@@ -153,7 +153,7 @@ class StudentController extends Controller
                 } elseif (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
                     $parent = User::create([
                         'name' => $validated['parent_name'] ?? 'Parent',
-                        'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
+                        'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
                         'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                     ]);
                     $parent->syncRoles('Parent');
@@ -219,12 +219,12 @@ class StudentController extends Controller
             return redirect()->route('student.index')
                 ->with('success', 'Student created successfully!');
         } catch (Exception $e) {
-            Log::error('Student creation failed: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('Student creation failed: '.$e->getMessage());
+            Log::error('Stack trace: '.$e->getTraceAsString());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create student: ' . $e->getMessage());
+                ->with('error', 'Failed to create student: '.$e->getMessage());
         }
     }
 
@@ -352,7 +352,7 @@ class StudentController extends Controller
                             // Parent user was deleted, create new
                             $parent = User::create([
                                 'name' => $validated['parent_name'] ?? 'Parent',
-                                'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
+                                'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
                                 'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                             ]);
                             $parent->syncRoles('Parent');
@@ -363,7 +363,7 @@ class StudentController extends Controller
                         // Create new parent user
                         $parent = User::create([
                             'name' => $validated['parent_name'] ?? 'Parent',
-                            'email' => $validated['parent_email'] ?? 'parent_' . time() . '@example.com',
+                            'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
                             'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
                         ]);
                         $parent->syncRoles('Parent');
@@ -401,11 +401,11 @@ class StudentController extends Controller
             return redirect()->back()
                 ->with('success', 'Student updated successfully!');
         } catch (Exception $e) {
-            Log::error('Student update failed: ' . $e->getMessage());
+            Log::error('Student update failed: '.$e->getMessage());
 
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update student: ' . $e->getMessage());
+                ->with('error', 'Failed to update student: '.$e->getMessage());
         }
     }
 

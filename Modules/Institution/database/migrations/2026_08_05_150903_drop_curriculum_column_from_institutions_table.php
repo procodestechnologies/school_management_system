@@ -24,8 +24,12 @@ return new class extends Migration
         // Every remaining row now has an institution_id - safe to require
         // it going forward, matching subjects.institution_id's pattern. No
         // doctrine/dbal dependency in this project, so this is a raw ALTER
-        // rather than ->change().
-        DB::statement('ALTER TABLE curricula MODIFY institution_id BIGINT UNSIGNED NOT NULL');
+        // rather than ->change(). MySQL-only: `MODIFY` isn't valid SQLite
+        // syntax (used in tests), and SQLite has no NOT NULL enforcement to
+        // add here anyway since the app-level FK is already required above.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE curricula MODIFY institution_id BIGINT UNSIGNED NOT NULL');
+        }
     }
 
     /**
@@ -33,7 +37,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('ALTER TABLE curricula MODIFY institution_id BIGINT UNSIGNED NULL');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE curricula MODIFY institution_id BIGINT UNSIGNED NULL');
+        }
 
         Schema::table('institutions', function (Blueprint $table) {
             // Nullable on rollback - the original many-to-one mapping data

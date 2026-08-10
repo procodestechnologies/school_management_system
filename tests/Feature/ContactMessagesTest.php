@@ -21,7 +21,12 @@ test('guests are redirected to the login page', function () {
 });
 
 test('non-admins cannot view messages', function () {
+    Role::firstOrCreate(['name' => 'Parent', 'guard_name' => 'web']);
+
     $user = User::factory()->create();
+    // A role that never owns a school, so HasInstitution doesn't bounce them
+    // into onboarding before the controller's own admin check runs.
+    $user->assignRole('Parent');
     $this->actingAs($user);
 
     $response = $this->get(route('messages.index'));

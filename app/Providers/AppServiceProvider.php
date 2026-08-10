@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Listeners\SendAttendanceSmsListener;
 use App\Listeners\SyncStudentsToDeviceListener;
+use Athwari\LaravelZktecoAdms\Events\AttendanceReceived;
 use Athwari\LaravelZktecoAdms\Events\DeviceConnected;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Event::listen(DeviceConnected::class, SyncStudentsToDeviceListener::class);
+        Event::listen(AttendanceReceived::class, SendAttendanceSmsListener::class);
     }
 
     /**

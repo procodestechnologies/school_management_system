@@ -34,12 +34,15 @@ class DevicesController extends Controller
         );
 
         $deviceCount = $devices->count();
+
         return view('layouts.devices.index', compact('devices', 'deviceCount'));
     }
+
     public function create()
     {
         return view('layouts.devices.create');
     }
+
     public function edit(Devices $device)
     {
         abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
@@ -51,6 +54,7 @@ class DevicesController extends Controller
 
         return view('layouts.devices.edit', compact('device', 'zktecoDevice'));
     }
+
     public function update(Request $request, Devices $device)
     {
         abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
@@ -76,11 +80,13 @@ class DevicesController extends Controller
 
         return redirect()->route('devices.index')->with('success', 'Device updated successfully.');
     }
+
     public function destroy(Request $request, Devices $device)
     {
         abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
 
         $device->delete();
+
         return redirect()->route('devices.index')->with('success', 'Device deleted successfully.');
     }
 }

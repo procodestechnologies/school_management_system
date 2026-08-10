@@ -19,7 +19,13 @@ return new class extends Migration
             $table->unsignedSmallInteger('academic_year')->nullable()->after('term');
         });
 
-        DB::statement('UPDATE examinations SET academic_year = YEAR(exam_date) WHERE academic_year IS NULL');
+        // YEAR() is MySQL-only; SQLite (used in tests) has no such
+        // function and extracts the year via strftime() instead.
+        $yearExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%Y', exam_date) AS INTEGER)"
+            : 'YEAR(exam_date)';
+
+        DB::statement("UPDATE examinations SET academic_year = {$yearExpression} WHERE academic_year IS NULL");
     }
 
     public function down(): void

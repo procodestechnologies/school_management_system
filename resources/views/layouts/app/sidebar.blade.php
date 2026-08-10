@@ -54,6 +54,10 @@
                     :current="request()->routeIs('messages.*')" wire:navigate>
                     {{ __('Messages') }}
                 </flux:sidebar.item>
+                <flux:sidebar.item icon="adjustments-horizontal" :href="route('admin.settings.edit')"
+                    :current="request()->routeIs('admin.settings.*')" wire:navigate>
+                    {{ __('Site Settings') }}
+                </flux:sidebar.item>
             @endhasrole
             @if (isDirector())
                 @if (! currentInstitution())

@@ -29,7 +29,7 @@ class ImageCompressionService
 
     public function __construct()
     {
-        $this->manager = new ImageManager(new Driver());
+        $this->manager = new ImageManager(new Driver);
     }
 
     public function store(UploadedFile $file, string $directory, string $disk = 'public'): string
@@ -52,9 +52,9 @@ class ImageCompressionService
             'jpg', 'jpeg' => new JpegEncoder(quality: self::QUALITY),
             'webp' => new WebpEncoder(quality: self::QUALITY),
             'avif' => new AvifEncoder(quality: self::QUALITY),
-            'gif' => new GifEncoder(),
-            'bmp' => new BmpEncoder(),
-            default => new PngEncoder(),
+            'gif' => new GifEncoder,
+            'bmp' => new BmpEncoder,
+            default => new PngEncoder,
         };
     }
 }

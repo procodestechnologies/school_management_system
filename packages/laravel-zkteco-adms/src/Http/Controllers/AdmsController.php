@@ -2,7 +2,6 @@
 
 namespace Athwari\LaravelZktecoAdms\Http\Controllers;
 
-use App\Services\SmsService;
 use Athwari\LaravelZktecoAdms\DTOs\CommandResult;
 use Athwari\LaravelZktecoAdms\Enums\DeviceEventType;
 use Athwari\LaravelZktecoAdms\Events\AttendanceReceived;
@@ -44,7 +43,6 @@ class AdmsController extends Controller
         private readonly DeviceManager $deviceManager,
         private readonly CommandManager $commandManager,
         private readonly AttendanceParser $parser,
-        private readonly SmsService $smsService,
     ) {}
 
     /**
@@ -261,26 +259,6 @@ class AdmsController extends Controller
         $storageTimezone = $this->storageTimezone($serialNumber);
 
         foreach ($records as $record) {
-            $verifyMode = match ((int) $record->verifyMode) {
-                0 => 'Password',
-                1 => 'Fingerprint',
-                2 => 'Card',
-                3 => 'Face',
-                4 => 'Fingerprint + Password',
-                5 => 'Card + Password',
-                default => 'Unknown',
-            };
-
-            $punchType = match ((int) $record->status) {
-                0 => 'checked in',
-                1 => 'checked out',
-                2 => 'break out',
-                3 => 'break in',
-                4 => 'overtime in',
-                5 => 'overtime out',
-                default => 'recorded attendance',
-            };
-
             $attendanceModel::create([
                 'device_id' => $device?->id,
                 'pin' => $record->pin,
@@ -291,66 +269,7 @@ class AdmsController extends Controller
                 'verify_mode' => $record->verifyMode,
                 'work_code' => $record->workCode,
             ]);
-            $smsMessage = sprintf(
-                'Dear Parent, %s has %s today at %s using %s verification.',
-                'Isaac Nyamari',
-                $punchType,
-                $record->timestamp->format('d M Y, h:i:s A'),
-                $verifyMode
-            );
-            // try {
-            //     $this->smsService->send(
-            //         254759900802,
-            //         $smsMessage
-            //     );
-            //     Log::info('SMS request completed');
-            // } catch (\Throwable $e) {
-
-            //     Log::error('SMS failed', [
-            //         'message' => $e->getMessage(),
-            //         'trace' => $e->getTraceAsString(),
-            //     ]);
-            // }
         }
-        // foreach ($records as $record) {
-
-        //     Log::info('Saving attendance', [
-        //         'pin' => $record->pin,
-        //         'time' => $record->timestamp,
-        //         'verify_mode' => $record->verifyMode,
-        //         'status' => $record->status,
-        //     ]);
-
-        //     $attendance = $attendanceModel::create([
-        //         'device_id' => $device?->id,
-        //         'pin' => $record->pin,
-        //         'recorded_at' => $record->timestamp,
-        //         'occurred_at' => DateTimeImmutable::createFromInterface($record->timestamp)
-        //             ->setTimezone($storageTimezone),
-        //         'status' => $record->status,
-        //         'verify_mode' => $record->verifyMode,
-        //         'work_code' => $record->workCode,
-        //     ]);
-
-        //     Log::info('Attendance saved', [
-        //         'id' => $attendance->id,
-        //     ]);
-
-        //     Log::info('Sending SMS');
-        //     try {
-        //         $this->smsService->send(
-        //             254759900802,
-        //             'Test attendance notification.'
-        //         );
-        //         Log::info('SMS request completed');
-        //     } catch (\Throwable $e) {
-
-        //         Log::error('SMS failed', [
-        //             'message' => $e->getMessage(),
-        //             'trace' => $e->getTraceAsString(),
-        //         ]);
-        //     }
-        // }
 
         if (count($records) > 0) {
             if (config('zkteco-adms.events.dispatch_device_event', true) && $device) {

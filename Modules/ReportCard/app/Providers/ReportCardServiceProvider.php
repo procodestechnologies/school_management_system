@@ -2,9 +2,9 @@
 
 namespace Modules\ReportCard\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Modules\ReportCard\Console\Commands\SendReadyReportCards;
+use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ReportCardServiceProvider extends ModuleServiceProvider
 {
@@ -39,8 +39,8 @@ class ReportCardServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
-     * @param $schedule
+     *
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {

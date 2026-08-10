@@ -4,6 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Modules\ReportCard\Http\Controllers\ReportCardController;
 use Modules\ReportCard\Http\Controllers\ReportSettingsController;
 
+// Parents follow this from an email or SMS, so it can't sit behind auth -
+// the unguessable, single-use token is what protects it.
+Route::get('report-cards/download/{token}', [ReportCardController::class, 'download'])
+    ->name('reportcard.download');
+
 Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
     Route::get('report-cards/settings', [ReportSettingsController::class, 'edit'])->name('reportcard.settings');
     Route::put('report-cards/settings', [ReportSettingsController::class, 'updateTemplate'])->name('reportcard.settings.template');

@@ -27,7 +27,7 @@ class Devices extends Model
 
     public function zktecoDevice()
     {
-        return $this->belongsTo(ZktecoDevice::class,'serial_number','serial_number');
+        return $this->belongsTo(ZktecoDevice::class, 'serial_number', 'serial_number');
     }
 
     /**

@@ -1,9 +1,11 @@
 <?php
 
+use Cloudinary\Cloudinary;
+
 beforeEach(function () {
     $this->app->instance(
-        \Cloudinary\Cloudinary::class,
-        new \Cloudinary\Cloudinary('cloudinary://key:secret@demo')
+        Cloudinary::class,
+        new Cloudinary('cloudinary://key:secret@demo')
     );
 });
 

@@ -5,6 +5,7 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\HtmlString;
 
 class ChatbotVerificationCode extends Notification
 {
@@ -24,7 +25,7 @@ class ChatbotVerificationCode extends Notification
             ->greeting('Hello,')
             ->line('Someone requested access to your child\'s school records through the '.config('app.name').' assistant.')
             ->line('Here is your verification code:')
-            ->line(new \Illuminate\Support\HtmlString('<p style="font-size:28px;font-weight:600;letter-spacing:0.3em;text-align:center;">'.$this->code.'</p>'))
+            ->line(new HtmlString('<p style="font-size:28px;font-weight:600;letter-spacing:0.3em;text-align:center;">'.$this->code.'</p>'))
             ->line('This code expires in 10 minutes and can only be used once.')
             ->line('If you didn\'t request this, you can safely ignore this email.');
     }

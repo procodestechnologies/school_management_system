@@ -30,10 +30,11 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
     Route::resource('admin/plans', PlanController::class)->names('admin.plans')->except(['show']);
+    Route::livewire('admin/settings', 'pages::admin.site-settings')->name('admin.settings.edit');
     Route::resource('messages', ContactMessageController::class)->names('messages');
     Route::get('billing', [BillingController::class, 'show'])->name('billing.show');
     Route::post('billing/pay', [BillingController::class, 'initiate'])->name('billing.initiate');
     Route::get('billing/callback', [BillingController::class, 'callback'])->name('billing.callback');
     Route::get('students/{studentId}/sync-device', [SyncStudentToDeviceController::class, 'syncStudent'])->name('students.sync-device');
 });
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';

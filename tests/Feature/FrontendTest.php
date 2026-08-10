@@ -29,7 +29,7 @@ test('a visitor can submit the contact form', function () {
         'topic' => 'sales',
     ]);
 
-    Mail::assertSent(ContactMessageReceived::class, function (ContactMessageReceived $mail) {
+    Mail::assertQueued(ContactMessageReceived::class, function (ContactMessageReceived $mail) {
         return $mail->contactMessage->email === 'jane@example.com';
     });
 });

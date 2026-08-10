@@ -2,39 +2,21 @@
 
 namespace Modules\FeeManagement\Console\Commands;
 
-use App\Models\User;
+use App\Services\FeeReminderService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
-use Modules\FeeManagement\Mail\FeeReminderMail;
 use Modules\FeeManagement\Models\Fee;
 
 class SendFeeReminders extends Command
 {
     protected $signature = 'feemanagement:send-reminders';
 
-    protected $description = 'Email parents a consolidated reminder of any outstanding fee balances';
+    protected $description = 'Remind parents by email and SMS of any outstanding fee balances, platform-wide';
 
-    public function handle(): int
+    public function handle(FeeReminderService $reminderService): int
     {
-        $outstandingFees = Fee::whereColumn('amount_paid', '<', 'amount')
-            ->whereNotNull('parent_id')
-            ->with('student')
-            ->get();
+        $result = $reminderService->sendForDefaulters(Fee::query());
 
-        $sent = 0;
-
-        foreach ($outstandingFees->groupBy('parent_id') as $parentId => $fees) {
-            $parent = User::find($parentId);
-
-            if (! $parent || ! $parent->email) {
-                continue;
-            }
-
-            Mail::to($parent->email)->send(new FeeReminderMail($parent, $fees));
-            $sent++;
-        }
-
-        $this->info("Sent fee reminders to {$sent} parent(s).");
+        $this->info("Reminded {$result['parents_notified']} parent(s) - {$result['emails_sent']} email(s), {$result['sms_sent']} SMS.");
 
         return self::SUCCESS;
     }

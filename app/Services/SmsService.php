@@ -13,6 +13,9 @@ class SmsService
 
     public function send(int $mobile, string $message, $provider = null)
     {
+        if (! featureEnabled('sms')) {
+            return ['success' => false, 'error' => 'SMS is currently disabled in site settings'];
+        }
 
         // Use default provider if none specified
         if ($provider === null) {
@@ -67,11 +70,26 @@ class SmsService
         }
         $decodedResponse = json_decode($response, true);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decodedResponse)) {
             return ['success' => false, 'error' => 'Invalid JSON response', 'raw_response' => $response];
         }
 
-        return $decodedResponse;
+        return $this->normaliseResponse($decodedResponse);
+    }
+
+    /**
+     * The gateway reports its outcome in `status`, while the failure paths
+     * above return a `success` flag. Callers shouldn't have to know the
+     * provider's response shape, so guarantee `success` either way.
+     *
+     * @param  array<string, mixed>  $decoded
+     * @return array<string, mixed>
+     */
+    public function normaliseResponse(array $decoded): array
+    {
+        $decoded['success'] = ($decoded['status'] ?? null) === 'success';
+
+        return $decoded;
     }
 
     private function formatMobile($mobile)
