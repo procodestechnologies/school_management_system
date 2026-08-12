@@ -32,6 +32,7 @@ class Plan extends Model
         'Subject',
         'Selections',
         'ReportCard',
+        'Staff',
     ];
 
     /**

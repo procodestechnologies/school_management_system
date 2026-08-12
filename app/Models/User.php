@@ -16,6 +16,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
 use Modules\Parent\Models\ParentDetails;
+use Modules\Staff\Models\StaffDetails;
 use Modules\Student\Models\StudentDetails;
 use Modules\Teacher\Models\TeacherDetails;
 use Spatie\Permission\Traits\HasRoles;
@@ -156,5 +157,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function teacherUserDetails()
     {
         return $this->hasOne(TeacherDetails::class, 'teacher_id');
+    }
+
+    /**
+     * The staff record this login belongs to - how an Accountant is tied to
+     * the school they work for, since they never own one.
+     */
+    public function staffUserDetails()
+    {
+        return $this->hasOne(StaffDetails::class, 'user_id');
     }
 }

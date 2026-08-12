@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Modules\FeeManagement\Models\Fee;
 use Modules\Institution\Models\Institution;
+use Modules\Staff\Models\StaffDetails;
+use Modules\Staff\Models\StaffPayment;
 use Modules\Student\Models\StudentDetails;
 
 /**
@@ -166,6 +168,32 @@ class AnalyticsService
     }
 
     /**
+     * Staff payroll for the current month - the other half of an
+     * Accountant's remit alongside fees.
+     *
+     * @param  Collection<int, int>  $institutionIds
+     * @return array{staff_count: int, payroll_month_total: float, payroll_month_paid: float, payroll_pending_count: int}
+     */
+    private function payrollStats(Collection $institutionIds): array
+    {
+        $payments = StaffPayment::whereIn('institution_id', $institutionIds)
+            ->whereYear('period', today()->year)
+            ->whereMonth('period', today()->month)
+            ->where('status', '!=', 'cancelled');
+
+        $totals = (clone $payments)
+            ->selectRaw('SUM(net_amount) as total, SUM(CASE WHEN status = ? THEN net_amount ELSE 0 END) as paid', ['paid'])
+            ->first();
+
+        return [
+            'staff_count' => StaffDetails::whereIn('institution_id', $institutionIds)->count(),
+            'payroll_month_total' => (float) ($totals->total ?? 0),
+            'payroll_month_paid' => (float) ($totals->paid ?? 0),
+            'payroll_pending_count' => (clone $payments)->where('status', 'pending')->count(),
+        ];
+    }
+
+    /**
      * Director/Accountant: everything scoped to whichever single
      * institution the Director currently has active - not every school
      * they own, since the rest of the system now runs institution-based
@@ -173,7 +201,12 @@ class AnalyticsService
      */
     public function institutionStats(User $user, bool $financeOnly = false): array
     {
-        $institution = $user->activeInstitution;
+        // A Director works from whichever school they've made active; an
+        // Accountant doesn't own one at all, and is reached through the
+        // staff record they were created from.
+        $institution = $user->hasRole('Accountant')
+            ? $user->staffUserDetails?->institution
+            : $user->activeInstitution;
         $institutionIds = $institution ? collect([$institution->id]) : collect();
 
         $feeQuery = Fee::whereIn('institution_id', $institutionIds);
@@ -200,7 +233,7 @@ class AnalyticsService
                 defaultColumn: 'created_at',
                 defaultDirection: 'desc',
             )->take(5)->get(),
-        ];
+        ] + $this->payrollStats($institutionIds);
 
         if ($financeOnly) {
             return $stats;

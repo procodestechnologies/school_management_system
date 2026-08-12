@@ -21,18 +21,27 @@
             </flux:text>
         </div>
 
-        {{-- Director/Accountant without a school yet: onboarding CTA --}}
+        {{-- Director/Accountant without a school yet --}}
         @if ($scope === 'institution' && !$stats['institution'])
-            <flux:card class="text-center py-10">
-                <flux:heading size="lg" class="mb-2">Set up your school</flux:heading>
-                <flux:text class="text-zinc-500 mb-4">
-                    You don't have an institution yet. Create one to start managing students, parents, fees and
-                    attendance.
-                </flux:text>
-                <flux:button href="{{ route('institution.create') }}" variant="primary">
-                    Add an Institution
-                </flux:button>
-            </flux:card>
+            @can('create institution')
+                <flux:card class="text-center py-10">
+                    <flux:heading size="lg" class="mb-2">Set up your school</flux:heading>
+                    <flux:text class="text-zinc-500 mb-4">
+                        You don't have an institution yet. Create one to start managing students, parents, fees and
+                        attendance.
+                    </flux:text>
+                    <flux:button href="{{ route('institution.create') }}" variant="primary">
+                        Add an Institution
+                    </flux:button>
+                </flux:card>
+            @else
+                {{-- An Accountant is attached to a school by a Director; they
+                can't create one themselves. --}}
+                <flux:callout variant="warning" icon="information-circle">
+                    <flux:callout.heading>Not yet assigned to a school</flux:callout.heading>
+                    <flux:callout.text>Ask your Director to link your account to a staff record.</flux:callout.text>
+                </flux:callout>
+            @endcan
 
             {{-- ===================== DIRECTOR / ACCOUNTANT ===================== --}}
         @elseif ($scope === 'institution')
@@ -56,6 +65,22 @@
                     <flux:heading size="xl">{{ $currency($stats['fees_outstanding']) }}</flux:heading>
                     <flux:text class="text-xs text-red-500">{{ $stats['overdue_fees_count'] }} overdue</flux:text>
                 </flux:card>
+                @can('view payroll')
+                    <flux:card class="space-y-1">
+                        <flux:text class="text-zinc-500">Payroll This Month</flux:text>
+                        <flux:heading size="xl">{{ $currency($stats['payroll_month_total']) }}</flux:heading>
+                        <flux:text class="text-xs text-zinc-500">
+                            {{ $currency($stats['payroll_month_paid']) }} paid ·
+                            {{ $stats['payroll_pending_count'] }} pending
+                        </flux:text>
+                    </flux:card>
+                @endcan
+                @can('view staff')
+                    <flux:card class="space-y-1">
+                        <flux:text class="text-zinc-500">Staff</flux:text>
+                        <flux:heading size="xl">{{ $stats['staff_count'] }}</flux:heading>
+                    </flux:card>
+                @endcan
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -71,13 +96,15 @@
                     </div>
                 </flux:card>
                 {{-- create a flux card with device information --}}
-                <flux:card>
-                    <flux:heading size="lg" class="mb-4">Biometric Devices</flux:heading>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-zinc-500">Total Devices</span>
-                        <span class="text-zinc-500">{{ $stats['devices_count'] }}</span>
-                    </div>
-                </flux:card>
+                @isset($stats['devices_count'])
+                    <flux:card>
+                        <flux:heading size="lg" class="mb-4">Biometric Devices</flux:heading>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-zinc-500">Total Devices</span>
+                            <span class="text-zinc-500">{{ $stats['devices_count'] }}</span>
+                        </div>
+                    </flux:card>
+                @endisset
                 <flux:card>
                     <flux:heading size="lg" class="mb-4">Recent Fees</flux:heading>
                     <div class="space-y-2">
@@ -107,6 +134,10 @@
                 @can('create feemanagement')
                     <flux:button href="{{ route('feemanagement.create') }}" icon="banknotes" variant="ghost">Add
                         Fee</flux:button>
+                @endcan
+                @can('create payroll')
+                    <flux:button href="{{ route('staff.payments.create') }}" icon="banknotes" variant="ghost">Record
+                        Staff Payment</flux:button>
                 @endcan
                 @can('view attendance')
                     <flux:button href="{{ route('attendance.index') }}" icon="clock" variant="ghost">View

@@ -47,6 +47,8 @@ class PermissionSeeder extends Seeder
             'result' => ['view', 'create', 'edit', 'update', 'delete'],
             'subject' => ['view', 'create', 'edit', 'update', 'delete'],
             'reportcard' => ['view', 'edit'],
+            'staff' => ['view', 'create', 'edit', 'update', 'delete'],
+            'payroll' => ['view', 'create', 'edit', 'update', 'delete'],
             'user' => ['view', 'create', 'edit', 'update', 'delete'],
             'role' => ['view', 'create', 'edit', 'update', 'delete'],
             'permission' => ['view', 'create', 'edit', 'update', 'delete'],
@@ -84,7 +86,9 @@ class PermissionSeeder extends Seeder
      *   reports), but can only view/edit their own institution's profile —
      *   creating or deleting a school is an Admin-only, platform-level
      *   action.
-     * - Accountant: finance-focused subset of a Director's access.
+     * - Accountant: finance-focused subset of a Director's access - staff
+     *   payroll and fee management. They read the school's staff and
+     *   students to bill and pay them, but manage neither.
      * - Parent/Student: read-only access scoped to their own records.
      */
     private function createRolesAndAssignPermissions(): void
@@ -124,6 +128,8 @@ class PermissionSeeder extends Seeder
             'view result', 'create result', 'edit result', 'update result', 'delete result',
             'view subject', 'create subject', 'edit subject', 'update subject', 'delete subject',
             'view reportcard', 'edit reportcard',
+            'view staff', 'create staff', 'edit staff', 'update staff', 'delete staff',
+            'view payroll', 'create payroll', 'edit payroll', 'update payroll', 'delete payroll',
             'view account', 'create account', 'edit account', 'update account',
             'view finance', 'create finance', 'edit finance', 'update finance',
 
@@ -136,7 +142,7 @@ class PermissionSeeder extends Seeder
         ])->get();
         $director->syncPermissions($directorPermissions);
 
-        // 3. Accountant Role (Finance and fee management)
+        // 3. Accountant Role (Payroll and fee management)
         $accountant = Role::firstOrCreate(['name' => 'Accountant', 'guard_name' => 'web']);
         $accountantPermissions = Permission::whereIn('name', [
             'view feemanagement',
@@ -144,6 +150,17 @@ class PermissionSeeder extends Seeder
             'edit feemanagement',
             'update feemanagement',
             'delete feemanagement',
+
+            // Payroll is theirs end-to-end, but the staff records it pays
+            // against belong to the Director - an Accountant can only read
+            // them, never hire, edit or remove anyone.
+            'view staff',
+            'view payroll',
+            'create payroll',
+            'edit payroll',
+            'update payroll',
+            'delete payroll',
+
             'view student',
             'view parent',
             'view account',

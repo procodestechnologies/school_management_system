@@ -106,6 +106,12 @@ if (! function_exists('currentInstitution')) {
             return $user->parentInstitution;
         }
 
+        // An Accountant is a staff member of exactly one school, reached
+        // through the staff record a Director created them from.
+        if ($user->hasRole('Accountant')) {
+            return $user->staffUserDetails?->institution;
+        }
+
         // Director (and any other role that owns institutions directly) -
         // whichever one they've chosen as active, not just "the first
         // one" - see HasInstitution for how/when this gets set.

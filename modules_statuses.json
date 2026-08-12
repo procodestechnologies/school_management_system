@@ -15,5 +15,6 @@
     "Result": true,
     "Subject": true,
     "Selections": true,
-    "ReportCard": true
+    "ReportCard": true,
+    "Staff": true
 }

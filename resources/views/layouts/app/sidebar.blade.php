@@ -145,6 +145,13 @@
                                     auth()->user()->can('edit teacher') ||
                                     auth()->user()->can('create teacher');
                                 break;
+                            case 'Staff':
+                                $icon = 'identification';
+                                $canAccess =
+                                    auth()->user()->can('view staff') ||
+                                    auth()->user()->can('edit staff') ||
+                                    auth()->user()->can('create staff');
+                                break;
                             case 'Student':
                                 $icon = 'user-group';
                                 $canAccess =
@@ -219,6 +226,16 @@
                         </flux:sidebar.item>
                     @endif
                 @endforeach
+
+                {{-- Payroll lives inside the Staff module but is a section of
+                its own - it's the Accountant's half of that module, so it
+                needs its own entry rather than the auto-generated one. --}}
+                @if (auth()->user()->can('view payroll') && institutionHasModule('Staff'))
+                    <flux:sidebar.item icon="banknotes" :href="route('staff.payments.index')"
+                        :current="request()->routeIs('staff.payments.*')" wire:navigate>
+                        {{ __('Payroll') }}
+                    </flux:sidebar.item>
+                @endif
             @endif
         </flux:sidebar.nav>
 
