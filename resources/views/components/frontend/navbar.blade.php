@@ -16,9 +16,11 @@
         <nav class="flex h-16 items-center justify-between">
             <a href="{{ route('home') }}" wire:navigate
                 class="flex items-center gap-2 font-semibold text-zinc-900 transition hover:opacity-80 dark:text-white">
-                <span class="flex size-8 items-center justify-center rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
-                    <x-app-logo-icon class="size-4 fill-current" />
-                </span>
+                <img
+                    src="{{ asset('logos/solforbs-logo.png') }}"
+                    alt="{{ config('app.name', 'Laravel') }}"
+                    class="size-10 w-48 object-contain"
+                />
                 {{ config('app.name') }}
             </a>
 
