@@ -93,7 +93,7 @@ return [
     | what the offline clients authenticate with.
     |
     */
-    'middleware' => ['api', 'auth:sanctum', 'throttle:sync'],
+    'middleware' => ['api', 'auth:sanctum', 'abilities:sync', 'throttle:sync'],
 
     /*
     |--------------------------------------------------------------------------

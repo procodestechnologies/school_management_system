@@ -3,6 +3,7 @@
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\Sanctum;
 use Modules\FeeManagement\Models\Fee;
 use Modules\FeeManagement\Models\FeePayment;
 use Modules\Institution\Models\Institution;
@@ -74,8 +75,9 @@ test('a device only pulls its own school records', function () {
     makeSyncFee($ours, ['title' => 'Our Tuition']);
     makeSyncFee($theirs, ['title' => 'Their Tuition']);
 
-    $response = $this->actingAs(syncDeviceFor($ours), 'sanctum')
-        ->postJson(route('tether.pull'), ['client_id' => 'device-1']);
+    Sanctum::actingAs(syncDeviceFor($ours), ['sync']);
+
+    $response = $this->postJson(route('tether.pull'), ['client_id' => 'device-1']);
 
     $response->assertOk();
 
@@ -98,27 +100,28 @@ test('a pushed record lands in the device own school even if it claims another',
 
     $entityId = (string) Str::ulid();
 
-    $response = $this->actingAs(syncDeviceFor($ours), 'sanctum')
-        ->postJson(route('tether.push'), [
-            'client_id' => 'device-1',
-            'mutations' => [[
-                'mutation_id' => (string) Str::uuid(),
-                'entity_id' => $entityId,
-                'model' => 'StaffPayment',
-                'operation' => 'create',
-                'version' => 1,
-                'timestamp' => now()->getPreciseTimestamp(3),
-                'payload' => [
-                    // A compromised or buggy client claiming another school.
-                    'institution_id' => $theirs->id,
-                    'staff_details_id' => $staff->id,
-                    'period' => '2026-08-01',
-                    'gross_amount' => 50000,
-                    'net_amount' => 50000,
-                    'status' => 'paid',
-                ],
-            ]],
-        ]);
+    Sanctum::actingAs(syncDeviceFor($ours), ['sync']);
+
+    $response = $this->postJson(route('tether.push'), [
+        'client_id' => 'device-1',
+        'mutations' => [[
+            'mutation_id' => (string) Str::uuid(),
+            'entity_id' => $entityId,
+            'model' => 'StaffPayment',
+            'operation' => 'create',
+            'version' => 1,
+            'timestamp' => now()->getPreciseTimestamp(3),
+            'payload' => [
+                // A compromised or buggy client claiming another school.
+                'institution_id' => $theirs->id,
+                'staff_details_id' => $staff->id,
+                'period' => '2026-08-01',
+                'gross_amount' => 50000,
+                'net_amount' => 50000,
+                'status' => 'paid',
+            ],
+        ]],
+    ]);
 
     $response->assertOk();
     // Surfaces the rejection reason if the mutation didn't apply, instead
@@ -138,26 +141,27 @@ test('a synced fee payment updates the fee balance', function () {
 
     $entityId = (string) Str::ulid();
 
-    $response = $this->actingAs(syncDeviceFor($institution), 'sanctum')
-        ->postJson(route('tether.push'), [
-            'client_id' => 'device-1',
-            'mutations' => [[
-                'mutation_id' => (string) Str::uuid(),
-                'entity_id' => $entityId,
-                'model' => 'FeePayment',
-                'operation' => 'create',
-                'version' => 1,
-                'timestamp' => now()->getPreciseTimestamp(3),
-                'payload' => [
-                    'fee_id' => $fee->id,
-                    'student_id' => $fee->student_id,
-                    'amount' => 2500,
-                    'payment_method' => 'cash',
-                    'paid_at' => today()->toDateString(),
-                    'source' => 'offline_sync',
-                ],
-            ]],
-        ]);
+    Sanctum::actingAs(syncDeviceFor($institution), ['sync']);
+
+    $response = $this->postJson(route('tether.push'), [
+        'client_id' => 'device-1',
+        'mutations' => [[
+            'mutation_id' => (string) Str::uuid(),
+            'entity_id' => $entityId,
+            'model' => 'FeePayment',
+            'operation' => 'create',
+            'version' => 1,
+            'timestamp' => now()->getPreciseTimestamp(3),
+            'payload' => [
+                'fee_id' => $fee->id,
+                'student_id' => $fee->student_id,
+                'amount' => 2500,
+                'payment_method' => 'cash',
+                'paid_at' => today()->toDateString(),
+                'source' => 'offline_sync',
+            ],
+        ]],
+    ]);
 
     $response->assertOk();
     expect($response->json('rejected'))->toBe([]);
@@ -191,11 +195,12 @@ test('reconciliation is idempotent across repeated pushes', function () {
 
     // A flaky connection means clients retry the same mutation.
     foreach (range(1, 3) as $attempt) {
-        $this->actingAs(syncDeviceFor($institution), 'sanctum')
-            ->postJson(route('tether.push'), [
-                'client_id' => 'device-1',
-                'mutations' => [$mutation],
-            ])->assertOk();
+        Sanctum::actingAs(syncDeviceFor($institution), ['sync']);
+
+        $this->postJson(route('tether.push'), [
+            'client_id' => 'device-1',
+            'mutations' => [$mutation],
+        ])->assertOk();
     }
 
     expect(FeePayment::where('fee_id', $fee->id)->count())->toBe(1)

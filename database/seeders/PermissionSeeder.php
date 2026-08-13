@@ -49,6 +49,10 @@ class PermissionSeeder extends Seeder
             'reportcard' => ['view', 'edit'],
             'staff' => ['view', 'create', 'edit', 'update', 'delete'],
             'payroll' => ['view', 'create', 'edit', 'update', 'delete'],
+            // Enrolling and revoking the offline sync clients. A Director's
+            // call, not an Accountant's - a device inherits its account's
+            // reach, so handing one out is a security decision.
+            'syncdevice' => ['view', 'create', 'delete'],
             'user' => ['view', 'create', 'edit', 'update', 'delete'],
             'role' => ['view', 'create', 'edit', 'update', 'delete'],
             'permission' => ['view', 'create', 'edit', 'update', 'delete'],
@@ -130,6 +134,7 @@ class PermissionSeeder extends Seeder
             'view reportcard', 'edit reportcard',
             'view staff', 'create staff', 'edit staff', 'update staff', 'delete staff',
             'view payroll', 'create payroll', 'edit payroll', 'update payroll', 'delete payroll',
+            'view syncdevice', 'create syncdevice', 'delete syncdevice',
             'view account', 'create account', 'edit account', 'update account',
             'view finance', 'create finance', 'edit finance', 'update finance',
 

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\ReconcileSyncedFeeBalances;
+use App\Listeners\RecordDeviceSyncActivity;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Modules\Staff\Models\StaffDetails;
 use Modules\Staff\Models\StaffPayment;
 use Tether\Core\Conflict\ConflictResolution;
 use Tether\Core\Mutation\Mutation;
+use Tether\Server\Events\PullSyncCompleted;
 use Tether\Server\Events\PushSyncCompleted;
 use Tether\Server\SyncRegistry;
 
@@ -76,6 +78,8 @@ class TetherServiceProvider extends ServiceProvider
         }
 
         Event::listen(PushSyncCompleted::class, ReconcileSyncedFeeBalances::class);
+        Event::listen(PushSyncCompleted::class, RecordDeviceSyncActivity::class);
+        Event::listen(PullSyncCompleted::class, RecordDeviceSyncActivity::class);
     }
 
     /**

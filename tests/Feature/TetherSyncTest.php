@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 
 /**
  * Tether auto-registers POST /tether/push and /tether/pull, and the
@@ -15,14 +16,19 @@ test('the sync endpoints reject unauthenticated callers', function () {
     $this->postJson(route('tether.pull'))->assertUnauthorized();
 });
 
-test('a token holder gets past authentication', function () {
-    $user = User::factory()->create();
+test('a token holder with the sync ability gets past authentication', function () {
+    Sanctum::actingAs(User::factory()->create(), ['sync']);
 
     // An empty body fails validation rather than authentication - proof the
     // request reached the controller instead of being turned away.
-    $this->actingAs($user, 'sanctum')
-        ->postJson(route('tether.push'), [])
-        ->assertStatus(422);
+    $this->postJson(route('tether.push'), [])->assertStatus(422);
+});
+
+test('a token without the sync ability cannot reach the endpoints', function () {
+    Sanctum::actingAs(User::factory()->create(), ['reports']);
+
+    $this->postJson(route('tether.push'), [])->assertForbidden();
+    $this->postJson(route('tether.pull'), [])->assertForbidden();
 });
 
 test('both sync routes carry authentication and throttling', function () {
@@ -34,6 +40,7 @@ test('both sync routes carry authentication and throttling', function () {
     $routes->each(function ($route) {
         expect($route->gatherMiddleware())
             ->toContain('auth:sanctum')
+            ->toContain('abilities:sync')
             ->toContain('throttle:sync');
     });
 });

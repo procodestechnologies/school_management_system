@@ -73,6 +73,12 @@
                         :current="request()->routeIs('devices.index')" wire:navigate>
                         {{ __('Devices') }}
                     </flux:sidebar.item>
+                    @can('view syncdevice')
+                        <flux:sidebar.item icon="signal" :href="route('sync-devices.index')"
+                            :current="request()->routeIs('sync-devices.*')" wire:navigate>
+                            {{ __('Sync Devices') }}
+                        </flux:sidebar.item>
+                    @endcan
                     @if (institutionCanUpgrade())
                         <flux:sidebar.item icon="arrow-trending-up" :href="route('billing.show')"
                             :current="request()->routeIs('billing.*')" wire:navigate>

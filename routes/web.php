@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevicesController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\SyncDeviceController;
 use App\Http\Controllers\SyncStudentToDeviceController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HasInstitution;
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     // store/show aren't implemented - device creation and viewing are
     // handled entirely by the create/edit Livewire components.
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
+    // Offline sync clients - distinct from the biometric hardware above.
+    Route::resource('sync-devices', SyncDeviceController::class)
+        ->names('sync-devices')
+        ->only(['index', 'create', 'store', 'destroy']);
     Route::resource('admin/modules', ModuleController::class)->names('admin.modules');
     Route::resource('admin/plans', PlanController::class)->names('admin.plans')->except(['show']);
     Route::livewire('admin/settings', 'pages::admin.site-settings')->name('admin.settings.edit');
