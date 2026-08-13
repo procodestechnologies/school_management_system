@@ -2,14 +2,17 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\DeviceProfileController;
 use App\Listeners\ReconcileSyncedFeeBalances;
 use App\Listeners\RecordDeviceSyncActivity;
+use App\Models\SyncSetting;
 use App\Models\User;
 use GuzzleHttp\Middleware;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\FeeManagement\Models\Fee;
 use Modules\FeeManagement\Models\FeePayment;
@@ -85,9 +88,23 @@ class TetherServiceProvider extends ServiceProvider
             );
         }
 
+        $this->registerDeviceProfileRoute();
+
         Event::listen(PushSyncCompleted::class, ReconcileSyncedFeeBalances::class);
         Event::listen(PushSyncCompleted::class, RecordDeviceSyncActivity::class);
         Event::listen(PullSyncCompleted::class, RecordDeviceSyncActivity::class);
+    }
+
+    /**
+     * Sits alongside Tether's own endpoints and behind the same guards: a
+     * pairing device asks who it syncs as, using nothing but its token.
+     */
+    private function registerDeviceProfileRoute(): void
+    {
+        Route::middleware(config('tether-server.middleware', []))
+            ->prefix(config('tether-server.route_prefix', 'tether'))
+            ->get('device/profile', DeviceProfileController::class)
+            ->name('tether.device.profile');
     }
 
     /**
@@ -100,9 +117,13 @@ class TetherServiceProvider extends ServiceProvider
      */
     private function bootAsClient(): void
     {
-        ClientIdResolver::resolveUsing(fn (): string => (string) config('tether-client.client_id'));
+        // Pairing happens after installation, so what the device was told
+        // then outranks anything baked into the build's config.
+        ClientIdResolver::resolveUsing(
+            fn (): string => (string) SyncSetting::get('client_id', (string) config('tether-client.client_id')),
+        );
 
-        $token = (string) config('sync.device_token');
+        $token = (string) SyncSetting::get('device_token', (string) config('sync.device_token'));
 
         if ($token === '') {
             return;

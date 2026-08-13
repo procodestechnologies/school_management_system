@@ -31,11 +31,15 @@ test('a token without the sync ability cannot reach the endpoints', function () 
     $this->postJson(route('tether.pull'), [])->assertForbidden();
 });
 
-test('both sync routes carry authentication and throttling', function () {
+test('every tether route carries authentication and throttling', function () {
     $routes = collect(app('router')->getRoutes()->getRoutes())
         ->filter(fn ($route) => str_starts_with($route->uri(), 'tether/'));
 
-    expect($routes)->toHaveCount(2);
+    // push, pull, and the device profile endpoint pairing uses. Asserting
+    // the whole set rather than a fixed pair means a future endpoint added
+    // under this prefix can't skip the guards unnoticed.
+    expect($routes->pluck('uri')->sort()->values()->all())
+        ->toBe(['tether/device/profile', 'tether/pull', 'tether/push']);
 
     $routes->each(function ($route) {
         expect($route->gatherMiddleware())
