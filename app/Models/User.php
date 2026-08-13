@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\TetherSyncable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -40,7 +41,20 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TetherSyncable, TwoFactorAuthenticatable;
+
+    /**
+     * What a device is allowed to learn about a person. Credentials are
+     * absent by design - see TetherServiceProvider::stripCredentials(),
+     * which also blanks them on the way out.
+     *
+     * @var string[]
+     */
+    protected array $tetherSyncable = [
+        'name',
+        'email',
+        'active_institution_id',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -87,9 +101,15 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return $this->belongsTo(Institution::class, 'active_institution_id');
     }
 
+    /**
+     * student_details keys a student by student_id; there is no user_id
+     * column on that table and never has been. This pointed at one, so
+     * every screen eager-loading it - the fee list, a student's profile,
+     * attendance - failed on an unknown column.
+     */
     public function studentUserDetails()
     {
-        return $this->hasOne(StudentDetails::class, 'user_id');
+        return $this->hasOne(StudentDetails::class, 'student_id');
     }
 
     public function parentUserDetails()

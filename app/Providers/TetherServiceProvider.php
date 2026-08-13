@@ -14,15 +14,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Curriculum\Models\Curriculum;
 use Modules\FeeManagement\Models\Fee;
 use Modules\FeeManagement\Models\FeePayment;
+use Modules\Institution\Models\Institution;
+use Modules\Parent\Models\ParentDetails;
 use Modules\Staff\Models\StaffDetails;
 use Modules\Staff\Models\StaffPayment;
+use Modules\Student\Models\StudentDetails;
 use Psr\Http\Message\RequestInterface;
 use Tether\Client\ClientIdResolver;
 use Tether\Client\SyncHttpClient;
 use Tether\Core\Conflict\ConflictResolution;
 use Tether\Core\Mutation\Mutation;
+use Tether\Core\Sync\Snapshot;
 use Tether\Server\Events\PullSyncCompleted;
 use Tether\Server\Events\PushSyncCompleted;
 use Tether\Server\SyncRegistry;
@@ -56,15 +61,23 @@ class TetherServiceProvider extends ServiceProvider
      * @var array<string, class-string<Model>>
      */
     private const SYNCED_MODELS = [
-        'App\Sync\Models\Fee' => Fee::class,
-        'App\Sync\Models\FeePayment' => FeePayment::class,
-        'App\Sync\Models\StaffDetails' => StaffDetails::class,
-        'App\Sync\Models\StaffPayment' => StaffPayment::class,
+        // Order matters: snapshots are generated and applied in this
+        // sequence, and a device's foreign keys have to resolve as they
+        // land. Reference data first, then the records that point at it.
+        'App\Sync\Models\Curriculum' => [Curriculum::class, 'everything', true],
+        'App\Sync\Models\User' => [User::class, 'schoolPeople', true],
+        'App\Sync\Models\ParentDetails' => [ParentDetails::class, 'schoolParents', true],
+        'App\Sync\Models\Institution' => [Institution::class, 'ownRow', true],
+        'App\Sync\Models\StudentDetails' => [StudentDetails::class, 'byInstitution', true],
+        'App\Sync\Models\StaffDetails' => [StaffDetails::class, 'byInstitution', false],
+        'App\Sync\Models\Fee' => [Fee::class, 'byInstitution', false],
+        'App\Sync\Models\FeePayment' => [FeePayment::class, 'byInstitution', false],
+        'App\Sync\Models\StaffPayment' => [StaffPayment::class, 'byInstitution', false],
     ];
 
     public function register(): void
     {
-        foreach (self::SYNCED_MODELS as $alias => $modelClass) {
+        foreach (self::SYNCED_MODELS as $alias => [$modelClass]) {
             if (! class_exists($alias, false)) {
                 class_alias($modelClass, $alias);
             }
@@ -79,11 +92,21 @@ class TetherServiceProvider extends ServiceProvider
 
         $registry = $this->app->make(SyncRegistry::class);
 
-        foreach (array_keys(self::SYNCED_MODELS) as $alias) {
+        foreach (self::SYNCED_MODELS as $alias => [$modelClass, $scope, $readOnly]) {
             $registry->register(
                 modelClass: $alias,
-                scope: self::scopeToInstitution(...),
-                pushMutationMapper: self::forceInstitution(...),
+                scope: match ($scope) {
+                    'everything' => null,
+                    'ownRow' => self::scopeToOwnInstitutionRow(...),
+                    'schoolPeople' => self::scopeToSchoolPeople(...),
+                    'schoolParents' => self::scopeToSchoolParents(...),
+                    default => self::scopeToInstitution(...),
+                },
+                pullSnapshotMapper: $modelClass === User::class ? self::stripCredentials(...) : null,
+                // Reference data flows one way. A device that tried to push
+                // a user or an institution is malfunctioning or hostile;
+                // either way the server is not the place to find out.
+                pushMutationMapper: $readOnly ? self::refuseClientWrites(...) : self::forceInstitution(...),
                 conflictResolver: self::serverWinsOnConflict(...),
             );
         }
@@ -123,6 +146,15 @@ class TetherServiceProvider extends ServiceProvider
             fn (): string => (string) SyncSetting::get('client_id', (string) config('tether-client.client_id')),
         );
 
+        // Same reasoning for the server address: it's learned at pairing,
+        // long after this build's config was baked.
+        if ($server = SyncSetting::get('server_url', (string) config('sync.server_url'))) {
+            config([
+                'tether-client.server_routes.push' => rtrim($server, '/').'/tether/push',
+                'tether-client.server_routes.pull' => rtrim($server, '/').'/tether/pull',
+            ]);
+        }
+
         $token = (string) SyncSetting::get('device_token', (string) config('sync.device_token'));
 
         if ($token === '') {
@@ -142,6 +174,68 @@ class TetherServiceProvider extends ServiceProvider
     public static function scopeToInstitution(Builder $query, string $clientId, Request $request): Builder
     {
         return $query->where('institution_id', self::institutionIdFor($request->user()) ?? 0);
+    }
+
+    /**
+     * The device's own school record, reached by primary key - institutions
+     * have no institution_id of their own.
+     */
+    public static function scopeToOwnInstitutionRow(Builder $query, string $clientId, Request $request): Builder
+    {
+        return $query->whereKey(self::institutionIdFor($request->user()) ?? 0);
+    }
+
+    /**
+     * The people a device needs to make sense of its own records: the
+     * school's students and their parents, its staff, and its owner.
+     * Everyone else on the platform stays on the server.
+     */
+    public static function scopeToSchoolPeople(Builder $query, string $clientId, Request $request): Builder
+    {
+        $institutionId = self::institutionIdFor($request->user()) ?? 0;
+
+        return $query->where(function (Builder $people) use ($institutionId): void {
+            $people
+                ->whereIn('id', StudentDetails::where('institution_id', $institutionId)->select('student_id'))
+                ->orWhereIn('id', StudentDetails::where('institution_id', $institutionId)->select('parent_id'))
+                ->orWhereIn('id', StaffDetails::where('institution_id', $institutionId)->whereNotNull('user_id')->select('user_id'))
+                ->orWhereIn('id', Institution::whereKey($institutionId)->select('user_id'));
+        });
+    }
+
+    /**
+     * Parent records belonging to this school's students.
+     */
+    public static function scopeToSchoolParents(Builder $query, string $clientId, Request $request): Builder
+    {
+        $institutionId = self::institutionIdFor($request->user()) ?? 0;
+
+        return $query->whereIn('id', StudentDetails::where('institution_id', $institutionId)->select('parent_id'));
+    }
+
+    /**
+     * A device needs to show who a fee belongs to; it does not need anyone's
+     * credentials to do that. Password hashes, remember tokens and two-factor
+     * secrets are replaced rather than removed - the column is not nullable,
+     * and an unusable value means a synced account cannot be signed into on
+     * the device. Only the paired account gets a local passcode.
+     */
+    public static function stripCredentials(Snapshot $snapshot, Model $row): Snapshot
+    {
+        return $snapshot->withPayload(array_merge($snapshot->payload, [
+            'password' => 'no-local-login',
+            'remember_token' => null,
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+        ]));
+    }
+
+    /**
+     * Reference data is server-owned; a client may read it and nothing more.
+     */
+    public static function refuseClientWrites(Mutation $mutation, Request $request): Mutation
+    {
+        abort(403, 'This record type is read-only on devices.');
     }
 
     /**

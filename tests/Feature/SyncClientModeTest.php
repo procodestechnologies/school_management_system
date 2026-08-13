@@ -60,11 +60,12 @@ test('a client records create, update and delete', function () {
     $fee->update(['title' => 'Revised Tuition']);
     $fee->delete();
 
-    $logged = MutationLog::orderBy('id')->get();
+    // Filtered to this fee: the institution and users the fixture creates
+    // are syncable too, so they log their own mutations alongside it.
+    $logged = MutationLog::where('entity_id', $fee->tether_id)->orderBy('id')->get();
 
     expect($logged)->toHaveCount(3)
-        ->and($logged->pluck('operation')->map->value->all())->toBe(['create', 'update', 'delete'])
-        ->and($logged->first()->entity_id)->toBe($fee->tether_id);
+        ->and($logged->pluck('operation')->map->value->all())->toBe(['create', 'update', 'delete']);
 });
 
 test('a logged mutation carries only the syncable fields', function () {
@@ -72,7 +73,7 @@ test('a logged mutation carries only the syncable fields', function () {
 
     $fee = makeClientModeFee();
 
-    $payload = MutationLog::firstOrFail()->payload;
+    $payload = MutationLog::where('entity_id', $fee->tether_id)->firstOrFail()->payload;
 
     // amount_paid is derived from payments and recomputed server-side, so
     // a device must never be the thing that reports it.

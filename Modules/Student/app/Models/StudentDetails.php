@@ -2,6 +2,7 @@
 
 namespace Modules\Student\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Modules\Institution\Models\Institution;
 
 class StudentDetails extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TetherSyncable;
 
     /**
      * The attributes that are mass assignable.

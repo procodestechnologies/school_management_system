@@ -2,6 +2,7 @@
 
 namespace Modules\Parent\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ParentDetails extends Model
 {
-    use HasFactory;
+    use HasFactory, TetherSyncable;
 
     /**
      * The attributes that are mass assignable.

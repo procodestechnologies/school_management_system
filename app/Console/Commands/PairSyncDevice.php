@@ -8,6 +8,7 @@ use Database\Seeders\PermissionSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Modules\Institution\Models\Institution;
 use Throwable;
 
 /**
@@ -82,9 +83,29 @@ class PairSyncDevice extends Command
         SyncSetting::put('device_token', $token);
         SyncSetting::put('paired_at', now()->toIso8601String());
 
+        // Config was resolved at boot, before any of the above existed, so
+        // the sync below would otherwise post to an empty URL.
+        config([
+            'tether-client.server_routes.push' => $server.'/tether/push',
+            'tether-client.server_routes.pull' => $server.'/tether/pull',
+            'sync.device_token' => $token,
+        ]);
+
+        // The first pull has to happen here, not later: active_institution_id
+        // is a foreign key, and the institution row only exists on the device
+        // once it has been synced.
+        $this->info('Fetching this school\'s records...');
+
+        if ($this->call('tether:sync') !== self::SUCCESS) {
+            $this->error('Paired, but the first sync failed. Run `php artisan tether:sync` once you have a connection.');
+
+            return self::FAILURE;
+        }
+
+        $this->attachToInstitution($profile);
+
         $this->info('Paired with '.($profile['institution']['name'] ?? 'the server').'.');
         $this->line('Sign in offline as '.$profile['user']['email'].' using the passcode you just set.');
-        $this->line('Run `php artisan tether:sync` to fetch this school\'s records.');
 
         return self::SUCCESS;
     }
@@ -107,15 +128,36 @@ class PairSyncDevice extends Command
         // forceFill, because the id is not fillable - and it has to be the
         // server's id, or institution scoping and record ownership would
         // mean different things on the two sides.
+        // active_institution_id is deliberately left unset here - see
+        // attachToInstitution(), which runs once the row it points at has
+        // actually arrived.
         $user->forceFill([
             'id' => $profile['user']['id'],
             'name' => $profile['user']['name'],
             'email' => $profile['user']['email'],
             'password' => Hash::make($passcode),
             'email_verified_at' => now(),
-            'active_institution_id' => $profile['institution']['id'] ?? null,
         ])->save();
 
         $user->syncRoles($profile['user']['roles'] ?? []);
+    }
+
+    /**
+     * Point the local account at its school, now that the first sync has
+     * brought the institution across.
+     *
+     * @param  array<string, mixed>  $profile
+     */
+    private function attachToInstitution(array $profile): void
+    {
+        $institutionId = $profile['institution']['id'] ?? null;
+
+        if (! $institutionId || ! Institution::whereKey($institutionId)->exists()) {
+            $this->warn('The school record did not arrive in the first sync; sign-in may be limited until the next one.');
+
+            return;
+        }
+
+        User::whereKey($profile['user']['id'])->update(['active_institution_id' => $institutionId]);
     }
 }

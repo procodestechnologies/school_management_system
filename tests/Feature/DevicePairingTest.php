@@ -92,9 +92,17 @@ test('pairing builds a local account that signs in offline', function () {
                 'email' => 'grace@example.com',
                 'roles' => ['Director'],
             ],
-            'institution' => ['id' => null, 'name' => 'Riverside Academy', 'code' => 'RA-1'],
+            // A real server always returns a school - the endpoint 403s
+            // otherwise - and this is a foreign key on the device.
+            'institution' => ['id' => 7, 'name' => 'Riverside Academy', 'code' => 'RA-1'],
             'server_time' => now()->toIso8601String(),
         ]),
+        '*/tether/pull' => Http::response([
+            'snapshots' => [],
+            'new_sync_cursor' => null,
+            'has_more' => false,
+        ]),
+        '*/tether/push' => Http::response(['applied' => [], 'rejected' => [], 'conflicts' => []]),
     ]);
 
     $this->artisan('sync:pair', [
@@ -107,6 +115,9 @@ test('pairing builds a local account that signs in offline', function () {
 
     expect($local->email)->toBe('grace@example.com')
         ->and($local->hasRole('Director'))->toBeTrue()
+        // The school didn't arrive in this faked sync, so the account is
+        // left unattached rather than pointed at a missing foreign key.
+        ->and($local->active_institution_id)->toBeNull()
         // The passcode chosen on the device is what unlocks it - the
         // server's own password hash never travelled.
         ->and(Hash::check('offline-passcode', $local->password))->toBeTrue()

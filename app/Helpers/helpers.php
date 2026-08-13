@@ -31,6 +31,11 @@ if (! function_exists('hasInstitutions')) {
             return false;
         }
 
+        // A device holds one school by definition - the one it paired with.
+        if (syncClientMode()) {
+            return true;
+        }
+
         // Admins own the platform, not a school.
         if (isAdmin()) {
             return true;
@@ -75,6 +80,14 @@ if (! function_exists('institutionApproved')) {
         $user = Auth::user();
 
         if (! $user || isAdmin()) {
+            return true;
+        }
+
+        // Approval and payment are decided on the server. A device that was
+        // allowed to pair is by definition attached to a school in good
+        // standing, and re-litigating that offline would only lock people
+        // out of work they're entitled to do.
+        if (syncClientMode()) {
             return true;
         }
 
@@ -137,7 +150,11 @@ if (! function_exists('institutionHasModule')) {
         // linkage yet) shouldn't be locked out over gaps in that lookup.
         $institution = currentInstitution();
 
-        if (isAdmin() || ! $institution) {
+        // Plans live on the server and aren't synced, so a device's
+        // institution has no plan attached and every module would read as
+        // unavailable - blanking the sidebar on a device that paired
+        // precisely because it's entitled to this data.
+        if (isAdmin() || syncClientMode() || ! $institution) {
             return true;
         }
 
@@ -161,7 +178,8 @@ if (! function_exists('institutionHasFeature')) {
     {
         $institution = currentInstitution();
 
-        if (isAdmin() || ! $institution) {
+        // As with institutionHasModule() - no plan on a device.
+        if (isAdmin() || syncClientMode() || ! $institution) {
             return true;
         }
 
@@ -174,6 +192,12 @@ if (! function_exists('institutionHasPaid')) {
         $user = Auth::user();
 
         if (! $user || isAdmin()) {
+            return true;
+        }
+
+        // See institutionApproved() - subscription state is the server's
+        // business, not a disconnected laptop's.
+        if (syncClientMode()) {
             return true;
         }
 

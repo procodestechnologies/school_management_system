@@ -31,8 +31,6 @@ class SyncStudentToDeviceController extends Controller
             ], 422);
         }
 
-        // NOTE: User::studentUserDetails() points at a 'user_id' column that
-        // doesn't exist on student_details - query by student_id directly.
         $studentDetails = StudentDetails::where('student_id', $student->id)->first();
 
         if (! $studentDetails) {

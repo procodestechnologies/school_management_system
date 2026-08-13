@@ -32,6 +32,14 @@ class HasInstitution
             return $next($request);
         }
 
+        // An offline device is a copy of a school that already exists. Its
+        // institution row is synced, not owned by whoever is signed in, so
+        // the ownership check below would send a paired user through
+        // onboarding on a device that has nothing to onboard.
+        if (syncClientMode()) {
+            return $next($request);
+        }
+
         // Parents, Students, Teachers and Accountants are attached to a
         // school by someone else (a Director) - they never own an
         // institution themselves, so they must never be forced through

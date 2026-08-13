@@ -2,6 +2,7 @@
 
 namespace Modules\Curriculum\Models;
 
+use App\Concerns\TetherSyncable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Institution\Models\Institution;
@@ -10,7 +11,7 @@ use Modules\Institution\Models\Institution;
 
 class Curriculum extends Model
 {
-    use HasFactory;
+    use HasFactory, TetherSyncable;
 
     /**
      * The attributes that are mass assignable.

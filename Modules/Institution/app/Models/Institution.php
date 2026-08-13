@@ -2,6 +2,7 @@
 
 namespace Modules\Institution\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\Devices;
 use App\Models\Payment;
 use App\Models\Plan;
@@ -23,7 +24,7 @@ use Modules\Timetable\Models\TimetableEntry;
 
 class Institution extends Model
 {
-    use HasFactory;
+    use HasFactory, TetherSyncable;
 
     /**
      * The attributes that are mass assignable.
