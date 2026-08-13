@@ -19,8 +19,17 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Databases restored from the production dump already carry these
+        // columns, even though no migration in this repo creates them - so
+        // adding them unconditionally fails there mid-deploy.
         Schema::table('parent_details', function (Blueprint $table) {
-            $table->timestamps();
+            if (! Schema::hasColumn('parent_details', 'created_at')) {
+                $table->timestamp('created_at')->nullable();
+            }
+
+            if (! Schema::hasColumn('parent_details', 'updated_at')) {
+                $table->timestamp('updated_at')->nullable();
+            }
         });
 
         DB::table('parent_details')->whereNull('created_at')->update([
