@@ -2,6 +2,7 @@
 
 namespace Modules\FeeManagement\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,27 @@ use Modules\Institution\Models\Institution;
 
 class Fee extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TetherSyncable;
+
+    /**
+     * amount_paid is deliberately absent: it's an aggregate derived from
+     * FeePayment rows, so an offline device must never write it directly.
+     * ReconcileSyncedFeeBalances recomputes it after each push.
+     *
+     * @var string[]
+     */
+    protected array $tetherSyncable = [
+        // Present so the value TetherServiceProvider forces onto every
+        // inbound mutation survives filtering - never the client's own.
+        'institution_id',
+        'student_id',
+        'parent_id',
+        'title',
+        'fee_type',
+        'amount',
+        'due_date',
+        'notes',
+    ];
 
     protected $fillable = [
         'institution_id',

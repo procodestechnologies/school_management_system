@@ -2,6 +2,7 @@
 
 namespace Modules\Staff\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -31,7 +32,33 @@ use Modules\Institution\Models\Institution;
  */
 class StaffDetails extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TetherSyncable;
+
+    /**
+     * user_id is absent on purpose - granting a staff member a login is a
+     * server-side act with a role attached, never something an offline
+     * device can assign.
+     *
+     * @var string[]
+     */
+    protected array $tetherSyncable = [
+        // Present so the value TetherServiceProvider forces onto every
+        // inbound mutation survives filtering - never the client's own.
+        'institution_id',
+        'name',
+        'email',
+        'phone',
+        'staff_number',
+        'job_title',
+        'department',
+        'employment_type',
+        'hire_date',
+        'salary',
+        'address',
+        'is_active',
+        'status',
+        'notes',
+    ];
 
     protected $table = 'staff_details';
 

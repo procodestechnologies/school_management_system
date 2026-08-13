@@ -2,12 +2,15 @@
 
 namespace Modules\FeeManagement\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Institution\Models\Institution;
 
 class FeePayment extends Model
 {
+    use TetherSyncable;
+
     protected $fillable = [
         'fee_id',
         'institution_id',

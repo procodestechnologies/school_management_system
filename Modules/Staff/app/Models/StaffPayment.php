@@ -2,6 +2,7 @@
 
 namespace Modules\Staff\Models;
 
+use App\Concerns\TetherSyncable;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,7 +33,30 @@ use Modules\Institution\Models\Institution;
  */
 class StaffPayment extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TetherSyncable;
+
+    /**
+     * recorded_by is absent on purpose - who keyed a payslip in is decided
+     * by the server from the syncing account, not claimed by the client.
+     *
+     * @var string[]
+     */
+    protected array $tetherSyncable = [
+        // Present so the value TetherServiceProvider forces onto every
+        // inbound mutation survives filtering - never the client's own.
+        'institution_id',
+        'staff_details_id',
+        'period',
+        'gross_amount',
+        'allowances',
+        'deductions',
+        'net_amount',
+        'payment_method',
+        'reference',
+        'status',
+        'paid_at',
+        'notes',
+    ];
 
     protected $fillable = [
         'staff_details_id',

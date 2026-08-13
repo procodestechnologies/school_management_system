@@ -33,8 +33,16 @@ return [
     | payloads. For example, a mutation with model "Post" will resolve to
     | "App\Models\Post" by default.
     |
+    | This app's models live in Modules\<Module>\Models\*, which no single
+    | namespace can express, so TetherServiceProvider aliases each synced
+    | model into the namespace below and registers it under that alias.
+    | Pull uses the registry's keys and push builds this prefix - they have
+    | to agree, or the per-model push guard and conflict resolver silently
+    | stop firing. Nothing is autoloaded from here; the aliases are made at
+    | registration time.
+    |
     */
-    'model_namespace' => env('TETHER_MODEL_NAMESPACE', 'App\\Models'),
+    'model_namespace' => env('TETHER_MODEL_NAMESPACE', 'App\\Sync\\Models'),
 
     /*
     |--------------------------------------------------------------------------
