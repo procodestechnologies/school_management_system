@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a0cdd8bb21ec8d355a6bf2d2715698f3",
+    "content-hash": "b461b381a77578c0e1c796b418624969",
     "packages": [
         {
             "name": "athwari/laravel-zkteco-adms",
@@ -2490,6 +2490,69 @@
                 "source": "https://github.com/laravel/prompts/tree/v0.3.22"
             },
             "time": "2026-08-04T14:50:50+00:00"
+        },
+        {
+            "name": "laravel/sanctum",
+            "version": "v4.3.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/sanctum.git",
+                "reference": "fee27a573d1a013af3721d86153a65e0b11927e6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/sanctum/zipball/fee27a573d1a013af3721d86153a65e0b11927e6",
+                "reference": "fee27a573d1a013af3721d86153a65e0b11927e6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "illuminate/console": "^11.0|^12.0|^13.0",
+                "illuminate/contracts": "^11.0|^12.0|^13.0",
+                "illuminate/database": "^11.0|^12.0|^13.0",
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "php": "^8.2",
+                "symfony/console": "^7.0|^8.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^9.15|^10.8|^11.0",
+                "phpstan/phpstan": "^1.10"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Laravel\\Sanctum\\SanctumServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Laravel\\Sanctum\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "Laravel Sanctum provides a featherweight authentication system for SPAs and simple APIs.",
+            "keywords": [
+                "auth",
+                "laravel",
+                "sanctum"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/sanctum/issues",
+                "source": "https://github.com/laravel/sanctum"
+            },
+            "time": "2026-06-23T18:26:55+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -8854,6 +8917,104 @@
                 }
             ],
             "time": "2026-07-21T15:13:06+00:00"
+        },
+        {
+            "name": "tether/core",
+            "version": "v0.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lrakauskas/tether-core.git",
+                "reference": "c9bf724e56e698880692fefe6ebe5c95a6b2392c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lrakauskas/tether-core/zipball/c9bf724e56e698880692fefe6ebe5c95a6b2392c",
+                "reference": "c9bf724e56e698880692fefe6ebe5c95a6b2392c",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^12.0|^13.0",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0",
+                "symplify/easy-coding-standard": "^13.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Tether\\Core\\TetherCoreServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Tether\\Core\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Core primitives for the Tether offline-first sync system.",
+            "support": {
+                "issues": "https://github.com/lrakauskas/tether-core/issues",
+                "source": "https://github.com/lrakauskas/tether-core/tree/v0.0.1"
+            },
+            "time": "2026-05-31T08:24:40+00:00"
+        },
+        {
+            "name": "tether/server",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lrakauskas/tether-server.git",
+                "reference": "93be815412b2ac5756655ca4f1d86c8b683e8ea4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lrakauskas/tether-server/zipball/93be815412b2ac5756655ca4f1d86c8b683e8ea4",
+                "reference": "93be815412b2ac5756655ca4f1d86c8b683e8ea4",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^12.0|^13.0",
+                "php": "^8.3",
+                "tether/core": "^0"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.9",
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0",
+                "symplify/easy-coding-standard": "^13.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Tether\\Server\\TetherServerServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Tether\\Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Laravel server integration layer for the Tether offline-first sync system.",
+            "support": {
+                "issues": "https://github.com/lrakauskas/tether-server/issues",
+                "source": "https://github.com/lrakauskas/tether-server/tree/v1.0.0"
+            },
+            "time": "2026-06-02T19:48:54+00:00"
         },
         {
             "name": "thecodingmachine/safe",

@@ -18,6 +18,7 @@
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "livewire/blaze": "^1.0",
         "livewire/flux": "^2.13.1",
@@ -26,6 +27,7 @@
         "phpoffice/phpspreadsheet": "*",
         "smalot/pdfparser": "^2.12",
         "spatie/laravel-permission": "^8.3",
+        "tether/server": "^1.0",
         "thiagoalessio/tesseract_ocr": "^2.13"
     },
     "require-dev": {
