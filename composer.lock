@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b461b381a77578c0e1c796b418624969",
+    "content-hash": "3ad73c6c84a4276329866f63fae2a700",
     "packages": [
         {
             "name": "athwari/laravel-zkteco-adms",
@@ -8917,6 +8917,56 @@
                 }
             ],
             "time": "2026-07-21T15:13:06+00:00"
+        },
+        {
+            "name": "tether/client",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lrakauskas/tether-client.git",
+                "reference": "a9f8999e0e07b5b87353908e721429f29a5e5530"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lrakauskas/tether-client/zipball/a9f8999e0e07b5b87353908e721429f29a5e5530",
+                "reference": "a9f8999e0e07b5b87353908e721429f29a5e5530",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^12.0|^13.0",
+                "php": "^8.3",
+                "tether/core": "^0"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.9",
+                "orchestra/testbench": "^10.0",
+                "pestphp/pest": "^4.0",
+                "pestphp/pest-plugin-laravel": "^4.0",
+                "symplify/easy-coding-standard": "^13.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Tether\\Client\\TetherClientServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Tether\\Client\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Laravel client integration layer for the Tether offline-first sync system.",
+            "support": {
+                "issues": "https://github.com/lrakauskas/tether-client/issues",
+                "source": "https://github.com/lrakauskas/tether-client/tree/v1.0.0"
+            },
+            "time": "2026-06-02T19:50:06+00:00"
         },
         {
             "name": "tether/core",

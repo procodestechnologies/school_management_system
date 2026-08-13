@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use Illuminate\Support\Str;
+use Tether\Client\MutationLogger;
 
 /**
  * Marks a model as participating in offline sync.
@@ -31,6 +32,59 @@ trait TetherSyncable
                 $model->tether_id = (string) Str::ulid();
             }
         });
+
+        // Only a device keeps a mutation log. On the server these hooks do
+        // nothing, so nothing about how it already behaves changes.
+        //
+        // Tether ships its own Syncable trait that logs unconditionally,
+        // which can't work here: the same codebase is both the server and
+        // the client, and a trait can't be applied to one and not the
+        // other. Driving MutationLogger directly is what makes the single
+        // config switch possible.
+        static::created(function ($model): void {
+            if (syncClientMode()) {
+                app(MutationLogger::class)->recordCreate($model, $model->tetherLoggableFields());
+            }
+        });
+
+        static::updated(function ($model): void {
+            if (syncClientMode()) {
+                app(MutationLogger::class)->recordUpdate($model, $model->tetherLoggableFields());
+            }
+        });
+
+        static::deleted(function ($model): void {
+            if (syncClientMode()) {
+                app(MutationLogger::class)->recordDelete($model);
+            }
+        });
+    }
+
+    /**
+     * The column holding this model's sync identity. MutationLogger checks
+     * for these two methods rather than for Tether's own trait, which is
+     * what lets this trait stand in for it.
+     */
+    public function getTetherKeyName(): string
+    {
+        return (string) config('tether-client.sync_key', 'tether_id');
+    }
+
+    public function getTetherKey(): string
+    {
+        return (string) $this->{$this->getTetherKeyName()};
+    }
+
+    /**
+     * MutationLogger needs a concrete field list; getSyncableFields() may
+     * return null to mean "no filtering", which for logging purposes means
+     * everything the model considers fillable.
+     *
+     * @return string[]
+     */
+    public function tetherLoggableFields(): array
+    {
+        return $this->getSyncableFields() ?? $this->getFillable();
     }
 
     /**

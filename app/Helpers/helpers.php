@@ -46,6 +46,17 @@ if (! function_exists('hasInstitutions')) {
         return $user->institution()->exists();
     }
 }
+if (! function_exists('syncClientMode')) {
+    /**
+     * Whether this copy of the application is running as an offline client
+     * (the NativePHP build on someone's laptop or phone) rather than as the
+     * central server. See config/sync.php.
+     */
+    function syncClientMode(): bool
+    {
+        return (bool) config('sync.client_mode', false);
+    }
+}
 if (! function_exists('isAdmin')) {
     function isAdmin()
     {

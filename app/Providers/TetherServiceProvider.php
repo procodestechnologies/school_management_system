@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Listeners\ReconcileSyncedFeeBalances;
 use App\Listeners\RecordDeviceSyncActivity;
 use App\Models\User;
+use GuzzleHttp\Middleware;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -14,6 +15,9 @@ use Modules\FeeManagement\Models\Fee;
 use Modules\FeeManagement\Models\FeePayment;
 use Modules\Staff\Models\StaffDetails;
 use Modules\Staff\Models\StaffPayment;
+use Psr\Http\Message\RequestInterface;
+use Tether\Client\ClientIdResolver;
+use Tether\Client\SyncHttpClient;
 use Tether\Core\Conflict\ConflictResolution;
 use Tether\Core\Mutation\Mutation;
 use Tether\Server\Events\PullSyncCompleted;
@@ -66,6 +70,10 @@ class TetherServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (syncClientMode()) {
+            $this->bootAsClient();
+        }
+
         $registry = $this->app->make(SyncRegistry::class);
 
         foreach (array_keys(self::SYNCED_MODELS) as $alias) {
@@ -80,6 +88,31 @@ class TetherServiceProvider extends ServiceProvider
         Event::listen(PushSyncCompleted::class, ReconcileSyncedFeeBalances::class);
         Event::listen(PushSyncCompleted::class, RecordDeviceSyncActivity::class);
         Event::listen(PullSyncCompleted::class, RecordDeviceSyncActivity::class);
+    }
+
+    /**
+     * Client-side wiring: identify this device to the server and sign every
+     * outbound sync request with its token.
+     *
+     * The package's HTTP client takes no credentials of its own - middleware
+     * is the documented seam for auth - so without this a device would reach
+     * the server anonymously and be turned away by auth:sanctum.
+     */
+    private function bootAsClient(): void
+    {
+        ClientIdResolver::resolveUsing(fn (): string => (string) config('tether-client.client_id'));
+
+        $token = (string) config('sync.device_token');
+
+        if ($token === '') {
+            return;
+        }
+
+        $this->app->resolving(SyncHttpClient::class, function (SyncHttpClient $client) use ($token): void {
+            $client->withMiddleware(Middleware::mapRequest(
+                fn (RequestInterface $request): RequestInterface => $request->withHeader('Authorization', 'Bearer '.$token),
+            ));
+        });
     }
 
     /**
