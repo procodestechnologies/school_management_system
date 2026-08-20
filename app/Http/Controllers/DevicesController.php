@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\Sortable;
 use App\Models\Devices;
+use Athwari\LaravelZktecoAdms\Enums\CommandStatus;
+use Athwari\LaravelZktecoAdms\Exceptions\CommandQueueFullException;
+use Athwari\LaravelZktecoAdms\Services\CommandManager;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -79,6 +83,56 @@ class DevicesController extends Controller
         $device->linkZktecoDevice($validated['name'] ?? null, $validated['ip_address'] ?? null);
 
         return redirect()->route('devices.index')->with('success', 'Device updated successfully.');
+    }
+
+    /**
+     * Queue a one-off clock sync for a terminal.
+     *
+     * The device keeps its own clock and only takes instruction when it
+     * polls, so this queues rather than sets: the terminal picks the command
+     * up on its next check-in. The moment queued is the server's own wall
+     * clock, and the device's timezone is stamped to match, so the punches
+     * it sends back are read in the same zone we just set it to.
+     */
+    public function setTime(Devices $device, CommandManager $commands)
+    {
+        abort_unless(isAdmin() || $device->institution_id === currentInstitution()?->id, 403);
+
+        $zktecoDevice = $device->zktecoDevice;
+
+        if (! $zktecoDevice) {
+            return back()->with('error', 'That device has never connected, so there is nothing to send a clock to yet.');
+        }
+
+        // One press is enough. A queued command sits until the terminal next
+        // polls, so a second press before then would only stack a duplicate
+        // that sets the very same clock.
+        $alreadyQueued = $zktecoDevice->deviceCommands()
+            ->whereIn('status', [CommandStatus::Pending, CommandStatus::Sent])
+            ->where('command_content', 'like', 'SET OPTION DateTime=%')
+            ->exists();
+
+        if ($alreadyQueued) {
+            return back()->with('warning', 'A clock sync is already waiting for this device to check in.');
+        }
+
+        $timezone = (string) config('app.timezone', 'UTC');
+        $now = Carbon::now($timezone);
+
+        try {
+            $commands->sendSetTimeCommand($device->serial_number, $now);
+        } catch (CommandQueueFullException) {
+            return back()->with('error', 'This device has too many commands waiting already. Let it check in, then try again.');
+        }
+
+        $zktecoDevice->update(['timezone' => $timezone]);
+
+        return back()->with('success', sprintf(
+            'Clock sync queued for %s. It will set itself to %s (%s) on its next check-in — about 30 seconds if it is online.',
+            $device->serial_number,
+            $now->format('D, d M Y H:i'),
+            $timezone,
+        ));
     }
 
     public function destroy(Request $request, Devices $device)

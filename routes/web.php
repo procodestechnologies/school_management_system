@@ -29,6 +29,8 @@ Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboa
     // store/show aren't implemented - device creation and viewing are
     // handled entirely by the create/edit Livewire components.
     Route::resource('/devices', DevicesController::class)->names('devices')->except(['store', 'show']);
+    // Queues a clock sync; the terminal applies it on its next check-in.
+    Route::post('devices/{device}/set-time', [DevicesController::class, 'setTime'])->name('devices.set-time');
     // Offline sync clients - distinct from the biometric hardware above.
     Route::resource('sync-devices', SyncDeviceController::class)
         ->names('sync-devices')

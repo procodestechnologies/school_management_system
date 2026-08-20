@@ -10,6 +10,7 @@ use Athwari\LaravelZktecoAdms\Exceptions\DeviceNotFoundException;
 use Athwari\LaravelZktecoAdms\Models\ZktecoDevice;
 use Athwari\LaravelZktecoAdms\Models\ZktecoDeviceCommand;
 use Athwari\LaravelZktecoAdms\Models\ZktecoDeviceEvent;
+use DateTimeInterface;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -241,6 +242,49 @@ class CommandManager
     public function sendRebootCommand(string $serialNumber): int
     {
         return $this->queueCommand($serialNumber, 'REBOOT');
+    }
+
+    /**
+     * Queue a SET OPTION DateTime command, setting the device's clock.
+     *
+     * The terminal keeps its own clock and will not take a plain timestamp -
+     * ZKTeco firmware wants the moment packed into a single integer, so the
+     * time is encoded before it goes on the wire.
+     *
+     * Wire format: SET OPTION DateTime=<encoded>
+     */
+    public function sendSetTimeCommand(string $serialNumber, DateTimeInterface $time): int
+    {
+        return $this->queueCommand(
+            $serialNumber,
+            sprintf('SET OPTION DateTime=%d', $this->encodeDeviceTime($time))
+        );
+    }
+
+    /**
+     * Pack a moment into ZKTeco's device-time integer.
+     *
+     * Their calendar treats every month as 31 days long, so this is not a
+     * Unix timestamp and must not be swapped for one - the device decodes it
+     * with the same fiction and gets the intended wall clock back.
+     *
+     * The moment is read in whatever timezone it carries, so callers decide
+     * which wall clock the terminal ends up showing.
+     */
+    public function encodeDeviceTime(DateTimeInterface $time): int
+    {
+        $year = (int) $time->format('Y');
+        $month = (int) $time->format('n');
+        $day = (int) $time->format('j');
+
+        $days = ($year - 2000) * 12 * 31
+            + ($month - 1) * 31
+            + ($day - 1);
+
+        return $days * 24 * 60 * 60
+            + (int) $time->format('G') * 60 * 60
+            + (int) $time->format('i') * 60
+            + (int) $time->format('s');
     }
 
     /**

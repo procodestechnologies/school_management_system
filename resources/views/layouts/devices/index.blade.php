@@ -1,5 +1,23 @@
 <x-layouts::app :title="__('Dashboard')">
     <div class="flex h-full w-full flex-1 flex-col gap-4 md:p-6">
+        @if (session('success'))
+            <div class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('warning'))
+            <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                {{ session('warning') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ session('error') }}
+            </div>
+        @endif
+
         <div class="flex items-center justify-between">
             <flux:heading size="2xl" class="mb-4">Biometric Devices ({{ $deviceCount }})</flux:heading>
             <div class="flex justify-end mb-4">
@@ -38,6 +56,13 @@
                         <flux:table.cell>
                             <flux:button wire:navigate href="{{ route('devices.edit', $device) }}" variant="primary"
                                 color="blue" icon="pencil">Edit</flux:button>
+                            {{-- Queues the server's clock; the terminal takes it on its next check-in. --}}
+                            <form action="{{ route('devices.set-time', $device) }}" method="POST" class="inline">
+                                @csrf
+                                <flux:button type="submit" variant="filled" icon="clock"
+                                    :disabled="! $device->zktecoDevice"
+                                    title="Set this terminal's clock to the server time">Set Time</flux:button>
+                            </form>
                             <form action="{{ route('devices.destroy', $device) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
