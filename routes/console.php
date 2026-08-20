@@ -15,3 +15,9 @@ Schedule::command('reportcards:send-ready')->everyMinute();
 Schedule::command('lesson:generate-daily-reports')->dailyAt('18:00');
 // The timetable only runs Monday-Friday, so Friday evening is "end of week".
 Schedule::command('lesson:generate-weekly-reports')->weeklyOn(5, '18:30');
+
+// A terminal stamps every punch with its own clock, so drift files
+// attendance at the wrong hour without ever announcing itself. Hourly is
+// far more often than any device drifts; it is a tiny queued command, and
+// devices that are switched off are caught on reconnect instead.
+Schedule::command('zkteco:sync-clocks')->hourly();

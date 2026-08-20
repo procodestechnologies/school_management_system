@@ -6,6 +6,9 @@
 <x-layouts::app :title="__('Reports & Analytics')">
     <div class="p-4 space-y-6">
 
+        {{-- Admin-only; renders nothing for anyone else, or when deploy.enabled is off. --}}
+        <livewire:pull-updates />
+
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <flux:heading size="xl">Reports &amp; Analytics</flux:heading>
