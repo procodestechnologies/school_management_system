@@ -2,6 +2,7 @@
 
 use Athwari\LaravelZktecoAdms\Models\ZktecoAttendanceLog;
 use Athwari\LaravelZktecoAdms\Models\ZktecoDevice;
+use Athwari\LaravelZktecoAdms\Services\CommandManager;
 
 /*
  * The terminal keeps its own clock. The only point at which the server can
@@ -107,4 +108,55 @@ it('still registers the device and accepts punches after the handshake', functio
     $log = ZktecoAttendanceLog::where('device_id', $device->id)->first();
     expect($log->pin)->toBe('17')
         ->and($log->occurred_at->format('Y-m-d H:i'))->toBe('2026-08-20 07:42');
+});
+
+/*
+ * The options reply must never strand a queued command. This URL delivered
+ * commands long before the handshake was added, and some firmware polls
+ * here rather than /getrequest - a command that never arrives looks exactly
+ * like one the device received and ignored, which is a miserable thing to
+ * debug. All three poll paths are covered.
+ */
+it('hands over a waiting command on every path the device might poll', function (string $url) {
+    ZktecoDevice::create([
+        'serial_number' => SN, 'name' => 'K40 Pro', 'status' => 'online',
+        'last_activity_at' => now(), 'timezone' => 'Africa/Nairobi', 'options' => [],
+    ]);
+
+    app(CommandManager::class)->queueCommand(SN, 'SET OPTION DateTime=856078931');
+
+    expect($this->get($url)->getContent())->toContain('SET OPTION DateTime=856078931');
+})->with([
+    'getrequest' => '/iclock/getrequest?SN='.SN,
+    'cdata' => '/iclock/cdata?SN='.SN,
+    'cdata with options=all' => '/iclock/cdata?SN='.SN.'&options=all',
+]);
+
+it('goes back to answering with the timezone once the queue is empty', function () {
+    ZktecoDevice::create([
+        'serial_number' => SN, 'name' => 'K40 Pro', 'status' => 'online',
+        'last_activity_at' => now(), 'timezone' => 'Africa/Nairobi', 'options' => [],
+    ]);
+
+    app(CommandManager::class)->queueCommand(SN, 'SET OPTION DateTime=856078931');
+
+    // First ask drains the command...
+    $this->get('/iclock/cdata?SN='.SN.'&options=all');
+
+    // ...the next one carries the options again.
+    expect(boot())->toContain('TimeZone=');
+});
+
+it('is not blocked forever by a command the device never acknowledged', function () {
+    ZktecoDevice::create([
+        'serial_number' => SN, 'name' => 'K40 Pro', 'status' => 'online',
+        'last_activity_at' => now(), 'timezone' => 'Africa/Nairobi', 'options' => [],
+    ]);
+
+    app(CommandManager::class)->queueCommand(SN, 'DATA QUERY USERINFO');
+
+    // Delivered, then never confirmed - it stays 'sent' indefinitely.
+    $this->get('/iclock/getrequest?SN='.SN);
+
+    expect(boot())->toContain('TimeZone=');
 });

@@ -135,6 +135,29 @@ class CommandManager
     }
 
     /**
+     * Whether anything is still waiting to be handed to the device.
+     *
+     * Counts only what drainCommands would actually deliver. pendingCount()
+     * also counts commands already sent but never acknowledged, and a single
+     * command the device silently dropped would block on that forever.
+     */
+    public function hasUndeliveredCommands(string $serialNumber): bool
+    {
+        $deviceModel = config('zkteco-adms.models.device', ZktecoDevice::class);
+        $device = $deviceModel::where('serial_number', $serialNumber)->first();
+
+        if (! $device) {
+            return false;
+        }
+
+        $commandModel = config('zkteco-adms.models.device_command', ZktecoDeviceCommand::class);
+
+        return $commandModel::where('device_id', $device->id)
+            ->where('status', CommandStatus::Pending)
+            ->exists();
+    }
+
+    /**
      * Mark a command as acknowledged by the device.
      */
     public function confirmCommand(int $commandId, int $returnCode): void

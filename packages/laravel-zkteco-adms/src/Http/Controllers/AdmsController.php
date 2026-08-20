@@ -60,10 +60,17 @@ class AdmsController extends Controller
         // A booting device asks for its options before anything else, and
         // that exchange is the only chance the server gets to tell it which
         // timezone to keep its clock in.
+        //
+        // Commands come first, though. This URL delivered queued commands
+        // long before the handshake existed, and some firmware polls here
+        // rather than /getrequest - answering with options while a command
+        // waits would strand it, which looks exactly like a command that
+        // was sent and ignored. The timezone goes out on the next ask.
         if (config('zkteco-adms.response.send_options_handshake', true)
             && $table === ''
             && $request->isMethod('GET')
-            && $request->has('options')) {
+            && $request->has('options')
+            && ! $this->commandManager->hasUndeliveredCommands($serialNumber)) {
             return $this->optionsHandshake($serialNumber);
         }
 
