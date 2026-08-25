@@ -18,23 +18,6 @@ class ReportCardController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view reportcard'), 403);
-
-        $query = ReportCard::with(['institution', 'schoolClass', 'student']);
-        $this->scopeToViewer($query);
-
-        $reportCards = $this->applySort(
-            $query,
-            sortable: ['term', 'mean_grade'],
-            defaultColumn: 'completed_at',
-            defaultDirection: 'desc',
-        )->get();
-
-        return view('reportcard::index', compact('reportCards'));
-    }
-
     /**
      * Show the specified resource.
      */

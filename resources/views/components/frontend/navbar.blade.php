@@ -17,7 +17,7 @@
             <a href="{{ route('home') }}" wire:navigate
                 class="flex items-center gap-2 font-semibold text-zinc-900 transition hover:opacity-80 dark:text-white">
                 <img
-                    src="{{ asset('favicon.svg') }}"
+                    src="{{ asset('logos/solforbs-logo.png') }}"
                     alt="{{ config('app.name', 'Laravel') }}"
                     class="size-10 object-contain"
                 />

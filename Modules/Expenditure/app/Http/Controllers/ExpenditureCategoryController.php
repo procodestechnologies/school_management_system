@@ -15,21 +15,6 @@ use Modules\Expenditure\Models\ExpenditureCategory;
  */
 class ExpenditureCategoryController extends Controller
 {
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view expenditure'), 403);
-
-        $query = ExpenditureCategory::withCount('expenditures');
-
-        if (! isAdmin()) {
-            $query->where('institution_id', currentInstitution()?->id ?? 0);
-        }
-
-        return view('expenditure::categories.index', [
-            'categories' => $query->orderBy('name')->get(),
-        ]);
-    }
-
     public function store(Request $request)
     {
         abort_unless(Auth::user()->can('create expenditure'), 403);

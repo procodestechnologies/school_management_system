@@ -15,7 +15,7 @@
                     You're signed in as <span class="font-medium">{{ $roleName }}</span>.
                 @endif
                 @can('view report')
-                    <a href="{{ route('report.index') }}" class="text-blue-600 hover:underline">View full reports
+                    <a href="{{ route('report.index') }}" class="text-blue-600 hover:underline" wire:navigate>View full reports
                         &rarr;</a>
                 @endcan
             </flux:text>
@@ -30,7 +30,7 @@
                         You don't have an institution yet. Create one to start managing students, parents, fees and
                         attendance.
                     </flux:text>
-                    <flux:button href="{{ route('institution.create') }}" variant="primary">
+                    <flux:button href="{{ route('institution.create') }}" variant="primary" wire:navigate>
                         Add an Institution
                     </flux:button>
                 </flux:card>
@@ -129,18 +129,18 @@
 
             <div class="flex flex-wrap gap-3">
                 @can('create student')
-                    <flux:button href="{{ route('student.create') }}" icon="user-plus">Add Student</flux:button>
+                    <flux:button href="{{ route('student.create') }}" icon="user-plus" wire:navigate>Add Student</flux:button>
                 @endcan
                 @can('create feemanagement')
-                    <flux:button href="{{ route('feemanagement.create') }}" icon="banknotes" variant="ghost">Add
+                    <flux:button href="{{ route('feemanagement.create') }}" icon="banknotes" variant="ghost" wire:navigate>Add
                         Fee</flux:button>
                 @endcan
                 @can('create payroll')
-                    <flux:button href="{{ route('staff.payments.create') }}" icon="banknotes" variant="ghost">Record
+                    <flux:button href="{{ route('staff.payments.create') }}" icon="banknotes" variant="ghost" wire:navigate>Record
                         Staff Payment</flux:button>
                 @endcan
                 @can('view attendance')
-                    <flux:button href="{{ route('attendance.index') }}" icon="clock" variant="ghost">View
+                    <flux:button href="{{ route('attendance.index') }}" icon="clock" variant="ghost" wire:navigate>View
                         Attendance</flux:button>
                 @endcan
             </div>
@@ -220,7 +220,7 @@
                 </div>
             @endif
         @else
-            <flux:button href="{{ route('institution.create') }}">Add an Institution to continue...</flux:button>
+            <flux:button href="{{ route('institution.create') }}" wire:navigate>Add an Institution to continue...</flux:button>
         @endif
 
     </div>

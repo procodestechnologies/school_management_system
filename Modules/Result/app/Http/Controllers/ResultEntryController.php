@@ -26,36 +26,6 @@ use Modules\Student\Models\StudentDetails;
 class ResultEntryController extends Controller
 {
     /**
-     * Show the marks sheet for a chosen examination.
-     */
-    public function create(Request $request)
-    {
-        abort_unless(Auth::user()->can('create result'), 403);
-
-        $examinations = $this->scopedExaminations();
-        $examination = null;
-        $students = collect();
-        $existing = collect();
-
-        if ($request->filled('examination_id')) {
-            $examination = $examinations->firstWhere('id', $request->integer('examination_id'));
-
-            // Not merely "not found": the picker only ever offers what this
-            // viewer may grade, so anything else is out of their reach.
-            abort_unless($examination, 403);
-
-            $students = $this->studentsIn($examination);
-
-            $existing = Result::where('examination_id', $examination->id)
-                ->whereIn('student_id', $students->pluck('student_id'))
-                ->get()
-                ->keyBy('student_id');
-        }
-
-        return view('result::entry', compact('examinations', 'examination', 'students', 'existing'));
-    }
-
-    /**
      * Save the whole sheet: create what's new, correct what's changed,
      * leave blank rows alone.
      */

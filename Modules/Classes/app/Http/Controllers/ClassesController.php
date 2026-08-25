@@ -4,11 +4,10 @@ namespace Modules\Classes\Http\Controllers;
 
 use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Modules\Classes\Actions\SaveSchoolClass;
 use Modules\Classes\Models\SchoolClass;
-use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
 
@@ -17,49 +16,15 @@ class ClassesController extends Controller
     use Sortable;
 
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view classes'), 403);
-
-        $query = SchoolClass::with(['institution', 'classTeacher']);
-        $this->scopeToViewer($query);
-
-        $classes = $this->applySort(
-            $query,
-            sortable: ['name', 'level', 'capacity'],
-            defaultColumn: 'name',
-            defaultDirection: 'asc',
-        )->get();
-
-        return view('classes::index', compact('classes'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        abort_unless(Auth::user()->can('create classes'), 403);
-
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-        $teachers = $this->scopedTeachers();
-        $curricula = $this->scopedCurricula();
-
-        return view('classes::create', compact('institutions', 'teachers', 'curricula'));
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
         abort_unless(Auth::user()->can('create classes'), 403);
 
-        $validated = $this->validated($request);
+        $validated = $request->validate(SaveSchoolClass::rules());
 
-        SchoolClass::create($validated);
+        SaveSchoolClass::handle($validated, $this->institutionId());
 
         return redirect()->route('classes.index')->with('success', 'Class created successfully!');
     }
@@ -87,21 +52,6 @@ class ClassesController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        abort_unless(Auth::user()->can('edit classes'), 403);
-
-        $schoolClass = $this->scopedClass($id);
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-        $teachers = $this->scopedTeachers();
-        $curricula = $this->scopedCurricula();
-
-        return view('classes::edit', compact('schoolClass', 'institutions', 'teachers', 'curricula'));
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
@@ -109,9 +59,9 @@ class ClassesController extends Controller
         abort_unless(Auth::user()->can('update classes'), 403);
 
         $schoolClass = $this->scopedClass($id);
-        $validated = $this->validated($request);
+        $validated = $request->validate(SaveSchoolClass::rules());
 
-        $schoolClass->update($validated);
+        SaveSchoolClass::handle($validated, $this->institutionId($schoolClass), $schoolClass);
 
         return redirect()->route('classes.show', $schoolClass->id)->with('success', 'Class updated!');
     }
@@ -129,47 +79,18 @@ class ClassesController extends Controller
         return redirect()->route('classes.index')->with('success', 'Class removed!');
     }
 
-    private function validated(Request $request): array
-    {
-        $validated = $request->validate([
-            'institution_id' => ['nullable', 'exists:institutions,id'],
-            'name' => 'required|string|max:255',
-            'level' => 'nullable|string|max:100',
-            'curriculum_id' => 'nullable|exists:curricula,id',
-            'class_teacher_id' => 'nullable|exists:users,id',
-            'capacity' => 'nullable|integer|min:1',
-        ]);
-
-        // Never trust a client-submitted institution_id for a non-admin -
-        // it's always whichever institution is currently active for them.
-        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
-
-        abort_unless($validated['institution_id'], 422, 'No institution selected.');
-
-        // Which curriculum a class runs on decides the scale its results
-        // are graded against, so it can't be borrowed from another school -
-        // 'exists' alone would allow exactly that.
-        if (! empty($validated['curriculum_id'])) {
-            $curriculum = Curriculum::findOrFail($validated['curriculum_id']);
-            abort_unless($curriculum->institution_id === $validated['institution_id'], 403);
-        }
-
-        return $validated;
-    }
-
     /**
-     * Curricula a class can be put on - the school's own, and only those
-     * still in use.
+     * The school a class belongs to. Never a client-submitted one for a
+     * non-admin - it's always whichever institution is currently active for
+     * them.
      */
-    private function scopedCurricula()
+    private function institutionId(?SchoolClass $schoolClass = null): int
     {
-        $query = Curriculum::where('status', 'active');
+        $institutionId = $schoolClass?->institution_id ?? currentInstitution()?->id;
 
-        if (! isAdmin()) {
-            $query->where('institution_id', currentInstitution()?->id ?? 0);
-        }
+        abort_unless($institutionId, 422, 'No institution selected.');
 
-        return $query->orderBy('name')->get();
+        return $institutionId;
     }
 
     private function scopeToViewer($query): void
@@ -206,21 +127,5 @@ class ClassesController extends Controller
         $this->scopeToViewer($query);
 
         return $query->findOrFail($id);
-    }
-
-    /**
-     * Teachers selectable as a class teacher, scoped to the viewer's
-     * institution(s) unless they're an Admin.
-     */
-    private function scopedTeachers()
-    {
-        $query = User::role('Teacher')->with('teacherUserDetails');
-
-        if (! isAdmin()) {
-            $activeInstitutionId = currentInstitution()?->id ?? 0;
-            $query->whereHas('teacherUserDetails', fn ($q) => $q->where('institution_id', $activeInstitutionId));
-        }
-
-        return $query->get();
     }
 }

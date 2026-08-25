@@ -119,6 +119,9 @@
                     in the corner of this page. Parents ask about results, attendance, fees or their child's
                     profile, and get a verified answer in seconds, no phone call needed.
                 </p>
+                {{-- No wire:navigate: Livewire carries a #fragment through to
+                the new URL but never scrolls to it, so this would land at the
+                top of the homepage instead of at the assistant section. --}}
                 <flux:button :href="route('home').'#assistant'" variant="outline" class="mt-6">
                     See it explained on the homepage
                 </flux:button>

@@ -5,6 +5,8 @@ namespace Modules\Result\Services;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Modules\Classes\Models\SchoolClass;
+use Modules\Examinations\Models\Examination;
+use Modules\Student\Models\StudentDetails;
 use Modules\Subject\Models\SubjectTeacher;
 use Modules\Timetable\Models\TimetableEntry;
 
@@ -144,5 +146,102 @@ class ResultAccessService
                 $q->whereRaw('1 = 0');
             }
         });
+    }
+
+    /**
+     * Narrow a Result query to everything the given viewer may see, whoever
+     * they are: an Admin sees the lot, a Teacher their own subjects and
+     * class, a Parent their children's marks, a Student their own, and
+     * anyone else their school's.
+     */
+    public static function scopeVisibleResults($query, User $user): void
+    {
+        if (isAdmin()) {
+            return;
+        }
+
+        if ($user->hasRole('Teacher')) {
+            $query->where('institution_id', $user->teacherUserDetails?->institution_id ?? 0);
+
+            self::scopeResults($query, $user);
+
+            return;
+        }
+
+        if ($user->hasRole('Parent')) {
+            $query->whereIn('student_id', StudentDetails::where('parent_id', $user->id)->pluck('student_id'));
+
+            return;
+        }
+
+        if ($user->hasRole('Student')) {
+            $query->where('student_id', $user->id);
+
+            return;
+        }
+
+        $query->where('institution_id', currentInstitution()?->id ?? 0);
+    }
+
+    /**
+     * Classes selectable on a result screen: for a Teacher, the ones they
+     * may enter marks in; for anyone else, their school's.
+     *
+     * @return Collection<int, SchoolClass>
+     */
+    public static function selectableClasses(User $user): Collection
+    {
+        if ($user->hasRole('Teacher')) {
+            return SchoolClass::whereIn('id', self::classIds($user))->orderBy('name')->get();
+        }
+
+        $query = SchoolClass::query();
+
+        if (! isAdmin()) {
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
+        }
+
+        return $query->orderBy('name')->get();
+    }
+
+    /**
+     * Examinations selectable on a result screen, optionally narrowed to a
+     * single class.
+     *
+     * @return Collection<int, Examination>
+     */
+    public static function selectableExaminations(User $user, ?int $classId = null): Collection
+    {
+        $query = Examination::with(['subject', 'schoolClass']);
+
+        if ($user->hasRole('Teacher')) {
+            $query->where('institution_id', $user->teacherUserDetails?->institution_id ?? 0);
+            self::scopeExaminations($query, $user);
+        } elseif (! isAdmin()) {
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
+        }
+
+        return $query->when($classId, fn ($q) => $q->where('class_id', $classId))
+            ->orderByDesc('exam_date')
+            ->get();
+    }
+
+    /**
+     * Students selectable on a result screen, optionally narrowed to a
+     * single class.
+     *
+     * @return Collection<int, StudentDetails>
+     */
+    public static function selectableStudents(User $user, ?int $classId = null): Collection
+    {
+        $query = StudentDetails::with('student');
+
+        if ($user->hasRole('Teacher')) {
+            $query->whereIn('class_id', self::classIds($user));
+        } elseif (! isAdmin()) {
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
+        }
+
+        return $query->when($classId, fn ($q) => $q->where('class_id', $classId))->get();
     }
 }

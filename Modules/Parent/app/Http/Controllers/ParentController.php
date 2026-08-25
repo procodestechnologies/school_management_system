@@ -8,8 +8,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Modules\Parent\Actions\SaveParent;
 use Modules\Parent\Models\ParentDetails;
 use Modules\Student\Models\StudentDetails;
 
@@ -20,68 +20,6 @@ class ParentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        $user = Auth::user();
-
-        abort_unless($user->can('view parent'), 403);
-
-        // Check if user is admin
-        if (isAdmin()) {
-            // Admin gets all parents from all institutions
-            $parents = $this->applySort(
-                User::role('Parent')
-                    ->with(['children' => function ($query) {
-                        $query->with('student', 'institution');
-                    }, 'parent']),
-                sortable: ['name'],
-                defaultColumn: 'created_at',
-                defaultDirection: 'desc',
-            )->get();
-
-            $institution = null;
-
-            return view('parent::index', compact('parents', 'institution'));
-        }
-
-        // Regular user - get parents from their currently active institution
-        $institution = currentInstitution();
-
-        // Handle case where user has no institution
-        if (! $institution) {
-            return view('parent::index', [
-                'parents' => collect(),
-                'institution' => null,
-            ])->with('error', 'No institution found for this user.');
-        }
-
-        // Get parents with their students (children) eager loaded
-        $parents = $this->applySort(
-            $institution->parents()
-                ->with(['children' => function ($query) use ($institution) {
-                    $query->where('institution_id', $institution->id)
-                        ->with('student'); // Load the student user details
-                }, 'parent']),
-            sortable: ['name'],
-            defaultColumn: 'created_at',
-            defaultDirection: 'desc',
-        )->get();
-
-        return view('parent::index', compact('parents', 'institution'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        abort_unless(Auth::user()->can('create parent'), 403);
-
-        $availableStudents = $this->unlinkedStudents()->get();
-
-        return view('parent::create', compact('availableStudents'));
-    }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -89,44 +27,16 @@ class ParentController extends Controller
     {
         abort_unless(Auth::user()->can('create parent'), 403);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8',
-            'parent_phone' => 'nullable|string|max:20',
-            'parent_occupation' => 'nullable|string|max:255',
-            'children' => 'nullable|array',
-            'children.*' => 'exists:student_details,student_id',
-        ]);
+        $validated = $request->validate(SaveParent::createRules());
 
         try {
-            DB::transaction(function () use ($validated) {
-                $parent = User::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                ]);
-                $parent->syncRoles('Parent');
-
-                $parent->parent()->create([
-                    'parent_id' => $parent->id,
-                    'parent_phone' => $validated['parent_phone'] ?? null,
-                    'parent_occupation' => $validated['parent_occupation'] ?? null,
-                ]);
-
-                if (! empty($validated['children'])) {
-                    $this->unlinkedStudents()
-                        ->whereIn('student_id', $validated['children'])
-                        ->update(['parent_id' => $parent->id]);
-                }
-            });
+            SaveParent::create($validated, $this->unlinkedStudents());
 
             return redirect()->route('parent.index')->with('success', 'Parent created successfully!');
         } catch (\Exception $e) {
             Log::error('Parent creation failed: '.$e->getMessage());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to create parent: '.$e->getMessage());
         }
     }
@@ -161,19 +71,6 @@ class ParentController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($id)
-    {
-        abort_unless(Auth::user()->can('edit parent'), 403);
-
-        $parent = User::role('Parent')->with(['parent', 'children.student'])->findOrFail($id);
-
-        $this->authorizeAccessTo($parent);
-
-        $availableStudents = $this->unlinkedStudents()->get();
-
-        return view('parent::edit', compact('parent', 'availableStudents'));
-    }
-
     /**
      * Update the specified resource in storage.
      */
@@ -182,55 +79,18 @@ class ParentController extends Controller
         abort_unless(Auth::user()->can('update parent'), 403);
 
         $parent = User::role('Parent')->findOrFail($id);
-
         $this->authorizeAccessTo($parent);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,'.$parent->id,
-            'parent_phone' => 'nullable|string|max:20',
-            'parent_occupation' => 'nullable|string|max:255',
-            'children' => 'nullable|array',
-            'children.*' => 'exists:student_details,student_id',
-        ]);
+        $validated = $request->validate(SaveParent::updateRules($parent));
 
         try {
-            DB::transaction(function () use ($parent, $validated) {
-                $parent->update([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                ]);
-
-                ParentDetails::updateOrCreate(
-                    ['parent_id' => $parent->id],
-                    [
-                        'parent_phone' => $validated['parent_phone'] ?? null,
-                        'parent_occupation' => $validated['parent_occupation'] ?? null,
-                    ]
-                );
-
-                $selected = $validated['children'] ?? [];
-
-                // Unlink children that were deselected.
-                StudentDetails::where('parent_id', $parent->id)
-                    ->whereNotIn('student_id', $selected)
-                    ->update(['parent_id' => null]);
-
-                // Link newly selected children (only ones that are currently
-                // unlinked, so this can't steal a student from another parent).
-                if (! empty($selected)) {
-                    $this->unlinkedStudents()
-                        ->whereIn('student_id', $selected)
-                        ->update(['parent_id' => $parent->id]);
-                }
-            });
+            SaveParent::update($parent, $validated, $this->unlinkedStudents());
 
             return redirect()->route('parent.show', $parent->id)->with('success', 'Parent updated successfully!');
         } catch (\Exception $e) {
             Log::error('Parent update failed: '.$e->getMessage());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to update parent: '.$e->getMessage());
         }
     }

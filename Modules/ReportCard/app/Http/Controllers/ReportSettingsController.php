@@ -14,54 +14,6 @@ use Modules\ReportCard\Support\GradingScaleDefaults;
 class ReportSettingsController extends Controller
 {
     /**
-     * Show the report card settings page: grading bands + the letter
-     * template used for the opening/closing text on generated PDFs.
-     *
-     * A school running both curricula keeps a scale for each, so the bands
-     * shown are those of whichever curriculum is selected - or the
-     * school-wide fallback when none is.
-     *
-     * Directors only manage their own institution's settings; Admins pick
-     * an institution first.
-     */
-    public function edit(Request $request)
-    {
-        abort_unless(Auth::user()->can('edit reportcard'), 403);
-
-        $institution = $this->resolveInstitution($request);
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
-        if (! $institution) {
-            return view('reportcard::settings', [
-                'institution' => null,
-                'institutions' => $institutions,
-                'curricula' => collect(),
-                'curriculum' => null,
-                'gradingBands' => collect(),
-                'template' => null,
-            ]);
-        }
-
-        $curricula = Curriculum::where('institution_id', $institution->id)->orderBy('name')->get();
-        $curriculum = $request->filled('curriculum_id')
-            ? $curricula->firstWhere('id', $request->integer('curriculum_id'))
-            : null;
-
-        $gradingBands = GradingBand::where('institution_id', $institution->id)
-            ->when(
-                $curriculum,
-                fn ($query) => $query->where('curriculum_id', $curriculum->id),
-                fn ($query) => $query->whereNull('curriculum_id'),
-            )
-            ->orderByDesc('min_percentage')
-            ->get();
-
-        $template = ReportTemplate::firstOrNew(['institution_id' => $institution->id]);
-
-        return view('reportcard::settings', compact('institution', 'institutions', 'curricula', 'curriculum', 'gradingBands', 'template'));
-    }
-
-    /**
      * Save the report template's prose fields.
      */
     public function updateTemplate(Request $request)

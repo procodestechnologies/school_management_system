@@ -5,7 +5,6 @@ namespace Modules\Subject\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Subject\Models\Subject;
@@ -18,34 +17,6 @@ use Modules\Subject\Models\SubjectTeacher;
  */
 class SubjectTeacherController extends Controller
 {
-    public function index(Request $request)
-    {
-        abort_unless(Auth::user()->can('view subject'), 403);
-
-        $query = SubjectTeacher::with(['schoolClass', 'subject', 'teacher']);
-        $this->scopeToViewer($query);
-
-        $query
-            ->when($request->filled('class_id'), fn ($q) => $q->where('class_id', $request->integer('class_id')))
-            ->when($request->filled('teacher_id'), fn ($q) => $q->where('teacher_id', $request->integer('teacher_id')));
-
-        $assignments = $query->get()
-            ->sortBy(fn ($assignment) => [$assignment->schoolClass?->name, $assignment->subject?->name])
-            ->values();
-
-        $teachers = $this->scopedTeachers();
-
-        return view('subject::teachers.index', [
-            'assignments' => $assignments,
-            'grouped' => $assignments->groupBy(fn ($assignment) => $assignment->schoolClass?->name ?? 'Unassigned class'),
-            'classes' => $this->scopedClasses(),
-            'subjects' => $this->scopedSubjects(),
-            'teachers' => $teachers,
-            'teacherCards' => $this->teacherCards($teachers),
-            'alreadyAssigned' => $this->alreadyAssigned(),
-        ]);
-    }
-
     public function store(Request $request)
     {
         abort_unless(Auth::user()->can('edit subject'), 403);
@@ -140,13 +111,6 @@ class SubjectTeacherController extends Controller
         $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
 
-    /**
-     * The teacher picker's data, as the shape its front-end needs: a plain
-     * list it can search and count without re-reading the DOM.
-     *
-     * @param  Collection<int, User>  $teachers
-     * @return array<int, array{id: string, name: string, meta: string, initials: string, load: int}>
-     */
     private function teacherCards($teachers): array
     {
         $load = SubjectTeacher::query()
@@ -166,13 +130,6 @@ class SubjectTeacherController extends Controller
         ])->values()->all();
     }
 
-    /**
-     * Who already teaches each (class, subject), keyed "classId-subjectId",
-     * so the picker can say so as soon as those two are chosen rather than
-     * letting someone assign a teacher who's already on the list.
-     *
-     * @return array<string, array<int, string>>
-     */
     private function alreadyAssigned(): array
     {
         if (! Auth::user()->can('edit subject')) {

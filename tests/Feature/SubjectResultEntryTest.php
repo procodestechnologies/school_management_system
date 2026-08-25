@@ -4,6 +4,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Examinations\Models\Examination;
@@ -554,18 +555,90 @@ test('the subject teachers screen renders for a director', function () {
         'teacher_id' => $teacher->id,
     ]);
 
-    $response = $this->actingAs($director)->get(route('subject.teachers.index'))
+    $this->actingAs($director)->get(route('subject.teachers.index'))
         ->assertOk()
         ->assertSee($class->name)
         ->assertSee('Mathematics')
         ->assertSee($teacher->name);
+});
 
-    // The picker is prettied up with Alpine, but the thing that actually
-    // submits is still a plain checkbox per teacher - that has to survive
-    // any restyling.
-    $response->assertSee('name="teacher_ids[]"', escape: false)
-        ->assertSee('value="'.$teacher->id.'"', escape: false)
-        ->assertSee('subjectTeacherPicker');
+test('the livewire picker assigns several teachers at once, in place', function () {
+    [$director, $institution] = makeGradedSchool();
+    $first = makeSchoolTeacher($institution);
+    $second = makeSchoolTeacher($institution);
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+
+    Livewire::actingAs($director)
+        ->test('subject::teachers')
+        ->set('classId', (string) $class->id)
+        ->set('subjectId', (string) $maths->id)
+        ->call('toggle', (string) $first->id)
+        ->call('toggle', (string) $second->id)
+        ->call('assign')
+        ->assertHasNoErrors()
+        // No redirect: the list below the form refreshes in place.
+        ->assertNoRedirect()
+        ->assertSee($first->name);
+
+    expect(SubjectTeacher::count())->toBe(2);
+
+    // Assigning the same teacher again is a no-op rather than a duplicate.
+    Livewire::actingAs($director)
+        ->test('subject::teachers')
+        ->set('classId', (string) $class->id)
+        ->set('subjectId', (string) $maths->id)
+        ->call('toggle', (string) $first->id)
+        ->call('assign')
+        ->assertHasNoErrors();
+
+    expect(SubjectTeacher::count())->toBe(2);
+});
+
+test('the livewire picker searches teachers and refuses an empty selection', function () {
+    [$director, $institution] = makeGradedSchool();
+    $teacher = makeSchoolTeacher($institution);
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+
+    Livewire::actingAs($director)
+        ->test('subject::teachers')
+        // The teacher's name still appears in the filter dropdown below, so
+        // the empty state is what tells us the card grid filtered down.
+        ->set('teacherSearch', 'zzz-nobody')
+        ->assertSee('No teacher matches')
+        ->set('teacherSearch', '')
+        ->assertSee($teacher->name)
+        ->set('classId', (string) $class->id)
+        ->set('subjectId', (string) $maths->id)
+        ->call('assign')
+        ->assertHasErrors('selected');
+
+    expect(SubjectTeacher::count())->toBe(0);
+});
+
+test('the livewire picker removes an assignment in place', function () {
+    [$director, $institution] = makeGradedSchool();
+    $teacher = makeSchoolTeacher($institution);
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+
+    $assignment = SubjectTeacher::create([
+        'institution_id' => $institution->id,
+        'class_id' => $class->id,
+        'subject_id' => $maths->id,
+        'teacher_id' => $teacher->id,
+    ]);
+
+    Livewire::actingAs($director)
+        ->test('subject::teachers')
+        ->call('remove', $assignment->id)
+        ->assertHasNoErrors();
+
+    expect(SubjectTeacher::count())->toBe(0);
 });
 
 test('report card settings shows the scale for the chosen curriculum', function () {
@@ -592,4 +665,134 @@ test('report card settings shows the scale for the chosen curriculum', function 
     $this->actingAs($director)->get(route('reportcard.settings'))
         ->assertOk()
         ->assertSee('No bands on this scale yet.');
+});
+
+test('the livewire marks sheet saves a whole class in place', function () {
+    [, $institution] = makeGradedSchool();
+    $teacher = makeSchoolTeacher($institution);
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+    $examination = makeGradedExamination($institution, $class, $maths);
+    $students = enrolStudents($institution, $class, 3);
+
+    loadScale($institution, null, '844');
+
+    SubjectTeacher::create([
+        'institution_id' => $institution->id,
+        'class_id' => $class->id,
+        'subject_id' => $maths->id,
+        'teacher_id' => $teacher->id,
+    ]);
+
+    Livewire::actingAs($teacher)
+        ->test('result::entry')
+        ->set('examinationId', (string) $examination->id)
+        ->assertSee($students[0]->name)
+        ->set('marks.'.$students[0]->id, '85')
+        ->set('marks.'.$students[1]->id, '52')
+        ->call('save')
+        ->assertHasNoErrors()
+        // No redirect: the sheet stays open with the grades filled in.
+        ->assertNoRedirect()
+        ->assertSee('A');
+
+    expect(Result::count())->toBe(2)
+        ->and(Result::where('student_id', $students[0]->id)->first()->grade)->toBe('A')
+        ->and(Result::where('student_id', $students[1]->id)->first()->grade)->toBe('C');
+});
+
+test('the livewire marks sheet refuses a mark over the paper total', function () {
+    [$director, $institution] = makeGradedSchool();
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+    $examination = makeGradedExamination($institution, $class, $maths, 50);
+    $students = enrolStudents($institution, $class, 2);
+
+    loadScale($institution, null, '844');
+
+    Livewire::actingAs($director)
+        ->test('result::entry')
+        ->set('examinationId', (string) $examination->id)
+        ->set('marks.'.$students[0]->id, '45')
+        ->set('marks.'.$students[1]->id, '60')
+        ->call('save')
+        ->assertHasErrors('marks.'.$students[1]->id);
+
+    // All or nothing: the valid row isn't quietly saved alongside the bad one.
+    expect(Result::count())->toBe(0);
+});
+
+test('a teacher cannot open the livewire sheet for a subject they are not assigned', function () {
+    [, $institution] = makeGradedSchool();
+    $teacher = makeSchoolTeacher($institution);
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+    $english = makeGradedSubject($institution, 'English');
+    $englishExam = makeGradedExamination($institution, $class, $english);
+
+    SubjectTeacher::create([
+        'institution_id' => $institution->id,
+        'class_id' => $class->id,
+        'subject_id' => $maths->id,
+        'teacher_id' => $teacher->id,
+    ]);
+
+    Livewire::actingAs($teacher)
+        ->test('result::entry')
+        ->set('examinationId', (string) $englishExam->id)
+        ->assertForbidden();
+});
+
+test('the livewire result list filters and deletes in place', function () {
+    [$director, $institution] = makeGradedSchool();
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+    $examination = makeGradedExamination($institution, $class, $maths);
+    $students = enrolStudents($institution, $class, 2);
+
+    $result = Result::create([
+        'institution_id' => $institution->id,
+        'class_id' => $class->id,
+        'student_id' => $students[0]->id,
+        'examination_id' => $examination->id,
+        'marks_obtained' => 70,
+    ]);
+
+    Livewire::actingAs($director)
+        ->test('result::index')
+        ->assertSee($students[0]->name)
+        ->set('search', 'nobody-by-this-name')
+        ->assertDontSee($students[0]->name)
+        ->set('search', '')
+        ->call('delete', $result->id)
+        ->assertHasNoErrors();
+
+    expect(Result::count())->toBe(0);
+});
+
+test('the livewire result form records a single mark', function () {
+    [$director, $institution] = makeGradedSchool();
+
+    $class = makeGradedClass($institution);
+    $maths = makeGradedSubject($institution);
+    $examination = makeGradedExamination($institution, $class, $maths);
+    $students = enrolStudents($institution, $class, 1);
+
+    loadScale($institution, null, '844');
+
+    Livewire::actingAs($director)
+        ->test('result::form')
+        ->set('class_id', (string) $class->id)
+        ->set('student_id', (string) $students[0]->id)
+        ->set('examination_id', (string) $examination->id)
+        ->set('marks_obtained', '77')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect();
+
+    expect(Result::first()->grade)->toBe('A-');
 });

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
+use Livewire\Livewire;
 use Modules\Expenditure\Models\Expenditure;
 use Modules\Expenditure\Models\ExpenditureCategory;
 use Modules\Institution\Models\Institution;
@@ -277,4 +278,123 @@ test('a director records and reads expenditure just as an accountant does', func
 
     $this->actingAs($director)->delete(route('expenditure.destroy', $expenditure->id))
         ->assertRedirect(route('expenditure.index'));
+});
+
+test('the expenditure list filters live without a page reload', function () {
+    [, $institution] = makeSchoolDirector();
+    $accountant = makeSchoolAccountant($institution);
+
+    $utilities = ExpenditureCategory::create([
+        'institution_id' => $institution->id,
+        'name' => 'Utilities',
+        'is_active' => true,
+    ]);
+
+    Expenditure::create([
+        'institution_id' => $institution->id,
+        'expenditure_category_id' => $utilities->id,
+        'title' => 'Water bill',
+        'amount' => 3200,
+        'spent_on' => '2026-08-06',
+        'payment_method' => 'mobile_money',
+        'status' => 'paid',
+    ]);
+
+    Expenditure::create([
+        'institution_id' => $institution->id,
+        'title' => 'Bus diesel',
+        'amount' => 9000,
+        'spent_on' => '2026-08-07',
+        'payment_method' => 'cash',
+        'status' => 'pending',
+    ]);
+
+    Livewire::actingAs($accountant)
+        ->test('expenditure::index')
+        ->assertSee('Water bill')
+        ->assertSee('Bus diesel')
+        ->set('search', 'diesel')
+        ->assertSee('Bus diesel')
+        ->assertDontSee('Water bill')
+        ->set('search', '')
+        ->set('status', 'paid')
+        ->assertSee('Water bill')
+        ->assertDontSee('Bus diesel');
+});
+
+test('deleting from the expenditure list happens in place', function () {
+    [$director, $institution] = makeSchoolDirector();
+
+    $expenditure = Expenditure::create([
+        'institution_id' => $institution->id,
+        'title' => 'Wrong entry',
+        'amount' => 100,
+        'spent_on' => '2026-08-08',
+        'payment_method' => 'cash',
+        'status' => 'pending',
+    ]);
+
+    Livewire::actingAs($director)
+        ->test('expenditure::index')
+        ->call('delete', $expenditure->id)
+        ->assertHasNoErrors()
+        ->assertDontSee('Wrong entry');
+
+    expect(Expenditure::count())->toBe(0);
+});
+
+test('the livewire form records a spend and redirects without a reload', function () {
+    [, $institution] = makeSchoolDirector();
+    $accountant = makeSchoolAccountant($institution);
+
+    Livewire::actingAs($accountant)
+        ->test('expenditure::form')
+        ->set('title', 'Staff tea')
+        ->set('amount', '1500')
+        ->set('spent_on', '2026-08-09')
+        ->set('payment_method', 'cash')
+        ->set('status', 'paid')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect();
+
+    $expenditure = Expenditure::firstOrFail();
+
+    expect($expenditure->title)->toBe('Staff tea')
+        ->and($expenditure->institution_id)->toBe($institution->id)
+        ->and($expenditure->recorded_by)->toBe($accountant->id)
+        ->and($expenditure->paid_at)->not->toBeNull();
+});
+
+test('the livewire form refuses an incomplete spend', function () {
+    [, $institution] = makeSchoolDirector();
+    $accountant = makeSchoolAccountant($institution);
+
+    Livewire::actingAs($accountant)
+        ->test('expenditure::form')
+        ->set('title', '')
+        ->set('amount', '')
+        ->call('save')
+        ->assertHasErrors(['title', 'amount']);
+
+    expect(Expenditure::count())->toBe(0);
+});
+
+test('categories are managed in place with toasts', function () {
+    [, $institution] = makeSchoolDirector();
+    $accountant = makeSchoolAccountant($institution);
+
+    Livewire::actingAs($accountant)
+        ->test('expenditure::categories')
+        ->call('loadDefaults')
+        ->assertHasNoErrors();
+
+    expect(ExpenditureCategory::where('institution_id', $institution->id)->count())
+        ->toBe(count(ExpenditureCategory::DEFAULTS));
+
+    Livewire::actingAs($accountant)
+        ->test('expenditure::categories')
+        ->set('newName', 'Utilities')
+        ->call('add')
+        ->assertHasErrors('newName');
 });

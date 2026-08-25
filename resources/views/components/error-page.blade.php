@@ -25,7 +25,7 @@
     </head>
     <body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
         <div class="flex min-h-svh flex-col items-center justify-center gap-8 p-6 md:p-10">
-            <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium">
+            <a href="{{ route('home') }}" class="flex flex-col items-center gap-2 font-medium" wire:navigate>
                 <span class="flex h-9 w-9 items-center justify-center rounded-md">
                     <x-app-logo-icon class="size-9 fill-current text-black dark:text-white" />
                 </span>

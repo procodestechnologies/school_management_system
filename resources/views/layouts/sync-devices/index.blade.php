@@ -21,7 +21,7 @@
 
         <div class="mb-2 flex flex-row justify-between">
             @can('create syncdevice')
-                <flux:button href="{{ route('sync-devices.create') }}" icon="plus">Enroll Device</flux:button>
+                <flux:button href="{{ route('sync-devices.create') }}" icon="plus" wire:navigate>Enroll Device</flux:button>
             @endcan
         </div>
 

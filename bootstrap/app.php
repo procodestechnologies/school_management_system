@@ -16,7 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->use([EnsureAccountIsActive::class, EnsureInstitutionApproved::class, EnsureInstitutionHasPaid::class]);
+        // append(), not use(): use() *replaces* the framework's global stack
+        // rather than adding to it, which silently dropped TrimStrings,
+        // ConvertEmptyStringsToNull, ValidatePostSize, HandleCors and the
+        // rest. An unselected <select> then reached the database as '' -
+        // fatal against an integer column (e.g. classes.curriculum_id).
+        $middleware->append([EnsureAccountIsActive::class, EnsureInstitutionApproved::class, EnsureInstitutionHasPaid::class]);
         $middleware->validateCsrfTokens(except: ['billing/webhook']);
 
         // Sanctum doesn't register this alias itself. The Tether sync
