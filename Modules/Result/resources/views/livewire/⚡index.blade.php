@@ -7,6 +7,9 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Modules\Classes\Models\SchoolClass;
+use Modules\ReportCard\Services\ReportCardGenerationService;
+use Modules\ReportCard\Support\TermResolver;
 use Modules\Result\Models\Result;
 use Modules\Result\Services\ResultAccessService;
 
@@ -73,6 +76,89 @@ new #[Title('Results')] class extends Component
         $this->scoped()->findOrFail($id)->delete();
 
         Flux::toast(text: 'Result removed.', variant: 'success');
+    }
+
+    /**
+     * Build the whole selected class's report cards for the current term,
+     * rendering each to PDF.
+     *
+     * The examination filter above has no say in this: an examination is a
+     * single subject's paper, and a report card covers every subject the
+     * class takes. The term comes from the class itself.
+     *
+     * Deliberately doesn't send anything: the scheduled send still waits a
+     * day so results can be corrected first. This only produces the
+     * documents, which is what a teacher printing for a parents' evening
+     * actually wants.
+     */
+    public function generateReportCards(ReportCardGenerationService $generator): void
+    {
+        abort_unless(auth()->user()->can('edit reportcard'), 403);
+
+        $schoolClass = $this->selectedClass;
+
+        if (! $schoolClass) {
+            Flux::toast(text: 'Pick a class first - report cards are generated a class at a time.', variant: 'danger');
+
+            return;
+        }
+
+        $term = $this->reportTerm;
+
+        if (! $term) {
+            Flux::toast(
+                text: 'This class has no examinations yet, so there is no term to report on.',
+                variant: 'danger',
+            );
+
+            return;
+        }
+
+        $outcome = $generator->forClass($schoolClass, $term['term'], $term['academic_year']);
+
+        if ($outcome['generated'] === 0) {
+            Flux::toast(text: 'No learner in this class has marks for '.$term['term'].' yet.', variant: 'danger');
+
+            return;
+        }
+
+        $message = $outcome['generated'].' report card'.($outcome['generated'] === 1 ? '' : 's')
+            .' generated for '.$term['term'].'.';
+
+        if ($outcome['skipped'] > 0) {
+            $message .= ' '.$outcome['skipped'].' learner'.($outcome['skipped'] === 1 ? '' : 's')
+                .' skipped for having no marks this term.';
+        }
+
+        Flux::toast(text: $message, variant: 'success');
+    }
+
+    /**
+     * The class the filters are narrowed to, re-checked against what this
+     * user is allowed to see rather than trusted from the URL.
+     */
+    #[Computed]
+    public function selectedClass(): ?SchoolClass
+    {
+        if ($this->classId === '') {
+            return null;
+        }
+
+        return $this->classes->firstWhere('id', (int) $this->classId);
+    }
+
+    /**
+     * The term a generated report card will cover: whichever one the class
+     * is currently in.
+     *
+     * @return array{term: string, academic_year: int, term_number: int|null}|null
+     */
+    #[Computed]
+    public function reportTerm(): ?array
+    {
+        return $this->selectedClass
+            ? TermResolver::currentFor($this->selectedClass)
+            : null;
     }
 
     #[Computed]
@@ -142,16 +228,40 @@ new #[Title('Results')] class extends Component
             </flux:select>
         </div>
 
-        @can('create result')
-            <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2">
+            @can('edit reportcard')
+                <flux:button type="button" icon="document-arrow-down" variant="primary" color="emerald"
+                    wire:click="generateReportCards" wire:loading.attr="disabled"
+                    wire:target="generateReportCards"
+                    wire:confirm="Generate report cards for every learner in this class?">
+                    <span wire:loading.remove wire:target="generateReportCards">Generate Report Cards</span>
+                    <span wire:loading wire:target="generateReportCards">Generating…</span>
+                </flux:button>
+            @endcan
+
+            @can('create result')
                 <flux:button href="{{ route('result.entry.create') }}" icon="table-cells" variant="primary"
                     wire:navigate>
                     Enter Marks
                 </flux:button>
                 <flux:button href="{{ route('result.create') }}" wire:navigate>Add Result</flux:button>
-            </div>
-        @endcan
+            @endcan
+        </div>
     </div>
+
+    @can('edit reportcard')
+        <flux:text class="mb-4 block text-xs text-zinc-500">
+            @if (! $this->selectedClass)
+                Pick a class to generate its report cards.
+            @elseif ($this->reportTerm)
+                Report cards will cover every subject in <strong>{{ $this->reportTerm['term'] }}</strong>
+                ({{ $this->reportTerm['academic_year'] }}) for {{ $this->selectedClass->name }}, compared against the
+                previous term.
+            @else
+                {{ $this->selectedClass->name }} has no examinations yet, so there is no term to report on.
+            @endif
+        </flux:text>
+    @endcan
 
     <flux:card>
         <flux:table wire:loading.class="opacity-60">

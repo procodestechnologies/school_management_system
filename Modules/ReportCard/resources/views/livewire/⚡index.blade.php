@@ -105,8 +105,8 @@ new #[Title('Report Cards')] class extends Component
 <div class="p-4">
     <div class="mb-2 flex flex-row flex-wrap items-end justify-between gap-3">
         @can('edit reportcard')
-            <flux:button href="{{ route('reportcard.settings') }}" icon="cog-6-tooth" variant="ghost" wire:navigate>
-                Settings
+            <flux:button href="{{ route('reportcard.settings') }}" icon="cog-6-tooth" variant="primary" wire:navigate>
+                Customize Report Card Settings
             </flux:button>
         @endcan
 

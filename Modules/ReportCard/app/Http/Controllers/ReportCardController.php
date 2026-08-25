@@ -96,4 +96,14 @@ class ReportCardController extends Controller
 
         $query->where('institution_id', currentInstitution()?->id ?? 0);
     }
+    public function destroy(string $id)
+    {
+        $reportCard = ReportCard::findOrFail($id);
+        // first unlink its pdf then delete the report card
+        if ($reportCard->pdf_path && Storage::disk('public')->exists($reportCard->pdf_path)) {
+            Storage::disk('public')->delete($reportCard->pdf_path);
+        }
+        $reportCard->delete();
+        return redirect()->route('reportcard.index')->with('success', 'Report card deleted successfully.');
+    }
 }

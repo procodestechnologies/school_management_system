@@ -5,8 +5,8 @@ namespace Modules\ReportCard\Support;
 use Modules\Curriculum\Models\Curriculum;
 
 /**
- * The two grading scales Kenyan schools actually use, ready to be loaded
- * into an institution in one click instead of typed in band by band.
+ * The grading scales Kenyan schools actually use, ready to be loaded into
+ * an institution in one click instead of typed in band by band.
  *
  * Bands stop at .99 rather than meeting at a whole number so the table
  * reads the way a school expects ("75 - 79.99, B+"). GradingBandService
@@ -14,7 +14,7 @@ use Modules\Curriculum\Models\Curriculum;
  * keeps the sliver between one band's ceiling and the next one's floor
  * from falling through un-graded.
  *
- * Neither scale is law: both are a starting point a school edits from its
+ * None of these is law: each is a starting point a school edits from its
  * own settings page.
  */
 class GradingScaleDefaults
@@ -44,38 +44,87 @@ class GradingScaleDefaults
     }
 
     /**
-     * CBC: the four-band rubric. It asks whether a learner has mastered the
+     * CBC, marked on the four-band rubric: the scale a classroom teacher
+     * uses through the term. It asks whether a learner has mastered the
      * task, not how they rank against the rest of the class, so the points
      * here are the performance levels 4-1 rather than grade points to be
-     * aggregated into a mean.
+     * aggregated into a mean grade.
      *
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
-    public static function cbc(): array
+    public static function cbcRubric(): array
     {
         return [
-            ['min_percentage' => 80, 'max_percentage' => 100, 'grade' => 'EE', 'points' => 4, 'remark' => 'Exceeding Expectations - exceptional understanding and performance'],
-            ['min_percentage' => 60, 'max_percentage' => 79.99, 'grade' => 'ME', 'points' => 3, 'remark' => 'Meeting Expectations - follows instructions and completes most activities successfully'],
-            ['min_percentage' => 40, 'max_percentage' => 59.99, 'grade' => 'AE', 'points' => 2, 'remark' => 'Approaching Expectations - attempts work but requires support'],
-            ['min_percentage' => 0, 'max_percentage' => 39.99, 'grade' => 'BE', 'points' => 1, 'remark' => 'Below Expectations - requires significant intervention'],
+            ['min_percentage' => 80, 'max_percentage' => 100, 'grade' => 'EE', 'points' => 4, 'remark' => 'Exceeding Expectations - correctly performs all expected activities'],
+            ['min_percentage' => 60, 'max_percentage' => 79.99, 'grade' => 'ME', 'points' => 3, 'remark' => 'Meeting Expectations - follows instructions and completes most activities'],
+            ['min_percentage' => 40, 'max_percentage' => 59.99, 'grade' => 'AE', 'points' => 2, 'remark' => 'Approaching Expectations - attempts the work but is inconsistent'],
+            ['min_percentage' => 0, 'max_percentage' => 39.99, 'grade' => 'BE', 'points' => 1, 'remark' => 'Below Expectations - major inaccuracies, or unable to complete tasks'],
         ];
     }
 
     /**
-     * The default scale for a curriculum, chosen by the system it runs on.
+     * CBC, marked on the KJSEA achievement scale junior school reports
+     * against from 2025: the same four bands, each split in two, giving
+     * eight levels. `points` is the achievement level 8-1 that a KJSEA
+     * report states per subject.
+     *
+     * The published ranges are whole numbers running 90-100, 75-89, 58-74
+     * and so on, and start at 1 rather than 0. They're written here closing
+     * at .99 and opening at 0 so a percentage landing between two of them -
+     * 89.4, or an unattempted 0 - still resolves to a level instead of
+     * coming back ungraded.
+     *
+     * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
+     */
+    public static function kjsea(): array
+    {
+        return [
+            ['min_percentage' => 90, 'max_percentage' => 100, 'grade' => 'EE1', 'points' => 8, 'remark' => 'Exceptional'],
+            ['min_percentage' => 75, 'max_percentage' => 89.99, 'grade' => 'EE2', 'points' => 7, 'remark' => 'Very good'],
+            ['min_percentage' => 58, 'max_percentage' => 74.99, 'grade' => 'ME1', 'points' => 6, 'remark' => 'Good'],
+            ['min_percentage' => 41, 'max_percentage' => 57.99, 'grade' => 'ME2', 'points' => 5, 'remark' => 'Fair'],
+            ['min_percentage' => 31, 'max_percentage' => 40.99, 'grade' => 'AE1', 'points' => 4, 'remark' => 'Needs improvement'],
+            ['min_percentage' => 21, 'max_percentage' => 30.99, 'grade' => 'AE2', 'points' => 3, 'remark' => 'Below average'],
+            ['min_percentage' => 11, 'max_percentage' => 20.99, 'grade' => 'BE1', 'points' => 2, 'remark' => 'Well below average'],
+            ['min_percentage' => 0, 'max_percentage' => 10.99, 'grade' => 'BE2', 'points' => 1, 'remark' => 'Minimal'],
+        ];
+    }
+
+    /**
+     * The default scale for a curriculum: which system it's taught on, and
+     * for CBC, which of its two scales the school marks against.
      *
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
     public static function for(Curriculum $curriculum): array
     {
-        return self::forSystem((string) $curriculum->system);
+        return self::forSystem((string) $curriculum->system, $curriculum->gradingScheme());
     }
 
     /**
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
-    public static function forSystem(string $system): array
+    public static function forSystem(string $system, ?string $scheme = null): array
     {
-        return $system === 'cbc' ? self::cbc() : self::eightFourFour();
+        if ($system !== 'cbc') {
+            return self::eightFourFour();
+        }
+
+        return $scheme === Curriculum::SCHEME_KJSEA ? self::kjsea() : self::cbcRubric();
+    }
+
+    /**
+     * How to name a scale in the confirmation the settings page shows once
+     * it has been loaded.
+     */
+    public static function labelFor(string $system, ?string $scheme = null): string
+    {
+        if ($system !== 'cbc') {
+            return '8-4-4 grading scale';
+        }
+
+        return $scheme === Curriculum::SCHEME_KJSEA
+            ? 'KJSEA eight-level achievement scale'
+            : 'CBC four-band rubric';
     }
 }

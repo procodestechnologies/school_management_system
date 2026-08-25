@@ -13,6 +13,12 @@ new #[Title('Curriculum')] class extends Component
 
     public string $system = '844';
 
+    /**
+     * Which CBC scale the curriculum is marked on. Only asked for, and only
+     * saved, when the system is CBC.
+     */
+    public string $grading_scheme = Curriculum::SCHEME_RUBRIC;
+
     public string $status = 'active';
 
     public function mount(?int $curriculumId = null): void
@@ -30,6 +36,7 @@ new #[Title('Curriculum')] class extends Component
         $this->fill([
             'name' => (string) $this->curriculum->name,
             'system' => (string) $this->curriculum->system,
+            'grading_scheme' => $this->curriculum->gradingScheme() ?? Curriculum::SCHEME_RUBRIC,
             'status' => (string) $this->curriculum->status,
         ]);
     }
@@ -84,12 +91,21 @@ new #[Title('Curriculum')] class extends Component
             <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
                 <flux:input label="Name" wire:model="name" placeholder="e.g CBC/8.4.4" />
 
-                <flux:select label="Grading System" wire:model="system"
-                    description="8-4-4 grades A-E; CBC uses the four-band EE/ME/AE/BE rubric.">
+                <flux:select label="Curriculum System" wire:model.live="system"
+                    description="8-4-4 grades A-E; CBC grades against expectations.">
                     @foreach (\Modules\Curriculum\Models\Curriculum::SYSTEMS as $value => $label)
                         <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                     @endforeach
                 </flux:select>
+
+                @if ($system === 'cbc')
+                    <flux:select label="CBC Grading Scale" wire:model="grading_scheme"
+                        description="The rubric is what classwork is marked on through the term. KJSEA is the eight-level scale junior school reports against from 2025.">
+                        @foreach (\Modules\Curriculum\Models\Curriculum::SCHEMES as $value => $label)
+                            <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endif
 
                 <flux:select label="Status" wire:model="status">
                     <flux:select.option value="active">Active</flux:select.option>

@@ -38,8 +38,11 @@ new #[Title('Report Card Settings')] class extends Component
 
     public string $remark = '';
 
-    // Defaults loader, for the school-wide scale
+    // Defaults loader, for the school-wide scale. `defaultScheme` only
+    // applies when the chosen system is CBC.
     public string $defaultSystem = '844';
+
+    public string $defaultScheme = Curriculum::SCHEME_RUBRIC;
 
     // Template
     public string $opening_text = '';
@@ -121,18 +124,20 @@ new #[Title('Report Card Settings')] class extends Component
             return;
         }
 
-        $system = $this->curriculum?->system ?? $this->defaultSystem;
+        $curriculum = $this->curriculum;
+        $system = $curriculum?->system ?? $this->defaultSystem;
+        $scheme = $curriculum ? $curriculum->gradingScheme() : $this->defaultScheme;
 
-        foreach (GradingScaleDefaults::forSystem($system) as $band) {
+        foreach (GradingScaleDefaults::forSystem($system, $scheme) as $band) {
             GradingBand::create($band + [
                 'institution_id' => $institution->id,
-                'curriculum_id' => $this->curriculum?->id,
+                'curriculum_id' => $curriculum?->id,
             ]);
         }
 
         unset($this->gradingBands);
 
-        $label = $system === 'cbc' ? 'CBC four-band rubric' : '8-4-4 grading scale';
+        $label = GradingScaleDefaults::labelFor($system, $scheme);
 
         Flux::toast(
             text: 'The standard '.$label.' has been loaded. Edit any band that differs at your school.',
@@ -295,7 +300,7 @@ new #[Title('Report Card Settings')] class extends Component
                     <flux:select.option value="">School-wide (no curriculum)</flux:select.option>
                     @foreach ($this->curricula as $option)
                         <flux:select.option value="{{ $option->id }}">
-                            {{ $option->name }} — {{ $option->systemLabel() }}
+                            {{ $option->name }} — {{ $option->gradingLabel() }}
                         </flux:select.option>
                     @endforeach
                 </flux:select>
@@ -312,6 +317,9 @@ new #[Title('Report Card Settings')] class extends Component
             @if ($this->curriculum)
                 <flux:badge color="blue" class="mb-4">
                     {{ $this->curriculum->name }} · {{ $this->curriculum->systemLabel() }}
+                    @if ($this->curriculum->schemeLabel())
+                        · {{ $this->curriculum->schemeLabel() }}
+                    @endif
                 </flux:badge>
             @endif
 
@@ -350,16 +358,24 @@ new #[Title('Report Card Settings')] class extends Component
 
                     <div class="flex flex-wrap items-end gap-2">
                         @if (! $this->curriculum)
-                            <flux:select wire:model="defaultSystem" label="Standard scale">
+                            <flux:select wire:model.live="defaultSystem" label="Standard scale">
                                 <flux:select.option value="844">8-4-4 (A - E)</flux:select.option>
-                                <flux:select.option value="cbc">CBC (EE / ME / AE / BE)</flux:select.option>
+                                <flux:select.option value="cbc">CBC</flux:select.option>
                             </flux:select>
+
+                            @if ($defaultSystem === 'cbc')
+                                <flux:select wire:model="defaultScheme" label="CBC scale">
+                                    @foreach (\Modules\Curriculum\Models\Curriculum::SCHEMES as $value => $label)
+                                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            @endif
                         @endif
 
                         <flux:button type="button" variant="primary" icon="sparkles" wire:click="loadDefaults">
                             @if ($this->curriculum)
                                 Load the standard
-                                {{ $this->curriculum->isCbc() ? 'CBC four-band rubric' : '8-4-4 scale' }}
+                                {{ \Modules\ReportCard\Support\GradingScaleDefaults::labelFor($this->curriculum->system, $this->curriculum->gradingScheme()) }}
                             @else
                                 Load it
                             @endif
@@ -373,10 +389,14 @@ new #[Title('Report Card Settings')] class extends Component
                     wire:model="min_percentage" />
                 <flux:input type="number" step="0.01" min="0" max="100" label="Max %"
                     wire:model="max_percentage" />
+                @php
+                    $isKjsea = $this->curriculum?->isKjsea() ?? false;
+                    $isCbc = $this->curriculum?->isCbc() ?? false;
+                @endphp
                 <flux:input label="Grade" maxlength="10" wire:model="grade"
-                    placeholder="{{ $this->curriculum?->isCbc() ? 'e.g. ME' : 'e.g. B+' }}" />
+                    placeholder="{{ $isKjsea ? 'e.g. ME1' : ($isCbc ? 'e.g. ME' : 'e.g. B+') }}" />
                 <flux:input type="number" min="0" label="Points" wire:model="points"
-                    description="{{ $this->curriculum?->isCbc() ? 'Performance level 4-1.' : 'Grade points, e.g. A = 12.' }}" />
+                    description="{{ $isKjsea ? 'Achievement level 8-1.' : ($isCbc ? 'Performance level 4-1.' : 'Grade points, e.g. A = 12.') }}" />
                 <flux:input label="Remark" wire:model="remark" placeholder="e.g. Excellent" />
                 <flux:button type="submit" variant="primary">Add Band</flux:button>
             </form>
