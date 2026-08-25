@@ -13,6 +13,7 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () 
     Route::get('report-cards/settings', [ReportSettingsController::class, 'edit'])->name('reportcard.settings');
     Route::put('report-cards/settings', [ReportSettingsController::class, 'updateTemplate'])->name('reportcard.settings.template');
     Route::post('report-cards/settings/grading-bands', [ReportSettingsController::class, 'storeGradingBand'])->name('reportcard.gradingbands.store');
+    Route::post('report-cards/settings/grading-bands/defaults', [ReportSettingsController::class, 'loadDefaultGradingBands'])->name('reportcard.gradingbands.defaults');
     Route::delete('report-cards/settings/grading-bands/{gradingBand}', [ReportSettingsController::class, 'destroyGradingBand'])->name('reportcard.gradingbands.destroy');
 
     Route::get('report-cards', [ReportCardController::class, 'index'])->name('reportcard.index');

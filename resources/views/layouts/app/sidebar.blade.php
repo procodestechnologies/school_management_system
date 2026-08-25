@@ -207,6 +207,13 @@
                                     auth()->user()->can('edit result') ||
                                     auth()->user()->can('create result');
                                 break;
+                            case 'Expenditure':
+                                $icon = 'receipt-percent';
+                                $canAccess =
+                                    auth()->user()->can('view expenditure') ||
+                                    auth()->user()->can('edit expenditure') ||
+                                    auth()->user()->can('create expenditure');
+                                break;
                             default:
                                 $icon = 'folder';
                                 $canAccess =
@@ -240,6 +247,25 @@
                     <flux:sidebar.item icon="banknotes" :href="route('staff.payments.index')"
                         :current="request()->routeIs('staff.payments.*')" wire:navigate>
                         {{ __('Payroll') }}
+                    </flux:sidebar.item>
+                @endif
+
+                {{-- The marks sheet is where a subject teacher actually
+                works, so it gets its own entry rather than being a button
+                buried on the results list. --}}
+                @if (auth()->user()->can('create result') && institutionHasModule('Result'))
+                    <flux:sidebar.item icon="table-cells" :href="route('result.entry.create')"
+                        :current="request()->routeIs('result.entry.*')" wire:navigate>
+                        {{ __('Enter Marks') }}
+                    </flux:sidebar.item>
+                @endif
+
+                {{-- Who teaches what. A Director's screen, and what decides
+                which results each teacher may enter. --}}
+                @if (auth()->user()->can('edit subject') && institutionHasModule('Subject'))
+                    <flux:sidebar.item icon="user-plus" :href="route('subject.teachers.index')"
+                        :current="request()->routeIs('subject.teachers.*')" wire:navigate>
+                        {{ __('Subject Teachers') }}
                     </flux:sidebar.item>
                 @endif
             @endif

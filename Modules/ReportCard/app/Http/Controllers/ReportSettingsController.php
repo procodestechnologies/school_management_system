@@ -5,15 +5,21 @@ namespace Modules\ReportCard\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 use Modules\ReportCard\Models\GradingBand;
 use Modules\ReportCard\Models\ReportTemplate;
+use Modules\ReportCard\Support\GradingScaleDefaults;
 
 class ReportSettingsController extends Controller
 {
     /**
      * Show the report card settings page: grading bands + the letter
      * template used for the opening/closing text on generated PDFs.
+     *
+     * A school running both curricula keeps a scale for each, so the bands
+     * shown are those of whichever curriculum is selected - or the
+     * school-wide fallback when none is.
      *
      * Directors only manage their own institution's settings; Admins pick
      * an institution first.
@@ -23,27 +29,36 @@ class ReportSettingsController extends Controller
         abort_unless(Auth::user()->can('edit reportcard'), 403);
 
         $institution = $this->resolveInstitution($request);
+        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
 
         if (! $institution) {
-            $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
             return view('reportcard::settings', [
                 'institution' => null,
                 'institutions' => $institutions,
+                'curricula' => collect(),
+                'curriculum' => null,
                 'gradingBands' => collect(),
                 'template' => null,
             ]);
         }
 
+        $curricula = Curriculum::where('institution_id', $institution->id)->orderBy('name')->get();
+        $curriculum = $request->filled('curriculum_id')
+            ? $curricula->firstWhere('id', $request->integer('curriculum_id'))
+            : null;
+
         $gradingBands = GradingBand::where('institution_id', $institution->id)
+            ->when(
+                $curriculum,
+                fn ($query) => $query->where('curriculum_id', $curriculum->id),
+                fn ($query) => $query->whereNull('curriculum_id'),
+            )
             ->orderByDesc('min_percentage')
             ->get();
 
         $template = ReportTemplate::firstOrNew(['institution_id' => $institution->id]);
 
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
-        return view('reportcard::settings', compact('institution', 'institutions', 'gradingBands', 'template'));
+        return view('reportcard::settings', compact('institution', 'institutions', 'curricula', 'curriculum', 'gradingBands', 'template'));
     }
 
     /**
@@ -80,18 +95,74 @@ class ReportSettingsController extends Controller
         abort_unless($institution, 404);
 
         $validated = $request->validate([
+            'curriculum_id' => 'nullable|exists:curricula,id',
             'min_percentage' => 'required|numeric|min:0|max:100|lt:max_percentage',
             'max_percentage' => 'required|numeric|min:0|max:100',
             'grade' => 'required|string|max:10',
+            'points' => 'nullable|integer|min:0|max:100',
             'remark' => 'nullable|string|max:255',
         ]);
 
+        $curriculum = $this->resolveCurriculum($institution, $validated['curriculum_id'] ?? null);
+
         $validated['institution_id'] = $institution->id;
+        $validated['curriculum_id'] = $curriculum?->id;
 
         GradingBand::create($validated);
 
-        return redirect()->route('reportcard.settings', ['institution_id' => $institution->id])
+        return redirect()->route('reportcard.settings', $this->redirectParams($institution, $curriculum))
             ->with('success', 'Grading band added.');
+    }
+
+    /**
+     * Fill a curriculum's scale in from the standard one for the system it
+     * runs on - the full 8-4-4 A-E ladder, or the CBC four-band rubric.
+     *
+     * Refuses to run over an existing scale: a school that has already
+     * tuned its bands shouldn't lose that to a stray click.
+     */
+    public function loadDefaultGradingBands(Request $request)
+    {
+        abort_unless(Auth::user()->can('edit reportcard'), 403);
+
+        $institution = $this->resolveInstitution($request);
+        abort_unless($institution, 404);
+
+        $validated = $request->validate([
+            'curriculum_id' => 'nullable|exists:curricula,id',
+            // Only used when no curriculum is chosen, i.e. for the
+            // school-wide fallback scale.
+            'system' => 'nullable|in:844,cbc',
+        ]);
+
+        $curriculum = $this->resolveCurriculum($institution, $validated['curriculum_id'] ?? null);
+
+        $alreadyConfigured = GradingBand::where('institution_id', $institution->id)
+            ->when(
+                $curriculum,
+                fn ($query) => $query->where('curriculum_id', $curriculum->id),
+                fn ($query) => $query->whereNull('curriculum_id'),
+            )
+            ->exists();
+
+        if ($alreadyConfigured) {
+            return redirect()->route('reportcard.settings', $this->redirectParams($institution, $curriculum))
+                ->with('error', 'This scale already has bands. Remove them first if you want to start from the standard one.');
+        }
+
+        $system = $curriculum?->system ?? ($validated['system'] ?? '844');
+
+        foreach (GradingScaleDefaults::forSystem($system) as $band) {
+            GradingBand::create($band + [
+                'institution_id' => $institution->id,
+                'curriculum_id' => $curriculum?->id,
+            ]);
+        }
+
+        $label = $system === 'cbc' ? 'CBC four-band rubric' : '8-4-4 grading scale';
+
+        return redirect()->route('reportcard.settings', $this->redirectParams($institution, $curriculum))
+            ->with('success', 'The standard '.$label.' has been loaded. Edit any band that differs at your school.');
     }
 
     /**
@@ -105,11 +176,15 @@ class ReportSettingsController extends Controller
 
         abort_unless(isAdmin() || $band->institution_id === currentInstitution()?->id, 403);
 
-        $institutionId = $band->institution_id;
+        $params = ['institution_id' => $band->institution_id];
+
+        if ($band->curriculum_id) {
+            $params['curriculum_id'] = $band->curriculum_id;
+        }
+
         $band->delete();
 
-        return redirect()->route('reportcard.settings', ['institution_id' => $institutionId])
-            ->with('success', 'Grading band removed.');
+        return redirect()->route('reportcard.settings', $params)->with('success', 'Grading band removed.');
     }
 
     private function resolveInstitution(Request $request): ?Institution
@@ -122,5 +197,36 @@ class ReportSettingsController extends Controller
         // whichever institution is currently active for them - never an
         // arbitrary one they merely own.
         return currentInstitution();
+    }
+
+    /**
+     * The curriculum a band belongs to, refusing one from another school -
+     * 'exists' alone would let a crafted request attach a band to it.
+     */
+    private function resolveCurriculum(Institution $institution, int|string|null $curriculumId): ?Curriculum
+    {
+        if (! $curriculumId) {
+            return null;
+        }
+
+        $curriculum = Curriculum::findOrFail($curriculumId);
+
+        abort_unless($curriculum->institution_id === $institution->id, 403);
+
+        return $curriculum;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function redirectParams(Institution $institution, ?Curriculum $curriculum): array
+    {
+        $params = ['institution_id' => $institution->id];
+
+        if ($curriculum) {
+            $params['curriculum_id'] = $curriculum->id;
+        }
+
+        return $params;
     }
 }

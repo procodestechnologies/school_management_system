@@ -40,7 +40,12 @@
             </form>
 
             @can('create result')
-                <flux:button href="{{ route('result.create') }}">Add Result</flux:button>
+                <div class="flex flex-wrap gap-2">
+                    <flux:button href="{{ route('result.entry.create') }}" icon="table-cells" variant="primary">
+                        Enter Marks
+                    </flux:button>
+                    <flux:button href="{{ route('result.create') }}">Add Result</flux:button>
+                </div>
             @endcan
         </div>
 

@@ -111,6 +111,9 @@ class CurriculumController extends Controller
         $validated = $request->validate([
             'institution_id' => ['nullable', 'exists:institutions,id'],
             'name' => 'required|string|max:255',
+            // The name is free text; the system is what the grading scale
+            // is actually chosen by.
+            'system' => 'required|in:844,cbc',
             'status' => 'required|in:active,dismissed',
         ]);
 

@@ -35,7 +35,10 @@ class ReportCardPdfService
             ->map(fn ($result) => ($result->marks_obtained / $result->examination->total_marks) * 100);
 
         $meanPercentage = $percentages->isNotEmpty() ? round($percentages->avg(), 2) : null;
-        $meanGrade = $meanPercentage !== null ? GradingBandService::resolve($institution, $meanPercentage) : null;
+        // The mean is graded on the scale the class's curriculum runs on,
+        // the same one each individual subject was marked against.
+        $curriculumId = GradingBandService::curriculumIdFor($reportCard->schoolClass, $institution);
+        $meanGrade = $meanPercentage !== null ? GradingBandService::resolve($institution, $meanPercentage, $curriculumId) : null;
 
         $reportCard->update([
             'mean_percentage' => $meanPercentage,

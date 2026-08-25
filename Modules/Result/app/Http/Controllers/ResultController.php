@@ -5,16 +5,15 @@ namespace Modules\Result\Http\Controllers;
 use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
-use Modules\ReportCard\Services\GradingBandService;
 use Modules\ReportCard\Services\ReportCardCompletionService;
 use Modules\Result\Models\Result;
+use Modules\Result\Services\ResultAccessService;
+use Modules\Result\Services\ResultGrader;
 use Modules\Student\Models\StudentDetails;
-use Modules\Timetable\Models\TimetableEntry;
 
 class ResultController extends Controller
 {
@@ -191,38 +190,28 @@ class ResultController extends Controller
             abort(422, "Marks obtained can't exceed the examination's total marks ({$examination->total_marks}).");
         }
 
-        // Grade is auto-computed from the institution's grading scale, not
-        // typed by the director - left null if no scale is configured yet.
+        // Grade is auto-computed from the grading scale the class's
+        // curriculum runs on, not typed by the director - left null if no
+        // scale is configured yet.
         $validated['grade'] = null;
-        if ($examination && $examination->total_marks > 0) {
+        if ($examination) {
             $institution = Institution::find($validated['institution_id']);
-            $percentage = $validated['marks_obtained'] / $examination->total_marks * 100;
-            $validated['grade'] = $institution ? GradingBandService::resolve($institution, $percentage) : null;
+            $schoolClass = SchoolClass::find($validated['class_id']);
+
+            $validated['grade'] = $institution
+                ? ResultGrader::grade($examination, (float) $validated['marks_obtained'], $institution, $schoolClass)
+                : null;
         }
 
         return $validated;
     }
 
     /**
-     * The (class, subject) pairs a teacher is scheduled to teach, derived
-     * from their timetable - the sole source of truth for what a teacher
-     * may grade, since there's no dedicated subject-teacher assignment.
-     */
-    private function teacherAssignedPairs(): Collection
-    {
-        return TimetableEntry::where('teacher_id', Auth::id())
-            ->whereNotNull('subject_id')
-            ->whereNotNull('class_id')
-            ->get(['class_id', 'subject_id'])
-            ->unique(fn ($entry) => $entry->class_id.'-'.$entry->subject_id)
-            ->values();
-    }
-
-    /**
      * Re-verifies server-side (not just via the limited dropdown options)
-     * that a Teacher is actually timetabled to teach the subject being
-     * graded for that class - closes the gap a crafted request could
-     * otherwise exploit to grade a subject they don't teach.
+     * that a Teacher actually owns these marks - either they're the
+     * subject's teacher for that class, or they're the class teacher, for
+     * whom every subject in their class counts. Closes the gap a crafted
+     * request could otherwise exploit to grade a subject they don't teach.
      */
     private function assertTeacherCanGrade(int $classId, int $examinationId): void
     {
@@ -232,12 +221,7 @@ class ResultController extends Controller
 
         $subjectId = Examination::find($examinationId)?->subject_id;
 
-        $allowed = TimetableEntry::where('teacher_id', Auth::id())
-            ->where('class_id', $classId)
-            ->where('subject_id', $subjectId)
-            ->exists();
-
-        abort_unless($allowed, 403);
+        abort_unless(ResultAccessService::canGrade(Auth::user(), $classId, $subjectId), 403);
     }
 
     /**
@@ -276,22 +260,7 @@ class ResultController extends Controller
             $institutionId = $user->teacherUserDetails?->institution_id;
             $query->where('institution_id', $institutionId ?? 0);
 
-            $pairs = $this->teacherAssignedPairs();
-
-            $query->where(function ($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(function ($q2) use ($pair) {
-                        $q2->where('class_id', $pair->class_id)
-                            ->whereHas('examination', fn ($q3) => $q3->where('subject_id', $pair->subject_id));
-                    });
-                }
-
-                // No assigned subject/class combo - the teacher sees nothing
-                // rather than everything at the institution.
-                if ($pairs->isEmpty()) {
-                    $q->whereRaw('1 = 0');
-                }
-            });
+            ResultAccessService::scopeResults($query, $user);
 
             return;
         }
@@ -322,17 +291,15 @@ class ResultController extends Controller
 
     /**
      * Classes selectable for a result, scoped to the viewer's
-     * institution(s) unless they're an Admin - or, for a Teacher, to only
-     * the classes they're timetabled to teach.
+     * institution(s) unless they're an Admin - or, for a Teacher, to the
+     * classes they teach a subject in or are the class teacher of.
      */
     private function scopedClasses()
     {
         $user = Auth::user();
 
         if ($user->hasRole('Teacher')) {
-            $classIds = $this->teacherAssignedPairs()->pluck('class_id')->unique();
-
-            return SchoolClass::whereIn('id', $classIds)->orderBy('name')->get();
+            return SchoolClass::whereIn('id', ResultAccessService::classIds($user))->orderBy('name')->get();
         }
 
         $query = SchoolClass::query();
@@ -347,34 +314,17 @@ class ResultController extends Controller
     /**
      * Examinations selectable for a result, scoped to the viewer's
      * institution(s) unless they're an Admin, optionally narrowed to a
-     * single class - or, for a Teacher, to only the (class, subject) pairs
-     * they're timetabled to teach.
+     * single class - or, for a Teacher, to what they own the marks for.
      */
     private function scopedExaminations(?int $classId = null)
     {
         $user = Auth::user();
 
-        if ($user->hasRole('Teacher')) {
-            $pairs = $this->teacherAssignedPairs();
-
-            $query = Examination::with('subject')->where(function ($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(fn ($q2) => $q2->where('class_id', $pair->class_id)->where('subject_id', $pair->subject_id));
-                }
-
-                if ($pairs->isEmpty()) {
-                    $q->whereRaw('1 = 0');
-                }
-            });
-
-            $query->when($classId, fn ($q) => $q->where('class_id', $classId));
-
-            return $query->orderByDesc('exam_date')->get();
-        }
-
         $query = Examination::with('subject');
 
-        if (! isAdmin()) {
+        if ($user->hasRole('Teacher')) {
+            ResultAccessService::scopeExaminations($query, $user);
+        } elseif (! isAdmin()) {
             $query->where('institution_id', currentInstitution()?->id ?? 0);
         }
 
@@ -384,44 +334,13 @@ class ResultController extends Controller
     }
 
     /**
-     * The most recent examinations per class, scoped to the viewer's
-     * institution(s) unless they're an Admin. Keeps the "add result"
-     * examination picker focused on current exams instead of the full
-     * history. For a Teacher, further narrowed to the (class, subject)
-     * pairs they're timetabled to teach.
+     * The most recent examinations per class, scoped the same way as
+     * scopedExaminations(). Keeps the "add result" examination picker
+     * focused on current exams instead of the full history.
      */
     private function recentExaminationsPerClass(int $perClassLimit = 5)
     {
-        $user = Auth::user();
-
-        if ($user->hasRole('Teacher')) {
-            $pairs = $this->teacherAssignedPairs();
-
-            $query = Examination::with('subject')->where(function ($q) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $q->orWhere(fn ($q2) => $q2->where('class_id', $pair->class_id)->where('subject_id', $pair->subject_id));
-                }
-
-                if ($pairs->isEmpty()) {
-                    $q->whereRaw('1 = 0');
-                }
-            });
-
-            return $query->orderByDesc('exam_date')
-                ->get()
-                ->groupBy('class_id')
-                ->flatMap(fn ($examinations) => $examinations->take($perClassLimit))
-                ->values();
-        }
-
-        $query = Examination::with('subject');
-
-        if (! isAdmin()) {
-            $query->where('institution_id', currentInstitution()?->id ?? 0);
-        }
-
-        return $query->orderByDesc('exam_date')
-            ->get()
+        return $this->scopedExaminations()
             ->groupBy('class_id')
             ->flatMap(fn ($examinations) => $examinations->take($perClassLimit))
             ->values();
@@ -429,17 +348,17 @@ class ResultController extends Controller
 
     /**
      * Students selectable for a result, scoped to the viewer's
-     * institution(s) unless they're an Admin - or, for a Teacher, to only
-     * students in the classes they're timetabled to teach.
+     * institution(s) unless they're an Admin - or, for a Teacher, to
+     * students in the classes they may enter results for.
      */
     private function scopedStudents()
     {
         $user = Auth::user();
 
         if ($user->hasRole('Teacher')) {
-            $classIds = $this->teacherAssignedPairs()->pluck('class_id')->unique();
-
-            return StudentDetails::with('student')->whereIn('class_id', $classIds)->get();
+            return StudentDetails::with('student')
+                ->whereIn('class_id', ResultAccessService::classIds($user))
+                ->get();
         }
 
         $query = StudentDetails::with('student');

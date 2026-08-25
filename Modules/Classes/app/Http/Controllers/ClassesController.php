@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Classes\Models\SchoolClass;
+use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
 
@@ -44,8 +45,9 @@ class ClassesController extends Controller
 
         $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
+        $curricula = $this->scopedCurricula();
 
-        return view('classes::create', compact('institutions', 'teachers'));
+        return view('classes::create', compact('institutions', 'teachers', 'curricula'));
     }
 
     /**
@@ -94,8 +96,9 @@ class ClassesController extends Controller
         $schoolClass = $this->scopedClass($id);
         $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
         $teachers = $this->scopedTeachers();
+        $curricula = $this->scopedCurricula();
 
-        return view('classes::edit', compact('schoolClass', 'institutions', 'teachers'));
+        return view('classes::edit', compact('schoolClass', 'institutions', 'teachers', 'curricula'));
     }
 
     /**
@@ -132,6 +135,7 @@ class ClassesController extends Controller
             'institution_id' => ['nullable', 'exists:institutions,id'],
             'name' => 'required|string|max:255',
             'level' => 'nullable|string|max:100',
+            'curriculum_id' => 'nullable|exists:curricula,id',
             'class_teacher_id' => 'nullable|exists:users,id',
             'capacity' => 'nullable|integer|min:1',
         ]);
@@ -142,7 +146,30 @@ class ClassesController extends Controller
 
         abort_unless($validated['institution_id'], 422, 'No institution selected.');
 
+        // Which curriculum a class runs on decides the scale its results
+        // are graded against, so it can't be borrowed from another school -
+        // 'exists' alone would allow exactly that.
+        if (! empty($validated['curriculum_id'])) {
+            $curriculum = Curriculum::findOrFail($validated['curriculum_id']);
+            abort_unless($curriculum->institution_id === $validated['institution_id'], 403);
+        }
+
         return $validated;
+    }
+
+    /**
+     * Curricula a class can be put on - the school's own, and only those
+     * still in use.
+     */
+    private function scopedCurricula()
+    {
+        $query = Curriculum::where('status', 'active');
+
+        if (! isAdmin()) {
+            $query->where('institution_id', currentInstitution()?->id ?? 0);
+        }
+
+        return $query->orderBy('name')->get();
     }
 
     private function scopeToViewer($query): void

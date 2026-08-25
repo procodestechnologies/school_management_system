@@ -34,6 +34,16 @@
                     <flux:input label="Name" value="{{ old('name', $curriculum->name) }}" name="name"
                         placeholder="e.g CBC/8.4.4" required />
 
+                    <flux:select name="system" label="Grading System"
+                        description="8-4-4 grades A-E; CBC uses the four-band EE/ME/AE/BE rubric.">
+                        @foreach (\Modules\Curriculum\Models\Curriculum::SYSTEMS as $value => $label)
+                            <flux:select.option value="{{ $value }}"
+                                :selected="old('system', $curriculum->system) === $value">
+                                {{ $label }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+
                     <flux:select name="status" label="Status">
                         <flux:select.option value="active"
                             :selected="old('status', $curriculum->status) === 'active'">Active</flux:select.option>

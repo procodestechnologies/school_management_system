@@ -18,6 +18,7 @@
                 <flux:card class="relative overflow-hidden transition-all duration-200 hover:shadow-lg">
                     <a href="{{ route('curriculum.show', $curriculum->id) }}" class="block">
                         <flux:heading>{{ $curriculum->name }}</flux:heading>
+                        <flux:badge color="blue" class="mt-2">{{ $curriculum->systemLabel() }}</flux:badge>
                         <flux:badge :color="$curriculum->status === 'active' ? 'emerald' : 'zinc'" class="mt-2">
                             {{ ucfirst($curriculum->status) }}
                         </flux:badge>

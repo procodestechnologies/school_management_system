@@ -7,6 +7,12 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ session('error') }}
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <ul class="list-disc list-inside">
@@ -45,10 +51,38 @@
             </flux:card>
         @else
             <flux:card class="mb-6">
-                <flux:heading size="lg" class="mb-4">Grading Scale</flux:heading>
+                <flux:heading size="lg" class="mb-2">Grading Scale</flux:heading>
                 <flux:text class="text-zinc-500 mb-4">
-                    Define the percentage bands used to compute each result's grade automatically.
+                    The percentage bands each result's grade is worked out from. A school running both curricula
+                    keeps a scale for each: pick the curriculum below, and classes on it are marked against its
+                    bands. The school-wide scale is the fallback for classes with no curriculum set.
                 </flux:text>
+
+                <form method="GET" action="{{ route('reportcard.settings') }}"
+                    class="mb-4 flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="institution_id" value="{{ $institution->id }}">
+                    <flux:select name="curriculum_id" label="Scale" onchange="this.form.submit()">
+                        <flux:select.option value="">School-wide (no curriculum)</flux:select.option>
+                        @foreach ($curricula as $option)
+                            <flux:select.option value="{{ $option->id }}" :selected="$curriculum?->id === $option->id">
+                                {{ $option->name }} — {{ $option->systemLabel() }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    @if ($curricula->isEmpty())
+                        <flux:text class="text-xs text-zinc-500">
+                            No curricula set up yet.
+                            <a href="{{ route('curriculum.index') }}" class="underline">Add one</a> to keep separate
+                            8-4-4 and CBC scales.
+                        </flux:text>
+                    @endif
+                </form>
+
+                @if ($curriculum)
+                    <flux:badge color="blue" class="mb-4">
+                        {{ $curriculum->name }} · {{ $curriculum->systemLabel() }}
+                    </flux:badge>
+                @endif
 
                 @if ($gradingBands->isNotEmpty())
                     <flux:table class="mb-4">
@@ -56,6 +90,7 @@
                             <flux:table.column>Min %</flux:table.column>
                             <flux:table.column>Max %</flux:table.column>
                             <flux:table.column>Grade</flux:table.column>
+                            <flux:table.column>Points</flux:table.column>
                             <flux:table.column>Remark</flux:table.column>
                             <flux:table.column>Actions</flux:table.column>
                         </flux:table.columns>
@@ -65,6 +100,7 @@
                                     <flux:table.cell>{{ $band->min_percentage }}</flux:table.cell>
                                     <flux:table.cell>{{ $band->max_percentage }}</flux:table.cell>
                                     <flux:table.cell>{{ $band->grade }}</flux:table.cell>
+                                    <flux:table.cell>{{ $band->points ?? '—' }}</flux:table.cell>
                                     <flux:table.cell>{{ $band->remark ?? '—' }}</flux:table.cell>
                                     <flux:table.cell>
                                         <form action="{{ route('reportcard.gradingbands.destroy', $band->id) }}"
@@ -81,19 +117,48 @@
                         </flux:table.rows>
                     </flux:table>
                 @else
-                    <flux:text class="text-zinc-500 mb-4">No grading bands set up yet.</flux:text>
+                    <div class="mb-4 rounded-md border border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                        <flux:text class="text-zinc-500 mb-3 block">
+                            No bands on this scale yet. Load the standard one and edit whatever differs at your
+                            school.
+                        </flux:text>
+
+                        <form action="{{ route('reportcard.gradingbands.defaults') }}" method="POST"
+                            class="flex flex-wrap items-end gap-2">
+                            @csrf
+                            <input type="hidden" name="institution_id" value="{{ $institution->id }}">
+                            @if ($curriculum)
+                                <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}">
+                                <flux:button type="submit" variant="primary" icon="sparkles">
+                                    Load the standard {{ $curriculum->isCbc() ? 'CBC four-band rubric' : '8-4-4 scale' }}
+                                </flux:button>
+                            @else
+                                <flux:select name="system" label="Standard scale">
+                                    <flux:select.option value="844">8-4-4 (A - E)</flux:select.option>
+                                    <flux:select.option value="cbc">CBC (EE / ME / AE / BE)</flux:select.option>
+                                </flux:select>
+                                <flux:button type="submit" variant="primary" icon="sparkles">Load it</flux:button>
+                            @endif
+                        </form>
+                    </div>
                 @endif
 
                 <form action="{{ route('reportcard.gradingbands.store') }}" method="POST"
-                    class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                    class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
                     @csrf
                     <input type="hidden" name="institution_id" value="{{ $institution->id }}">
+                    @if ($curriculum)
+                        <input type="hidden" name="curriculum_id" value="{{ $curriculum->id }}">
+                    @endif
 
                     <flux:input type="number" step="0.01" name="min_percentage" label="Min %" min="0"
                         max="100" required />
                     <flux:input type="number" step="0.01" name="max_percentage" label="Max %" min="0"
                         max="100" required />
-                    <flux:input type="text" name="grade" label="Grade" maxlength="10" required />
+                    <flux:input type="text" name="grade" label="Grade" maxlength="10" required
+                        placeholder="{{ $curriculum?->isCbc() ? 'e.g. ME' : 'e.g. B+' }}" />
+                    <flux:input type="number" name="points" label="Points" min="0"
+                        description="{{ $curriculum?->isCbc() ? 'Performance level 4-1.' : 'Grade points, e.g. A = 12.' }}" />
                     <flux:input type="text" name="remark" label="Remark" placeholder="e.g. Excellent" />
                     <flux:button type="submit" variant="primary">Add Band</flux:button>
                 </form>

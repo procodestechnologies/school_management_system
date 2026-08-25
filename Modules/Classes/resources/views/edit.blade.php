@@ -40,6 +40,17 @@
                     <flux:input type="number" name="capacity" label="Capacity"
                         value="{{ old('capacity', $schoolClass->capacity) }}" min="1" />
 
+                    <flux:select name="curriculum_id" label="Curriculum"
+                        description="Decides which grading scale this class's results are marked against.">
+                        <flux:select.option value="">School default</flux:select.option>
+                        @foreach ($curricula as $curriculum)
+                            <flux:select.option value="{{ $curriculum->id }}"
+                                :selected="old('curriculum_id', $schoolClass->curriculum_id) == $curriculum->id">
+                                {{ $curriculum->name }} ({{ $curriculum->systemLabel() }})
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+
                     <flux:select name="class_teacher_id" label="Class Teacher">
                         <flux:select.option value="">Unassigned</flux:select.option>
                         @foreach ($teachers as $teacher)
