@@ -29,11 +29,21 @@ return new class extends Migration
             return;
         }
 
+        // The constraint is declared in the create-table migration, but the
+        // deployed databases were built from an imported dump and never got
+        // it - the same drift that left them a stray user_id column. Asking
+        // first is what keeps this migration runnable on both.
+        $hasForeignKey = collect(Schema::getForeignKeys('student_details'))
+            ->contains(fn (array $foreignKey) => in_array('parent_id', $foreignKey['columns'], true));
+
         // Both in one blueprint on purpose: SQLite has no separate "drop
         // foreign key" statement - it clears the constraint while rebuilding
         // the table for the column change.
-        Schema::table('student_details', function (Blueprint $table) {
-            $table->dropForeign(['parent_id']);
+        Schema::table('student_details', function (Blueprint $table) use ($hasForeignKey) {
+            if ($hasForeignKey) {
+                $table->dropForeign(['parent_id']);
+            }
+
             $table->unsignedBigInteger('parent_id')->nullable()->change();
         });
     }
