@@ -24,6 +24,9 @@ new #[Title('Examinations')] class extends Component
     #[Url(as: 'class_id')]
     public string $classId = '';
 
+    #[Url(as: 'type')]
+    public string $examType = '';
+
     #[Url]
     public string $sort = 'exam_date';
 
@@ -37,7 +40,7 @@ new #[Title('Examinations')] class extends Component
 
     public function updating(string $property): void
     {
-        if (in_array($property, ['search', 'classId'], true)) {
+        if (in_array($property, ['search', 'classId', 'examType'], true)) {
             $this->resetPage();
         }
     }
@@ -76,6 +79,7 @@ new #[Title('Examinations')] class extends Component
         return $this->scoped()
             ->with(['institution', 'schoolClass', 'subject'])
             ->when($this->classId !== '', fn ($query) => $query->where('class_id', $this->classId))
+            ->when($this->examType !== '', fn ($query) => $query->where('exam_type', $this->examType))
             ->when($this->search !== '', function ($query) {
                 $term = '%'.$this->search.'%';
 
@@ -133,11 +137,24 @@ new #[Title('Examinations')] class extends Component
 
 <div class="p-4">
     <div class="mb-2 flex flex-row flex-wrap items-end justify-between gap-3">
-        @can('create examination')
-            <flux:button href="{{ route('examinations.create') }}" icon="plus" wire:navigate>
-                Add Examination
+        <div class="flex flex-wrap gap-2">
+            @can('create examination')
+                <flux:button href="{{ route('examinations.create') }}" icon="plus" wire:navigate>
+                    Add Examination
+                </flux:button>
+            @endcan
+            <flux:button href="{{ route('examinations.timetable') }}" icon="printer" variant="ghost" wire:navigate>
+                Exam Timetable
             </flux:button>
-        @endcan
+
+            {{-- Generates the PDF on click for whatever the list is currently
+            filtered to. A file download, so no wire:navigate. --}}
+            <flux:button
+                href="{{ route('examinations.timetable.pdf', array_filter(['class_id' => $classId, 'exam_type' => $examType])) }}"
+                icon="arrow-down-tray" variant="ghost">
+                Download Timetable
+            </flux:button>
+        </div>
 
         <div class="flex flex-wrap items-end gap-2">
             <flux:input type="search" icon="magnifying-glass" placeholder="Search title, term or subject"
@@ -146,6 +163,13 @@ new #[Title('Examinations')] class extends Component
                 <flux:select.option value="">All Classes</flux:select.option>
                 @foreach ($this->classes as $schoolClass)
                     <flux:select.option value="{{ $schoolClass->id }}">{{ $schoolClass->name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+
+            <flux:select wire:model.live="examType" label="Sitting">
+                <flux:select.option value="">All sittings</flux:select.option>
+                @foreach (\Modules\Examinations\Models\Examination::EXAM_TYPES as $value => $label)
+                    <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                 @endforeach
             </flux:select>
         </div>
@@ -161,6 +185,7 @@ new #[Title('Examinations')] class extends Component
                 <flux:table.column>Term</flux:table.column>
                 <flux:table.column sortable :sorted="$sort === 'exam_date'" :direction="$direction"
                     wire:click="sortBy('exam_date')">Date</flux:table.column>
+                <flux:table.column>Sitting</flux:table.column>
                 <flux:table.column sortable :sorted="$sort === 'total_marks'" :direction="$direction"
                     wire:click="sortBy('total_marks')">Total</flux:table.column>
                 <flux:table.column>Actions</flux:table.column>
@@ -183,6 +208,11 @@ new #[Title('Examinations')] class extends Component
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>{{ $examination->exam_date?->format('d M Y') }}</flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge :color="$examination->exam_type ? 'blue' : 'zinc'" size="sm">
+                                {{ $examination->examTypeLabel() }}
+                            </flux:badge>
+                        </flux:table.cell>
                         <flux:table.cell>{{ $examination->total_marks }}</flux:table.cell>
                         <flux:table.cell>
                             <flux:button href="{{ route('examinations.show', $examination->id) }}" icon="eye"
@@ -200,7 +230,7 @@ new #[Title('Examinations')] class extends Component
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="7" class="text-center text-gray-500">
+                        <flux:table.cell colspan="8" class="text-center text-gray-500">
                             No examinations found.
                         </flux:table.cell>
                     </flux:table.row>

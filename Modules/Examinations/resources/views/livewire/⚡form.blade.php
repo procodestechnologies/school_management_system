@@ -21,6 +21,8 @@ new #[Title('Examination')] class extends Component
 
     public string $term = '';
 
+    public string $exam_type = '';
+
     public string $exam_date = '';
 
     public string $start_time = '';
@@ -50,6 +52,7 @@ new #[Title('Examination')] class extends Component
             'subject_id' => (string) $this->examination->subject_id,
             'title' => (string) $this->examination->title,
             'term' => (string) $this->examination->term,
+            'exam_type' => (string) $this->examination->exam_type,
             'exam_date' => $this->examination->exam_date?->format('Y-m-d') ?? '',
             'start_time' => $this->examination->start_time?->format('H:i') ?? '',
             'end_time' => $this->examination->end_time?->format('H:i') ?? '',
@@ -81,7 +84,7 @@ new #[Title('Examination')] class extends Component
      */
     protected function prepareForValidation($attributes)
     {
-        foreach (['term', 'start_time', 'end_time', 'passing_marks', 'notes'] as $field) {
+        foreach (['term', 'exam_type', 'start_time', 'end_time', 'passing_marks', 'notes'] as $field) {
             if (($attributes[$field] ?? '') === '') {
                 $attributes[$field] = null;
             }
@@ -164,6 +167,14 @@ new #[Title('Examination')] class extends Component
 
                 <flux:input label="Term" wire:model="term" placeholder="e.g. Second Term"
                     description="The academic year is taken from the exam date." />
+
+                <flux:select label="Sitting" wire:model="exam_type"
+                    description="Which round of papers this belongs to - it's what the exam timetable groups by.">
+                    <flux:select.option value="">Not specified</flux:select.option>
+                    @foreach (\Modules\Examinations\Models\Examination::EXAM_TYPES as $value => $label)
+                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
 
                 <flux:input type="date" label="Exam Date" wire:model="exam_date" />
 

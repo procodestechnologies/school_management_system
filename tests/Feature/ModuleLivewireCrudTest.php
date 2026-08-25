@@ -151,6 +151,7 @@ test('every converted module screen renders', function (string $route) {
     'curriculum.create',
     'examinations.index',
     'examinations.create',
+    'examinations.timetable',
     'student.index',
     'student.create',
     'feemanagement.index',
