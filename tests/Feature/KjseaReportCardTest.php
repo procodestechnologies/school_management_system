@@ -4,7 +4,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Classes\Models\SchoolClass;
-use Modules\Curriculum\Actions\SaveCurriculum;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
@@ -36,13 +35,12 @@ function kjseaSchool(): Institution
     ]);
 }
 
-function kjseaCurriculum(Institution $institution, string $scheme): Curriculum
+function kjseaCurriculum(Institution $institution): Curriculum
 {
     $curriculum = Curriculum::create([
         'institution_id' => $institution->id,
         'name' => 'CBC',
         'system' => 'cbc',
-        'grading_scheme' => $scheme,
         'status' => 'active',
     ]);
 
@@ -124,7 +122,7 @@ function kjseaScore(Institution $institution, SchoolClass $class, Subject $subje
 
 test('the kjsea scale grades a percentage to its eight-level achievement band', function (float $percentage, string $grade, int $points) {
     $institution = kjseaSchool();
-    $curriculum = kjseaCurriculum($institution, Curriculum::SCHEME_KJSEA);
+    $curriculum = kjseaCurriculum($institution);
 
     $band = GradingBandService::resolveBand($institution, $percentage, $curriculum->id);
 
@@ -151,40 +149,34 @@ test('the kjsea scale grades a percentage to its eight-level achievement band', 
     [0.0, 'BE2', 1],
 ]);
 
-test('the four-band rubric is left on its own cut-offs and is unaffected by kjsea', function () {
+test('the four bands are read off the eight levels, so cbc carries both at once', function () {
     $institution = kjseaSchool();
-    $curriculum = kjseaCurriculum($institution, Curriculum::SCHEME_RUBRIC);
+    $curriculum = kjseaCurriculum($institution);
 
-    $grades = collect([85, 65, 45, 20])
+    // One mark inside each of the eight levels.
+    $levels = collect([95, 80, 65, 50, 35, 25, 15, 5])
         ->map(fn ($percentage) => GradingBandService::resolve($institution, $percentage, $curriculum->id));
 
-    expect($grades->all())->toBe(['EE', 'ME', 'AE', 'BE'])
-        ->and($curriculum->isKjsea())->toBeFalse()
-        ->and($curriculum->gradingLabel())->toBe('CBC (EE / ME / AE / BE)');
+    expect($levels->all())->toBe(['EE1', 'EE2', 'ME1', 'ME2', 'AE1', 'AE2', 'BE1', 'BE2'])
+        // Two levels to a band, all the way down.
+        ->and($levels->map(fn ($grade) => GradingScaleDefaults::bandFor($grade))->all())
+        ->toBe(['EE', 'EE', 'ME', 'ME', 'AE', 'AE', 'BE', 'BE'])
+        ->and($curriculum->gradingLabel())->toBe('CBC (EE / ME / AE / BE, levels EE1 to BE2)');
 });
 
-test('a cbc curriculum saved without a scheme falls back to the rubric, and 8-4-4 carries none', function () {
-    $institution = kjseaSchool();
-
-    $cbc = SaveCurriculum::handle(
-        ['name' => 'CBC', 'system' => 'cbc', 'status' => 'active'],
-        $institution->id,
-    );
-
-    $legacy = SaveCurriculum::handle(
-        ['name' => '8-4-4', 'system' => '844', 'grading_scheme' => Curriculum::SCHEME_KJSEA, 'status' => 'active'],
-        $institution->id,
-    );
-
-    expect($cbc->gradingScheme())->toBe(Curriculum::SCHEME_RUBRIC)
-        // A curriculum moved off CBC shouldn't keep a CBC scale behind it.
-        ->and($legacy->fresh()->grading_scheme)->toBeNull()
-        ->and($legacy->gradingScheme())->toBeNull();
+test('8-4-4 letters are not read as expectation bands', function () {
+    // "A" and "E" are letters on a different scale entirely; nothing should
+    // colour or roll them up as though they were EE or BE.
+    expect(GradingScaleDefaults::bandFor('A'))->toBeNull()
+        ->and(GradingScaleDefaults::bandFor('B+'))->toBeNull()
+        ->and(GradingScaleDefaults::bandFor('E'))->toBeNull()
+        ->and(GradingScaleDefaults::bandFor(null))->toBeNull()
+        ->and(GradingScaleDefaults::bandFor('ME2'))->toBe('ME');
 });
 
 test('the report sheet totals a subject across its papers and shows an unassessed subject as unassessed', function () {
     $institution = kjseaSchool();
-    $curriculum = kjseaCurriculum($institution, Curriculum::SCHEME_KJSEA);
+    $curriculum = kjseaCurriculum($institution);
 
     $class = SchoolClass::create([
         'institution_id' => $institution->id,
@@ -245,7 +237,7 @@ test('a kjsea report card renders to a pdf carrying the learner, the levels and 
     Storage::fake('public');
 
     $institution = kjseaSchool();
-    $curriculum = kjseaCurriculum($institution, Curriculum::SCHEME_KJSEA);
+    $curriculum = kjseaCurriculum($institution);
 
     $class = SchoolClass::create([
         'institution_id' => $institution->id,
@@ -276,33 +268,25 @@ test('a kjsea report card renders to a pdf carrying the learner, the levels and 
         ->and((float) $reportCard->fresh()->mean_percentage)->toBe(90.0);
 });
 
-test('the standard scales are one flat list of three, and each loads its own bands', function () {
+test('the standard scales are one flat list of two, and each loads its own bands', function () {
     expect(array_keys(GradingScaleDefaults::options()))->toBe([
         GradingScaleDefaults::SCALE_844,
-        GradingScaleDefaults::SCALE_CBC_RUBRIC,
-        GradingScaleDefaults::SCALE_CBC_KJSEA,
+        GradingScaleDefaults::SCALE_CBC,
     ]);
 
     $grades = fn (string $key) => collect(GradingScaleDefaults::forKey($key))->pluck('grade')->all();
 
     expect($grades(GradingScaleDefaults::SCALE_844))
         ->toBe(['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'E'])
-        ->and($grades(GradingScaleDefaults::SCALE_CBC_RUBRIC))->toBe(['EE', 'ME', 'AE', 'BE'])
-        ->and($grades(GradingScaleDefaults::SCALE_CBC_KJSEA))
+        // CBC is one scale of eight levels; the four bands come off them.
+        ->and($grades(GradingScaleDefaults::SCALE_CBC))
         ->toBe(['EE1', 'EE2', 'ME1', 'ME2', 'AE1', 'AE2', 'BE1', 'BE2']);
 });
 
 test('the standard scale is preselected from whatever the curriculum grades on', function () {
     $institution = kjseaSchool();
 
-    $kjsea = kjseaCurriculum($institution, Curriculum::SCHEME_KJSEA);
-    $rubric = Curriculum::create([
-        'institution_id' => $institution->id,
-        'name' => 'CBC Lower',
-        'system' => 'cbc',
-        'grading_scheme' => Curriculum::SCHEME_RUBRIC,
-        'status' => 'active',
-    ]);
+    $cbc = kjseaCurriculum($institution);
     $legacy = Curriculum::create([
         'institution_id' => $institution->id,
         'name' => '8-4-4',
@@ -310,8 +294,7 @@ test('the standard scale is preselected from whatever the curriculum grades on',
         'status' => 'active',
     ]);
 
-    expect(GradingScaleDefaults::keyFor($kjsea))->toBe(GradingScaleDefaults::SCALE_CBC_KJSEA)
-        ->and(GradingScaleDefaults::keyFor($rubric))->toBe(GradingScaleDefaults::SCALE_CBC_RUBRIC)
+    expect(GradingScaleDefaults::keyFor($cbc))->toBe(GradingScaleDefaults::SCALE_CBC)
         ->and(GradingScaleDefaults::keyFor($legacy))->toBe(GradingScaleDefaults::SCALE_844)
         // No curriculum at all is the school-wide scale, which defaults to 8-4-4.
         ->and(GradingScaleDefaults::keyFor(null))->toBe(GradingScaleDefaults::SCALE_844);
@@ -324,7 +307,6 @@ test('a curriculum named for one system but grading on the other is flagged', fu
         'institution_id' => $institution->id,
         'name' => $name,
         'system' => $system,
-        'grading_scheme' => $system === 'cbc' ? Curriculum::SCHEME_RUBRIC : null,
         'status' => 'active',
     ]);
 
@@ -341,7 +323,7 @@ test('a curriculum named for one system but grading on the other is flagged', fu
 test('the settings screen labels a curriculum by the grades it actually awards', function () {
     $institution = kjseaSchool();
 
-    $kjsea = kjseaCurriculum($institution, Curriculum::SCHEME_KJSEA);
+    $cbc = kjseaCurriculum($institution);
     $legacy = Curriculum::create([
         'institution_id' => $institution->id,
         'name' => 'C.B.C',
@@ -349,7 +331,7 @@ test('the settings screen labels a curriculum by the grades it actually awards',
         'status' => 'active',
     ]);
 
-    expect($kjsea->gradingLabel())->toBe('CBC (EE1 to BE2)')
+    expect($cbc->gradingLabel())->toBe('CBC (EE / ME / AE / BE, levels EE1 to BE2)')
         // The mismatch reads as an error rather than a formatting quirk.
         ->and($legacy->gradingLabel())->toBe('8-4-4 (A to E)');
 });

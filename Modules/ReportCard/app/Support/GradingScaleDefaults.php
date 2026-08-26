@@ -5,8 +5,8 @@ namespace Modules\ReportCard\Support;
 use Modules\Curriculum\Models\Curriculum;
 
 /**
- * The grading scales Kenyan schools actually use, ready to be loaded into
- * an institution in one click instead of typed in band by band.
+ * The two grading scales Kenyan schools actually use, ready to be loaded
+ * into an institution in one click instead of typed in band by band.
  *
  * Bands stop at .99 rather than meeting at a whole number so the table
  * reads the way a school expects ("75 - 79.99, B+"). GradingBandService
@@ -14,31 +14,40 @@ use Modules\Curriculum\Models\Curriculum;
  * keeps the sliver between one band's ceiling and the next one's floor
  * from falling through un-graded.
  *
- * None of these is law: each is a starting point a school edits from its
- * own settings page.
+ * Neither is law: both are a starting point a school edits from its own
+ * settings page.
  */
 class GradingScaleDefaults
 {
     /**
-     * Keys are `system:variant` throughout, and none is a bare number:
+     * Option keys for the standard-scale picker. Neither is a bare number:
      * PHP silently casts a numeric string array key to an int, so a plain
      * '844' would come back out of array_keys() as int 844 and fail any
      * strict comparison against the constant.
      */
     public const SCALE_844 = '844:letters';
 
-    public const SCALE_CBC_RUBRIC = 'cbc:rubric';
-
-    public const SCALE_CBC_KJSEA = 'cbc:kjsea';
+    public const SCALE_CBC = 'cbc:levels';
 
     /**
-     * The standard scales a school can load, as one flat list.
+     * CBC's four expectation bands, and what each one says about a learner.
      *
-     * Flat because these are three different ways of grading, not a system
-     * with a sub-setting: 8-4-4 marks A-E and has no variants, while CBC
-     * marks against expectations in either four bands or KJSEA's eight
-     * levels. Presenting them as one choice is what they are to the person
-     * picking - "which scale does this school mark on".
+     * These are not a scale of their own: they are what the eight KJSEA
+     * levels roll up into, two levels to a band. A report states the band
+     * because that is the language a parent reads, and the level because
+     * that is what KJSEA records - both off the one set of marks.
+     *
+     * @var array<string, string>
+     */
+    public const EXPECTATION_BANDS = [
+        'EE' => 'Exceeding Expectations - correctly performs all expected activities',
+        'ME' => 'Meeting Expectations - follows instructions and completes most activities',
+        'AE' => 'Approaching Expectations - attempts the work but is inconsistent',
+        'BE' => 'Below Expectations - major inaccuracies, or unable to complete tasks',
+    ];
+
+    /**
+     * The standard scales a school can load.
      *
      * @return array<string, string>
      */
@@ -46,41 +55,8 @@ class GradingScaleDefaults
     {
         return [
             self::SCALE_844 => '8-4-4 — A to E',
-            self::SCALE_CBC_RUBRIC => 'CBC — 4-Band Rubric (EE / ME / AE / BE)',
-            self::SCALE_CBC_KJSEA => 'CBC — KJSEA 8 Levels (EE1 to BE2)',
+            self::SCALE_CBC => 'CBC — 4 Bands (EE / ME / AE / BE) & 8 KJSEA Levels',
         ];
-    }
-
-    /**
-     * The bands behind one of those options.
-     *
-     * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
-     */
-    public static function forKey(string $key): array
-    {
-        return match ($key) {
-            self::SCALE_CBC_RUBRIC => self::cbcRubric(),
-            self::SCALE_CBC_KJSEA => self::kjsea(),
-            default => self::eightFourFour(),
-        };
-    }
-
-    public static function labelForKey(string $key): string
-    {
-        return self::options()[$key] ?? self::options()[self::SCALE_844];
-    }
-
-    /**
-     * Which option a curriculum already says it grades on - the one to
-     * preselect so the common case is a single click.
-     */
-    public static function keyFor(?Curriculum $curriculum): string
-    {
-        if (! $curriculum?->isCbc()) {
-            return self::SCALE_844;
-        }
-
-        return $curriculum->isKjsea() ? self::SCALE_CBC_KJSEA : self::SCALE_CBC_RUBRIC;
     }
 
     /**
@@ -108,29 +84,13 @@ class GradingScaleDefaults
     }
 
     /**
-     * CBC, marked on the four-band rubric: the scale a classroom teacher
-     * uses through the term. It asks whether a learner has mastered the
-     * task, not how they rank against the rest of the class, so the points
-     * here are the performance levels 4-1 rather than grade points to be
-     * aggregated into a mean grade.
+     * CBC, marked on the eight KJSEA achievement levels - which is also
+     * marking it on the four bands, since each band is simply its two
+     * levels taken together (EE1 + EE2 = EE, and so on down).
      *
-     * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
-     */
-    public static function cbcRubric(): array
-    {
-        return [
-            ['min_percentage' => 80, 'max_percentage' => 100, 'grade' => 'EE', 'points' => 4, 'remark' => 'Exceeding Expectations - correctly performs all expected activities'],
-            ['min_percentage' => 60, 'max_percentage' => 79.99, 'grade' => 'ME', 'points' => 3, 'remark' => 'Meeting Expectations - follows instructions and completes most activities'],
-            ['min_percentage' => 40, 'max_percentage' => 59.99, 'grade' => 'AE', 'points' => 2, 'remark' => 'Approaching Expectations - attempts the work but is inconsistent'],
-            ['min_percentage' => 0, 'max_percentage' => 39.99, 'grade' => 'BE', 'points' => 1, 'remark' => 'Below Expectations - major inaccuracies, or unable to complete tasks'],
-        ];
-    }
-
-    /**
-     * CBC, marked on the KJSEA achievement scale junior school reports
-     * against from 2025: the same four bands, each split in two, giving
-     * eight levels. `points` is the achievement level 8-1 that a KJSEA
-     * report states per subject.
+     * `points` is the achievement level 8-1 that a KJSEA report states per
+     * subject. The band is read off the grade rather than stored, so the
+     * two can never drift apart.
      *
      * The published ranges are whole numbers running 90-100, 75-89, 58-74
      * and so on, and start at 1 rather than 0. They're written here closing
@@ -140,7 +100,7 @@ class GradingScaleDefaults
      *
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
-    public static function kjsea(): array
+    public static function cbc(): array
     {
         return [
             ['min_percentage' => 90, 'max_percentage' => 100, 'grade' => 'EE1', 'points' => 8, 'remark' => 'Exceptional'],
@@ -155,40 +115,77 @@ class GradingScaleDefaults
     }
 
     /**
-     * The default scale for a curriculum: which system it's taught on, and
-     * for CBC, which of its two scales the school marks against.
+     * The four-band letters a grade rolls up into: EE1 and EE2 are both EE.
+     * Null on 8-4-4, whose A-E letters aren't expectation bands and mustn't
+     * be read as though they were.
+     */
+    public static function bandFor(?string $grade): ?string
+    {
+        if ($grade === null) {
+            return null;
+        }
+
+        $letters = strtoupper(preg_replace('/[^A-Za-z]/', '', $grade) ?? '');
+
+        return array_key_exists($letters, self::EXPECTATION_BANDS) ? $letters : null;
+    }
+
+    /**
+     * What a band says about a learner, for the key printed on a report.
+     */
+    public static function bandDescription(?string $band): ?string
+    {
+        return $band === null ? null : (self::EXPECTATION_BANDS[$band] ?? null);
+    }
+
+    /**
+     * The bands behind one of the picker's options.
+     *
+     * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
+     */
+    public static function forKey(string $key): array
+    {
+        return $key === self::SCALE_CBC ? self::cbc() : self::eightFourFour();
+    }
+
+    public static function labelForKey(string $key): string
+    {
+        return self::options()[$key] ?? self::options()[self::SCALE_844];
+    }
+
+    /**
+     * Which option a curriculum grades on - the one to preselect so the
+     * common case is a single click.
+     */
+    public static function keyFor(?Curriculum $curriculum): string
+    {
+        return $curriculum?->isCbc() ? self::SCALE_CBC : self::SCALE_844;
+    }
+
+    /**
+     * The default scale for a curriculum, chosen by the system it runs on.
      *
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
     public static function for(Curriculum $curriculum): array
     {
-        return self::forSystem((string) $curriculum->system, $curriculum->gradingScheme());
+        return self::forSystem((string) $curriculum->system);
     }
 
     /**
      * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
      */
-    public static function forSystem(string $system, ?string $scheme = null): array
+    public static function forSystem(string $system): array
     {
-        if ($system !== 'cbc') {
-            return self::eightFourFour();
-        }
-
-        return $scheme === Curriculum::SCHEME_KJSEA ? self::kjsea() : self::cbcRubric();
+        return $system === 'cbc' ? self::cbc() : self::eightFourFour();
     }
 
     /**
      * How to name a scale in the confirmation the settings page shows once
      * it has been loaded.
      */
-    public static function labelFor(string $system, ?string $scheme = null): string
+    public static function labelFor(string $system): string
     {
-        if ($system !== 'cbc') {
-            return '8-4-4 grading scale';
-        }
-
-        return $scheme === Curriculum::SCHEME_KJSEA
-            ? 'KJSEA eight-level achievement scale'
-            : 'CBC four-band rubric';
+        return self::labelForKey($system === 'cbc' ? self::SCALE_CBC : self::SCALE_844);
     }
 }

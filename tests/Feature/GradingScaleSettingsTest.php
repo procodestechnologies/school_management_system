@@ -35,36 +35,34 @@ function gssSchool(): array
     return [$director->refresh(), $institution];
 }
 
-function gssCurriculum(Institution $institution, string $name, string $system, ?string $scheme = null): Curriculum
+function gssCurriculum(Institution $institution, string $name, string $system): Curriculum
 {
     return Curriculum::create([
         'institution_id' => $institution->id,
         'name' => $name,
         'system' => $system,
-        'grading_scheme' => $scheme,
         'status' => 'active',
     ]);
 }
 
-test('all three standard scales are offered, on the school-wide scale and on a curriculum alike', function () {
+test('both standard scales are offered, on the school-wide scale and on a curriculum alike', function () {
     [$director, $institution] = gssSchool();
 
-    $curriculum = gssCurriculum($institution, 'CBC', 'cbc', Curriculum::SCHEME_KJSEA);
+    $curriculum = gssCurriculum($institution, 'CBC', 'cbc');
 
     $component = Livewire::actingAs($director)->test('reportcard::settings');
 
     // School-wide, with no curriculum picked.
     $component->assertSee('8-4-4 — A to E')
-        ->assertSee('CBC — 4-Band Rubric (EE / ME / AE / BE)')
-        ->assertSee('CBC — KJSEA 8 Levels (EE1 to BE2)')
+        ->assertSee('CBC — 4 Bands (EE / ME / AE / BE) & 8 KJSEA Levels')
         ->assertSet('defaultScale', GradingScaleDefaults::SCALE_844);
 
-    // Picking a curriculum keeps the same three choices, preselected to
+    // Picking a curriculum keeps the same choices, preselected to
     // whatever that curriculum says it grades on.
     $component->set('curriculumId', (string) $curriculum->id)
-        ->assertSet('defaultScale', GradingScaleDefaults::SCALE_CBC_KJSEA)
+        ->assertSet('defaultScale', GradingScaleDefaults::SCALE_CBC)
         ->assertSee('8-4-4 — A to E')
-        ->assertSee('CBC — KJSEA 8 Levels (EE1 to BE2)');
+        ->assertSee('CBC — 4 Bands (EE / ME / AE / BE) & 8 KJSEA Levels');
 });
 
 test('the chosen standard scale is what gets loaded, not the curriculum default', function () {
@@ -79,7 +77,7 @@ test('the chosen standard scale is what gets loaded, not the curriculum default'
         ->set('curriculumId', (string) $curriculum->id)
         // Preselects 8-4-4 from the curriculum, but the school overrides it.
         ->assertSet('defaultScale', GradingScaleDefaults::SCALE_844)
-        ->set('defaultScale', GradingScaleDefaults::SCALE_CBC_KJSEA)
+        ->set('defaultScale', GradingScaleDefaults::SCALE_CBC)
         ->call('loadDefaults');
 
     $bands = GradingBand::where('curriculum_id', $curriculum->id)
@@ -109,7 +107,7 @@ test('a curriculum named for one system but grading on the other is called out o
     [$director, $institution] = gssSchool();
 
     $mismatched = gssCurriculum($institution, 'C.B.C', '844');
-    $fine = gssCurriculum($institution, 'CBC Junior', 'cbc', Curriculum::SCHEME_KJSEA);
+    $fine = gssCurriculum($institution, 'CBC Junior', 'cbc');
 
     Livewire::actingAs($director)
         ->test('reportcard::settings')
@@ -124,7 +122,7 @@ test('a curriculum named for one system but grading on the other is called out o
 test('loading refuses to run over a scale that already has bands', function () {
     [$director, $institution] = gssSchool();
 
-    $curriculum = gssCurriculum($institution, 'CBC', 'cbc', Curriculum::SCHEME_RUBRIC);
+    $curriculum = gssCurriculum($institution, 'CBC', 'cbc');
 
     GradingBand::create([
         'institution_id' => $institution->id,
@@ -137,7 +135,7 @@ test('loading refuses to run over a scale that already has bands', function () {
     Livewire::actingAs($director)
         ->test('reportcard::settings')
         ->set('curriculumId', (string) $curriculum->id)
-        ->set('defaultScale', GradingScaleDefaults::SCALE_CBC_KJSEA)
+        ->set('defaultScale', GradingScaleDefaults::SCALE_CBC)
         ->call('loadDefaults');
 
     expect(GradingBand::where('curriculum_id', $curriculum->id)->pluck('grade')->all())

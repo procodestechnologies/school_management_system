@@ -349,7 +349,7 @@ test('a student from another class cannot be smuggled onto the sheet', function 
     expect(Result::count())->toBe(0);
 });
 
-test('a cbc class is graded on the four-band rubric while an 8-4-4 class keeps letter grades', function () {
+test('a cbc class is graded against expectations while an 8-4-4 class keeps letter grades', function () {
     [$director, $institution] = makeGradedSchool();
 
     $cbc = Curriculum::create([
@@ -389,11 +389,11 @@ test('a cbc class is graded on the four-band rubric while an 8-4-4 class keeps l
         'marks' => [$legacyStudent->id => 82],
     ]);
 
-    expect(Result::where('student_id', $cbcStudent->id)->first()->grade)->toBe('EE')
+    expect(Result::where('student_id', $cbcStudent->id)->first()->grade)->toBe('EE2')
         ->and(Result::where('student_id', $legacyStudent->id)->first()->grade)->toBe('A');
 });
 
-test('the cbc rubric covers each of the four bands', function () {
+test('the cbc scale covers each of the four bands through its eight levels', function () {
     [$director, $institution] = makeGradedSchool();
 
     $cbc = Curriculum::create([
@@ -420,10 +420,15 @@ test('the cbc rubric covers each of the four bands', function () {
         ],
     ]);
 
-    expect(Result::where('student_id', $students[0]->id)->first()->grade)->toBe('EE')
-        ->and(Result::where('student_id', $students[1]->id)->first()->grade)->toBe('ME')
-        ->and(Result::where('student_id', $students[2]->id)->first()->grade)->toBe('AE')
-        ->and(Result::where('student_id', $students[3]->id)->first()->grade)->toBe('BE');
+    $gradeFor = fn (int $index) => Result::where('student_id', $students[$index]->id)->first()->grade;
+
+    // The mark lands on a level, and the level names its band.
+    expect($gradeFor(0))->toBe('EE1')
+        ->and($gradeFor(1))->toBe('ME1')
+        ->and($gradeFor(2))->toBe('ME2')
+        ->and($gradeFor(3))->toBe('BE1')
+        ->and(collect([0, 1, 2, 3])->map(fn ($i) => GradingScaleDefaults::bandFor($gradeFor($i)))->all())
+        ->toBe(['EE', 'ME', 'ME', 'BE']);
 });
 
 test('a director loads the standard scale for a curriculum once', function () {
@@ -441,7 +446,7 @@ test('a director loads the standard scale for a curriculum once', function () {
         'curriculum_id' => $cbc->id,
     ])->assertRedirect();
 
-    expect(GradingBand::where('curriculum_id', $cbc->id)->count())->toBe(4);
+    expect(GradingBand::where('curriculum_id', $cbc->id)->count())->toBe(8);
 
     // A second run refuses rather than doubling up or wiping a scale the
     // school has since tuned.
@@ -450,7 +455,7 @@ test('a director loads the standard scale for a curriculum once', function () {
         'curriculum_id' => $cbc->id,
     ]);
 
-    expect(GradingBand::where('curriculum_id', $cbc->id)->count())->toBe(4);
+    expect(GradingBand::where('curriculum_id', $cbc->id)->count())->toBe(8);
 });
 
 test('a teacher from another school cannot be assigned a subject', function () {

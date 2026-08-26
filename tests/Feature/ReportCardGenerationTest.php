@@ -47,7 +47,7 @@ function rcgSchool(): array
         'name' => 'Grade 8 North',
     ]);
 
-    foreach (GradingScaleDefaults::cbcRubric() as $band) {
+    foreach (GradingScaleDefaults::cbc() as $band) {
         GradingBand::create($band + ['institution_id' => $institution->id, 'curriculum_id' => null]);
     }
 
@@ -136,7 +136,7 @@ test('the generate button builds a report card and pdf for every marked learner 
         ->and($reportCard->term_number)->toBe(2)
         ->and($reportCard->class_id)->toBe($class->id)
         ->and($reportCard->status)->toBe('ready')
-        ->and($reportCard->mean_grade)->toBe('EE')
+        ->and($reportCard->mean_grade)->toBe('EE2')
         ->and($reportCard->pdf_path)->not->toBeNull()
         // The learner with no marks this term gets no report card at all,
         // rather than a blank one.
@@ -160,14 +160,14 @@ test('generating again after a mark is corrected refreshes the report card inste
 
     $generate();
 
-    expect(ReportCard::where('student_id', $student->id)->firstOrFail()->mean_grade)->toBe('BE');
+    expect(ReportCard::where('student_id', $student->id)->firstOrFail()->mean_grade)->toBe('AE2');
 
     $result->update(['marks_obtained' => 90]);
 
     $generate();
 
     expect(ReportCard::count())->toBe(1)
-        ->and(ReportCard::where('student_id', $student->id)->firstOrFail()->mean_grade)->toBe('EE');
+        ->and(ReportCard::where('student_id', $student->id)->firstOrFail()->mean_grade)->toBe('EE1');
 });
 
 test('the term is taken from the class when all its marks sit in one term', function () {

@@ -134,17 +134,13 @@ class ReportSheetBuilder
     }
 
     /**
-     * The highest points value the scale in use can award - 4 on the
-     * rubric, 8 on KJSEA, 12 on 8-4-4. The report prints the mean against
-     * it, since "3.75" says nothing without knowing what it is out of.
+     * The highest points value the scale in use can award - 8 on CBC's
+     * achievement levels, 12 on 8-4-4. The report prints the mean against
+     * it, since "6.5" says nothing without knowing what it is out of.
      */
     public function pointsCeiling(?Curriculum $curriculum): int
     {
-        if (! $curriculum?->isCbc()) {
-            return 12;
-        }
-
-        return $curriculum->isKjsea() ? 8 : 4;
+        return $curriculum?->isCbc() ? 8 : 12;
     }
 
     /**

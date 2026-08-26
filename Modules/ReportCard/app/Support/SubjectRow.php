@@ -55,21 +55,29 @@ class SubjectRow
     }
 
     /**
-     * The four-band letters behind a grade, for colouring the row: KJSEA's
-     * EE1 and EE2 are both EE. Null on 8-4-4, whose A-E letters aren't
-     * expectation bands and shouldn't be painted as though they were.
+     * The four-band letters behind a grade: KJSEA's EE1 and EE2 are both
+     * EE. Null on 8-4-4, whose A-E letters aren't expectation bands and
+     * shouldn't be painted as though they were.
+     *
+     * Derived rather than stored, so the band a report prints can never
+     * disagree with the level it was worked out from.
      */
     public function expectationBand(): ?string
     {
+        return GradingScaleDefaults::bandFor($this->grade());
+    }
+
+    /**
+     * The KJSEA level, shown beside its band so a CBC report states both.
+     * Null when the grade is already just a band, or isn't one at all.
+     */
+    public function achievementLevel(): ?string
+    {
         $grade = $this->grade();
 
-        if ($grade === null) {
-            return null;
-        }
-
-        $letters = strtoupper(preg_replace('/[^A-Za-z]/', '', $grade) ?? '');
-
-        return in_array($letters, ['EE', 'ME', 'AE', 'BE'], true) ? $letters : null;
+        return ($grade !== null && $this->expectationBand() !== null && $grade !== $this->expectationBand())
+            ? $grade
+            : null;
     }
 
     /**

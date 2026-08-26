@@ -26,36 +26,9 @@ class Curriculum extends Model
     ];
 
     /**
-     * CBC's classroom rubric: the four bands EE/ME/AE/BE, levels 4-1.
-     */
-    public const SCHEME_RUBRIC = 'rubric';
-
-    /**
-     * CBC's KJSEA achievement scale: those same four bands each split in
-     * two, giving the eight levels EE1-BE2 that junior school reports
-     * against from 2025.
-     */
-    public const SCHEME_KJSEA = 'kjsea';
-
-    /**
-     * How a CBC curriculum is marked. Both are CBC - the rubric is what a
-     * teacher grades classwork on, KJSEA is what junior school reports at -
-     * so a school picks the one matching the level it teaches rather than
-     * treating them as rival curricula.
-     *
-     * 8-4-4 has no equivalent choice: A-E is the only way it's graded.
-     *
-     * @var array<string, string>
-     */
-    public const SCHEMES = [
-        self::SCHEME_RUBRIC => '4-Band Rubric (EE / ME / AE / BE)',
-        self::SCHEME_KJSEA => 'KJSEA 8-Level Scale (EE1 - BE2)',
-    ];
-
-    /**
      * The attributes that are mass assignable.
      */
-    protected $fillable = ['institution_id', 'name', 'system', 'grading_scheme', 'status'];
+    protected $fillable = ['institution_id', 'name', 'system', 'status'];
 
     // protected static function newFactory(): CurriculumFactory
     // {
@@ -81,45 +54,9 @@ class Curriculum extends Model
         return $this->system === 'cbc';
     }
 
-    /**
-     * Which CBC scale this curriculum is marked on. Null on 8-4-4, where
-     * there is nothing to choose. CBC rows saved before the scheme existed
-     * carry no value, and fall back to the rubric they were loaded with.
-     */
-    public function gradingScheme(): ?string
-    {
-        if (! $this->isCbc()) {
-            return null;
-        }
-
-        return array_key_exists((string) $this->grading_scheme, self::SCHEMES)
-            ? (string) $this->grading_scheme
-            : self::SCHEME_RUBRIC;
-    }
-
-    /**
-     * Whether this curriculum is marked on KJSEA's eight achievement
-     * levels rather than the four-band rubric.
-     */
-    public function isKjsea(): bool
-    {
-        return $this->gradingScheme() === self::SCHEME_KJSEA;
-    }
-
     public function systemLabel(): string
     {
         return self::SYSTEMS[$this->system] ?? (string) $this->system;
-    }
-
-    /**
-     * The curriculum's scale, named for a heading or a badge - "CBC" alone
-     * doesn't say which of its two a school marks against.
-     */
-    public function schemeLabel(): ?string
-    {
-        $scheme = $this->gradingScheme();
-
-        return $scheme === null ? null : self::SCHEMES[$scheme];
     }
 
     /**
@@ -133,13 +70,18 @@ class Curriculum extends Model
      */
     public function gradingLabel(): string
     {
-        if (! $this->isCbc()) {
-            return $this->systemLabel().' (A to E)';
-        }
+        return $this->systemLabel().' ('.$this->gradesLabel().')';
+    }
 
-        return $this->isKjsea()
-            ? $this->systemLabel().' (EE1 to BE2)'
-            : $this->systemLabel().' (EE / ME / AE / BE)';
+    /**
+     * Just the grades, with no system name in front - for places that have
+     * already named the curriculum and would otherwise say "CBC (CBC ...)".
+     */
+    public function gradesLabel(): string
+    {
+        return $this->isCbc()
+            ? 'EE / ME / AE / BE, levels EE1 to BE2'
+            : 'A to E';
     }
 
     /**

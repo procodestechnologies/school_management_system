@@ -306,10 +306,10 @@ new #[Title('Report Card Settings')] class extends Component
         <flux:card class="mb-6">
             <flux:heading size="lg" class="mb-2">Grading Scale</flux:heading>
             <flux:text class="mb-4 text-zinc-500">
-                The percentage bands each result's grade is worked out from. 8-4-4 marks A to E; CBC marks against
-                expectations, either in four bands or on KJSEA's eight levels. Each curriculum keeps its own scale —
-                pick one below and classes on it are marked against its bands. The school-wide scale is the fallback
-                for classes with no curriculum set.
+                The percentage bands each result's grade is worked out from. 8-4-4 marks A to E. CBC marks against
+                expectations on the eight KJSEA levels, and each level names its band — EE1 and EE2 are both EE — so a
+                CBC report states both. Each curriculum keeps its own scale: pick one below and classes on it are
+                marked against its bands. The school-wide scale is the fallback for classes with no curriculum set.
             </flux:text>
 
             <div class="mb-4 flex flex-wrap items-end gap-2">
@@ -405,14 +405,12 @@ new #[Title('Report Card Settings')] class extends Component
                     wire:model="min_percentage" />
                 <flux:input type="number" step="0.01" min="0" max="100" label="Max %"
                     wire:model="max_percentage" />
-                @php
-                    $isKjsea = $this->curriculum?->isKjsea() ?? false;
-                    $isCbc = $this->curriculum?->isCbc() ?? false;
-                @endphp
+                @php $isCbc = $this->curriculum?->isCbc() ?? false; @endphp
                 <flux:input label="Grade" maxlength="10" wire:model="grade"
-                    placeholder="{{ $isKjsea ? 'e.g. ME1' : ($isCbc ? 'e.g. ME' : 'e.g. B+') }}" />
+                    placeholder="{{ $isCbc ? 'e.g. ME1' : 'e.g. B+' }}"
+                    description="{{ $isCbc ? 'The KJSEA level. Its band (ME) is read off it.' : '' }}" />
                 <flux:input type="number" min="0" label="Points" wire:model="points"
-                    description="{{ $isKjsea ? 'Achievement level 8-1.' : ($isCbc ? 'Performance level 4-1.' : 'Grade points, e.g. A = 12.') }}" />
+                    description="{{ $isCbc ? 'Achievement level 8-1.' : 'Grade points, e.g. A = 12.' }}" />
                 <flux:input label="Remark" wire:model="remark" placeholder="e.g. Excellent" />
                 <flux:button type="submit" variant="primary">Add Band</flux:button>
             </form>

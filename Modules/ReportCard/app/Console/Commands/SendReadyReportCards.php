@@ -10,6 +10,7 @@ use Modules\ReportCard\Mail\ReportCardMail;
 use Modules\ReportCard\Models\ReportCard;
 use Modules\ReportCard\Services\ReportCardCompletionService;
 use Modules\ReportCard\Services\ReportCardPdfService;
+use Throwable;
 
 class SendReadyReportCards extends Command
 {
@@ -57,18 +58,28 @@ class SendReadyReportCards extends Command
             $downloadUrl = route('reportcard.download', $reportCard->issueDownloadToken());
 
             if ($email) {
-                Mail::to($email)->send(new ReportCardMail(
-                    $reportCard,
-                    $reportCard->student,
-                    $reportCard->institution,
-                    $downloadUrl,
-                ));
+                // Caught rather than allowed to escape: the SMS below is
+                // what reaches a parent whose inbox doesn't, so a bounced
+                // or misconfigured mailer must not take it down with it.
+                try {
+                    Mail::to($email)->send(new ReportCardMail(
+                        $reportCard,
+                        $reportCard->student,
+                        $reportCard->institution,
+                        $downloadUrl,
+                    ));
+                } catch (Throwable $exception) {
+                    Log::warning('Report card email failed', [
+                        'report_card_id' => $reportCard->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
             }
 
             if ($phone) {
                 $sms = $smsService->send(
                     (int) preg_replace('/\D/', '', $phone),
-                    "{$reportCard->student->name}'s report card for {$reportCard->term} is ready. Download it here (link works once): {$downloadUrl}",
+                    $this->smsMessage($reportCard, $downloadUrl),
                 );
 
                 if (! ($sms['success'] ?? false)) {
@@ -86,5 +97,32 @@ class SendReadyReportCards extends Command
         $this->info("Sent {$sent} report card(s), skipped {$skipped}.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The text a parent gets on their phone.
+     *
+     * It carries the same one-time link as the email, because for a good
+     * many parents the phone is the only one of the two that reaches them -
+     * so this has to stand on its own rather than read as a nudge to go
+     * and check an inbox.
+     *
+     * Written warmly but kept short: a first name rather than the full one,
+     * and no praise of the results themselves, which this code has no
+     * business judging. The link alone runs to about 60 characters, so
+     * every word before it is one the parent pays for.
+     */
+    private function smsMessage(ReportCard $reportCard, string $downloadUrl): string
+    {
+        $firstName = strtok(trim((string) $reportCard->student->name), ' ') ?: $reportCard->student->name;
+        $school = $reportCard->institution?->name;
+
+        $opening = $school
+            ? "Dear Parent, {$firstName}'s {$reportCard->term} report card from {$school} is ready."
+            : "Dear Parent, {$firstName}'s {$reportCard->term} report card is ready.";
+
+        return $opening
+            .' Thank you for walking this journey with us.'
+            ." Download it here (the link opens once): {$downloadUrl}";
     }
 }

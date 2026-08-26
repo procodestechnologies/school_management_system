@@ -68,8 +68,7 @@ class ReportSettingsController extends Controller
 
     /**
      * Fill a curriculum's scale in from the standard one for the system it
-     * runs on - the full 8-4-4 A-E ladder, or, on CBC, whichever of the
-     * four-band rubric and KJSEA's eight levels it is marked against.
+     * runs on - the full 8-4-4 A-E ladder, or CBC's expectation scale.
      *
      * Refuses to run over an existing scale: a school that has already
      * tuned its bands shouldn't lose that to a stray click.
@@ -86,7 +85,6 @@ class ReportSettingsController extends Controller
             // Only used when no curriculum is chosen, i.e. for the
             // school-wide fallback scale.
             'system' => 'nullable|in:844,cbc',
-            'grading_scheme' => 'nullable|in:'.implode(',', array_keys(Curriculum::SCHEMES)),
         ]);
 
         $curriculum = $this->resolveCurriculum($institution, $validated['curriculum_id'] ?? null);
@@ -105,18 +103,15 @@ class ReportSettingsController extends Controller
         }
 
         $system = $curriculum?->system ?? ($validated['system'] ?? '844');
-        $scheme = $curriculum
-            ? $curriculum->gradingScheme()
-            : ($validated['grading_scheme'] ?? Curriculum::SCHEME_RUBRIC);
 
-        foreach (GradingScaleDefaults::forSystem($system, $scheme) as $band) {
+        foreach (GradingScaleDefaults::forSystem($system) as $band) {
             GradingBand::create($band + [
                 'institution_id' => $institution->id,
                 'curriculum_id' => $curriculum?->id,
             ]);
         }
 
-        $label = GradingScaleDefaults::labelFor($system, $scheme);
+        $label = GradingScaleDefaults::labelFor($system);
 
         return redirect()->route('reportcard.settings', $this->redirectParams($institution, $curriculum))
             ->with('success', 'The standard '.$label.' has been loaded. Edit any band that differs at your school.');

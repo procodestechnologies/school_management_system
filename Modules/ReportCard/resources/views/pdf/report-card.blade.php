@@ -139,6 +139,13 @@
             font-weight: bold;
         }
 
+        .level {
+            display: block;
+            font-weight: normal;
+            font-size: 8px;
+            color: #6b7280;
+        }
+
         .muted {
             color: #9ca3af;
         }
@@ -211,6 +218,10 @@
             font-weight: bold;
             width: 42px;
             text-align: center;
+        }
+
+        table.scale td.key.nested {
+            font-weight: normal;
         }
 
         .prose {
@@ -312,8 +323,13 @@
                     <td>{{ $row->isAssessed() ? $trim($row->marks) : $dash }}</td>
                     <td>{{ $row->isAssessed() ? $trim($row->outOf) : $dash }}</td>
                     <td>{{ $row->isAssessed() ? number_format($row->percentage, 0) : $dash }}</td>
+                    {{-- Band and level together: the band is the language a parent
+                         reads, the level is what KJSEA records. --}}
                     <td class="grade" style="color: {{ $colourFor($row->expectationBand()) }};">
-                        {{ $row->grade() ?? $dash }}
+                        {{ $row->expectationBand() ?? $row->grade() ?? $dash }}
+                        @if ($row->achievementLevel())
+                            <span class="level">{{ $row->achievementLevel() }}</span>
+                        @endif
                     </td>
                     <td>{{ $row->points() ?? $dash }}</td>
                     <td class="remark">{{ $row->remark() ?? '' }}</td>
@@ -330,8 +346,15 @@
                     <td style="text-align: right;">Total</td>
                     <td>{{ $trim($summary['total_marks']) }}</td>
                     <td colspan="2">Out of: {{ $trim($summary['total_out_of']) }}</td>
-                    <td class="grade" style="color: {{ $colourFor($summary['band'] ? preg_replace('/[^A-Z]/', '', strtoupper($summary['band']->grade)) : null) }};">
-                        {{ $summary['band']?->grade ?? $dash }}
+                    @php
+                        $overallGrade = $summary['band']?->grade;
+                        $overallBand = \Modules\ReportCard\Support\GradingScaleDefaults::bandFor($overallGrade);
+                    @endphp
+                    <td class="grade" style="color: {{ $colourFor($overallBand) }};">
+                        {{ $overallBand ?? $overallGrade ?? $dash }}
+                        @if ($overallBand && $overallGrade !== $overallBand)
+                            <span class="level">{{ $overallGrade }}</span>
+                        @endif
                     </td>
                     <td>{{ $summary['mean_points'] !== null ? $trim($summary['mean_points']) : $dash }}</td>
                     <td colspan="2" class="remark">Mean points / Overall band</td>
@@ -345,7 +368,11 @@
         <strong>{{ $summary['mean_points'] !== null ? $trim($summary['mean_points']).' / '.$pointsCeiling : $dash }}</strong>
         &nbsp;&nbsp; Mean Percentage:
         <strong>{{ $meanPercentage !== null ? number_format($meanPercentage, 2).'%' : $dash }}</strong>
-        &nbsp;&nbsp; Overall Grade: <strong>{{ $meanGrade ?? $dash }}</strong>
+        &nbsp;&nbsp; Overall Grade:
+        <strong>
+            @php $meanBand = \Modules\ReportCard\Support\GradingScaleDefaults::bandFor($meanGrade); @endphp
+            {{ $meanBand ?? $meanGrade ?? $dash }}{{ $meanBand && $meanGrade !== $meanBand ? ' ('.$meanGrade.')' : '' }}
+        </strong>
         &nbsp;&nbsp; Subjects assessed:
         <strong>{{ $summary['subjects_assessed'] }} of {{ $summary['subjects_total'] }}</strong>
     </p>
@@ -379,32 +406,47 @@
     @endif
 
     @if ($scaleBands->isNotEmpty())
+        @php
+            $defaults = \Modules\ReportCard\Support\GradingScaleDefaults::class;
+            // Levels that roll up into an expectation band are grouped under
+            // it, so the key shows both at once. An 8-4-4 scale has no bands
+            // to group by and falls into "" — one flat run, as before.
+            $grouped = $scaleBands->groupBy(fn ($band) => $defaults::bandFor($band->grade) ?? '');
+        @endphp
+
         <p class="section-title">
-            Grading Scale{{ $curriculum ? ' — '.$curriculum->name.($curriculum->schemeLabel() ? ' · '.$curriculum->schemeLabel() : '') : '' }}
+            Grading Scale{{ $curriculum ? ' — '.$curriculum->name.' · '.$curriculum->gradesLabel() : '' }}
         </p>
 
         <table class="scale">
-            @foreach ($scaleBands->chunk(4) as $chunk)
-                <tr>
-                    @foreach ($chunk as $band)
-                        @php
-                            $letters = preg_replace('/[^A-Z]/', '', strtoupper((string) $band->grade));
-                        @endphp
-                        <td class="key" style="color: {{ $colourFor($letters) }};">{{ $band->grade }}</td>
-                        <td>
-                            {{ $trim($band->min_percentage) }}–{{ $trim($band->max_percentage) }}%
-                            @if ($band->remark)
-                                · {{ $band->remark }}
-                            @endif
-                        </td>
-                    @endforeach
+            @foreach ($grouped as $bandLetters => $bands)
+                @if ($bandLetters !== '')
+                    <tr>
+                        <td class="key" style="color: {{ $colourFor($bandLetters) }};">{{ $bandLetters }}</td>
+                        <td colspan="7">{{ $defaults::bandDescription($bandLetters) }}</td>
+                    </tr>
+                @endif
 
-                    {{-- Pad the last row so its cells keep the same width as the rows above. --}}
-                    @for ($i = $chunk->count(); $i < 4; $i++)
-                        <td class="key"></td>
-                        <td></td>
-                    @endfor
-                </tr>
+                @foreach ($bands->chunk(4) as $chunk)
+                    <tr>
+                        @foreach ($chunk as $band)
+                            <td class="key {{ $bandLetters !== '' ? 'nested' : '' }}"
+                                style="color: {{ $colourFor($bandLetters ?: null) }};">{{ $band->grade }}</td>
+                            <td>
+                                {{ $trim($band->min_percentage) }}–{{ $trim($band->max_percentage) }}%
+                                @if ($band->remark)
+                                    · {{ $band->remark }}
+                                @endif
+                            </td>
+                        @endforeach
+
+                        {{-- Pad the last row so its cells keep the same width as the rows above. --}}
+                        @for ($i = $chunk->count(); $i < 4; $i++)
+                            <td class="key"></td>
+                            <td></td>
+                        @endfor
+                    </tr>
+                @endforeach
             @endforeach
         </table>
     @endif
