@@ -8,8 +8,8 @@ use App\Services\FeeReminderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Modules\FeeManagement\Actions\SaveFee;
 use Modules\FeeManagement\Models\Fee;
-use Modules\Student\Models\StudentDetails;
 
 class FeeManagementController extends Controller
 {
@@ -22,36 +22,6 @@ class FeeManagementController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
-        abort_unless(Auth::user()->can('view feemanagement'), 403);
-
-        $query = Fee::with(['student.studentUserDetails', 'institution', 'parent']);
-        $this->scopeToViewer($query);
-
-        $fees = $this->applySort(
-            $query,
-            sortable: ['title', 'amount', 'amount_paid', 'due_date', 'created_at'],
-            defaultColumn: 'created_at',
-            defaultDirection: 'desc',
-        )->paginate(10)->withQueryString();
-
-        if ($request->filled('status')) {
-            $fees = $fees->where('status', $request->string('status'));
-        }
-
-        $defaulterQuery = Fee::query();
-        $this->scopeToViewer($defaulterQuery);
-        $defaulterCount = (clone $defaulterQuery)
-            ->whereColumn('amount_paid', '<', 'amount')
-            ->whereNotNull('parent_id')
-            ->pluck('parent_id')
-            ->unique()
-            ->count();
-
-        return view('feemanagement::index', compact('fees', 'defaulterCount'));
-    }
-
     /**
      * Send a consolidated fee-balance reminder (email + SMS) to every
      * parent with at least one outstanding fee, scoped the same way the
@@ -80,59 +50,22 @@ class FeeManagementController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        abort_unless(Auth::user()->can('create feemanagement'), 403);
-
-        $students = $this->scopedStudentDetails()->with(['student', 'institution'])->get();
-
-        return view('feemanagement::create', compact('students'));
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
         abort_unless(Auth::user()->can('create feemanagement'), 403);
 
-        $validated = $request->validate([
-            'student_id' => 'required|exists:student_details,student_id',
-            'title' => 'required|string|max:255',
-            'fee_type' => 'required|string|max:100',
-            'amount' => 'required|numeric|min:0',
-            'amount_paid' => 'nullable|numeric|min:0',
-            'due_date' => 'nullable|date',
-            'notes' => 'nullable|string',
-        ]);
-
-        // Derive institution and parent directly from the student so the fee
-        // record stays consistent with StudentDetails and can't be mismatched
-        // via the form.
-        $studentDetails = StudentDetails::where('student_id', $validated['student_id'])->firstOrFail();
+        $validated = $request->validate(SaveFee::rules());
 
         try {
-            Fee::create([
-                'institution_id' => $studentDetails->institution_id,
-                'student_id' => $studentDetails->student_id,
-                'parent_id' => $studentDetails->parent_id,
-                'title' => $validated['title'],
-                'fee_type' => $validated['fee_type'],
-                'amount' => $validated['amount'],
-                'amount_paid' => $validated['amount_paid'] ?? 0,
-                'due_date' => $validated['due_date'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-            ]);
+            SaveFee::handle($validated);
 
-            return redirect()->route('feemanagement.index')
-                ->with('success', 'Fee created successfully!');
+            return redirect()->route('feemanagement.index')->with('success', 'Fee created successfully!');
         } catch (\Exception $e) {
             Log::error('Fee creation failed: '.$e->getMessage());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to create fee: '.$e->getMessage());
         }
     }
@@ -153,21 +86,6 @@ class FeeManagementController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        abort_unless(Auth::user()->can('edit feemanagement'), 403);
-
-        $query = Fee::with(['student', 'institution', 'parent']);
-        $this->scopeToViewer($query);
-
-        $fee = $query->findOrFail($id);
-
-        return view('feemanagement::edit', compact('fee'));
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
@@ -178,32 +96,16 @@ class FeeManagementController extends Controller
         $this->scopeToViewer($query);
         $fee = $query->findOrFail($id);
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'fee_type' => 'required|string|max:100',
-            'amount' => 'required|numeric|min:0',
-            'amount_paid' => 'nullable|numeric|min:0',
-            'due_date' => 'nullable|date',
-            'notes' => 'nullable|string',
-        ]);
+        $validated = $request->validate(SaveFee::rules(withStudent: false));
 
         try {
-            $fee->update([
-                'title' => $validated['title'],
-                'fee_type' => $validated['fee_type'],
-                'amount' => $validated['amount'],
-                'amount_paid' => $validated['amount_paid'] ?? 0,
-                'due_date' => $validated['due_date'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-            ]);
+            SaveFee::handle($validated, $fee);
 
-            return redirect()->route('feemanagement.show', $fee->id)
-                ->with('success', 'Fee updated successfully!');
+            return redirect()->route('feemanagement.show', $fee->id)->with('success', 'Fee updated successfully!');
         } catch (\Exception $e) {
             Log::error('Fee update failed: '.$e->getMessage());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to update fee: '.$e->getMessage());
         }
     }
@@ -250,20 +152,5 @@ class FeeManagementController extends Controller
         }
 
         $query->where('institution_id', currentInstitution()?->id ?? 0);
-    }
-
-    /**
-     * Students available for fee assignment, scoped the same way as the
-     * fee listing itself.
-     */
-    private function scopedStudentDetails()
-    {
-        $query = StudentDetails::query();
-
-        if (! isAdmin()) {
-            $query->where('institution_id', currentInstitution()?->id ?? 0);
-        }
-
-        return $query;
     }
 }

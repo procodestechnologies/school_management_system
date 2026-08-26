@@ -18,23 +18,6 @@ class ReportCardController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view reportcard'), 403);
-
-        $query = ReportCard::with(['institution', 'schoolClass', 'student']);
-        $this->scopeToViewer($query);
-
-        $reportCards = $this->applySort(
-            $query,
-            sortable: ['term', 'mean_grade'],
-            defaultColumn: 'completed_at',
-            defaultDirection: 'desc',
-        )->get();
-
-        return view('reportcard::index', compact('reportCards'));
-    }
-
     /**
      * Show the specified resource.
      */
@@ -112,5 +95,17 @@ class ReportCardController extends Controller
         }
 
         $query->where('institution_id', currentInstitution()?->id ?? 0);
+    }
+
+    public function destroy(string $id)
+    {
+        $reportCard = ReportCard::findOrFail($id);
+        // first unlink its pdf then delete the report card
+        if ($reportCard->pdf_path && Storage::disk('public')->exists($reportCard->pdf_path)) {
+            Storage::disk('public')->delete($reportCard->pdf_path);
+        }
+        $reportCard->delete();
+
+        return redirect()->route('reportcard.index')->with('success', 'Report card deleted successfully.');
     }
 }

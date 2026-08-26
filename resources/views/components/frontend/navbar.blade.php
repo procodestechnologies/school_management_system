@@ -19,7 +19,7 @@
                 <img
                     src="{{ asset('logos/solforbs-logo.png') }}"
                     alt="{{ config('app.name', 'Laravel') }}"
-                    class="size-10 w-48 object-contain"
+                    class="size-10 object-contain"
                 />
                 {{ config('app.name') }}
             </a>

@@ -27,7 +27,7 @@
                 </div>
 
                 <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-                    <flux:button href="{{ route('feemanagement.index') }}">Cancel</flux:button>
+                    <flux:button href="{{ route('feemanagement.index') }}" wire:navigate>Cancel</flux:button>
                     <flux:button type="submit" variant="primary">Read Receipt</flux:button>
                 </div>
             </form>

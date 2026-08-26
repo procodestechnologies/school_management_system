@@ -4,20 +4,14 @@ namespace Modules\Student\Http\Controllers;
 
 use App\Http\Controllers\Concerns\Sortable;
 use App\Http\Controllers\Controller;
-use App\Models\Devices;
 use App\Models\User;
-use App\Services\ImageCompressionService;
-use App\Services\ProfilePhotoResolver;
-use App\Services\ZKTecoUserSyncService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Institution\Models\Institution;
-use Modules\Parent\Models\ParentDetails;
+use Modules\Student\Actions\SaveStudent;
 use Modules\Student\Models\StudentDetails;
 
 class StudentController extends Controller
@@ -25,55 +19,8 @@ class StudentController extends Controller
     use Sortable;
 
     public function __construct(
-        private readonly ZKTecoUserSyncService $syncService,
-        private readonly ProfilePhotoResolver $photoResolver,
-        private readonly ImageCompressionService $imageCompressor,
+        private readonly SaveStudent $saveStudent,
     ) {}
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view student'), 403);
-
-        $query = StudentDetails::with(['student', 'institution']);
-
-        if (Auth::user()->hasRole('Parent')) {
-            $query->where('parent_id', Auth::id());
-        } elseif (! isAdmin()) {
-            $query->where('institution_id', currentInstitution()?->id ?? 0);
-        }
-
-        $students = $this->applySort(
-            $query,
-            sortable: ['admission_number', 'gender', 'phone'],
-            defaultColumn: 'created_at',
-            defaultDirection: 'desc',
-        )->get();
-
-        return view('student::index', compact('students'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        abort_unless(Auth::user()->can('create student'), 403);
-
-        // Non-admins never choose an institution here - the student is
-        // always created under whichever one is currently active for them
-        // (see store()). Only Admin, who isn't scoped to one, still picks.
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
-        // A parent can have more than one student - list existing parents so
-        // the Director can link a new student to one instead of creating a
-        // duplicate parent account every time.
-        $existingParents = User::role('Parent')->with('children')->orderBy('name')->get();
-
-        return view('student::create', compact('institutions', 'existingParents'));
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -82,148 +29,25 @@ class StudentController extends Controller
     {
         abort_unless(Auth::user()->can('create student'), 403);
 
-        $validated = $request->validate([
-            // Account
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8',
-
-            // Personal
-            'phone' => 'nullable|string|max:20',
-            'date_of_birth' => 'nullable|date',
-            'gender' => 'nullable|in:male,female,other',
-            'profile_image' => 'required|image|max:2048',
-            'admission_number' => 'nullable|string|max:100',
-            'student_number' => 'nullable|string|max:100',
-            'institution_id' => ['nullable', 'exists:institutions,id'],
-            'enrollment_status' => 'nullable|in:active,expelled,graduated,suspended,transferred,withdrawn,dropped',
-
-            // Address
-            'address' => 'nullable|string',
-            'city' => 'nullable|string|max:100',
-            'state' => 'nullable|string|max:100',
-            'country' => 'nullable|string|max:100',
-
-            // Parent - either link an existing parent account (a parent can
-            // have more than one student) or fill in the fields below to
-            // create a new one.
-            'parent_id' => ['nullable', 'exists:users,id', function ($attribute, $value, $fail) {
-                if ($value && ! User::find($value)?->hasRole('Parent')) {
-                    $fail('The selected parent account is not valid.');
-                }
-            }],
-            'parent_name' => 'nullable|string|max:255',
-            'parent_phone' => 'nullable|string|max:20',
-            'parent_email' => 'nullable|email|max:255',
-            'parent_occupation' => 'nullable|string|max:255',
-
-            // Guardian
-            'guardian_name' => 'nullable|string|max:255',
-            'guardian_phone' => 'nullable|string|max:20',
-            'guardian_email' => 'nullable|email|max:255',
-            'guardian_relationship' => 'nullable|string|max:100',
-
-            // Additional
-            'medical_conditions' => 'nullable|string',
-            'allergies' => 'nullable|string',
-            'special_needs' => 'nullable|string',
-            'notes' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
+        $validated = $request->validate(SaveStudent::createRules());
 
         // Never trust a client-submitted institution_id for a non-admin -
         // the student is always created under whichever institution is
-        // currently active for the acting Director. Only Admin, who isn't
-        // scoped to one, may pick explicitly.
-        $validated['institution_id'] = isAdmin()
-            ? $validated['institution_id']
+        // currently active for the acting Director.
+        $institutionId = isAdmin()
+            ? ($request->integer('institution_id') ?: currentInstitution()?->id)
             : currentInstitution()?->id;
 
-        abort_unless($validated['institution_id'], 422, 'No institution selected.');
+        abort_unless($institutionId, 422, 'No institution selected.');
 
         try {
-            DB::transaction(function () use ($request, $validated) {
-                // 1. Resolve the parent: link an existing parent account if
-                // one was selected (a parent can have more than one
-                // student), otherwise create a new one if any parent
-                // details were provided.
-                $parent = null;
-                if (! empty($validated['parent_id'])) {
-                    $parent = User::find($validated['parent_id']);
-                } elseif (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
-                    $parent = User::create([
-                        'name' => $validated['parent_name'] ?? 'Parent',
-                        'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
-                        'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
-                    ]);
-                    $parent->syncRoles('Parent');
+            $this->saveStudent->create($validated, $institutionId, $request->file('profile_image'));
 
-                    // Create Parent Details
-                    $parentDetails = [
-                        'parent_id' => $parent->id,
-                        'parent_phone' => $validated['parent_phone'] ?? null,
-                        'parent_occupation' => $validated['parent_occupation'] ?? null,
-                    ];
-                    ParentDetails::create($parentDetails);
-                }
-
-                // 2. Create Student User
-                $student = User::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                ]);
-                $student->syncRoles('Student');
-
-                // 3. Prepare Student Details Data
-                $studentData = collect($validated)
-                    ->except([
-                        'name',
-                        'email',
-                        'password',
-                        'is_active',
-                        'parent_id',
-                        'parent_name',
-                        'parent_phone',
-                        'profile_image',
-                        'parent_email',
-                        'parent_occupation',
-                    ])
-                    ->toArray();
-
-                // IMPORTANT: Use 'user_id' because your relationship uses it
-                $studentData['user_id'] = $student->id;
-
-                // Also set student_id if you want to keep both (optional)
-                $studentData['student_id'] = $student->id;
-
-                // Add parent_id if parent exists
-                if ($parent) {
-                    $studentData['parent_id'] = $parent->id;
-                }
-
-                $studentData['is_active'] = $request->boolean('is_active');
-
-                // Handle profile photo upload
-                if ($request->hasFile('profile_image')) {
-                    $studentData['profile_photo'] = $this->imageCompressor->store(
-                        $request->file('profile_image'),
-                        'students/photos',
-                    );
-                }
-
-                // 4. Create Student Details using the relationship
-                $student->studentUserDetails()->create($studentData);
-            });
-
-            return redirect()->route('student.index')
-                ->with('success', 'Student created successfully!');
+            return redirect()->route('student.index')->with('success', 'Student created successfully!');
         } catch (Exception $e) {
             Log::error('Student creation failed: '.$e->getMessage());
-            Log::error('Stack trace: '.$e->getTraceAsString());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to create student: '.$e->getMessage());
         }
     }
@@ -240,20 +64,6 @@ class StudentController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        abort_unless(Auth::user()->can('edit student'), 403);
-
-        $student = User::whereId($id)->with('studentParent', 'studentUserDetails', 'studentInstitution')->first();
-        abort_unless($student, 404);
-        $this->authorizeStudentAccess($student);
-
-        return view('student::edit', compact('student'));
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
@@ -263,148 +73,16 @@ class StudentController extends Controller
         $student = User::findOrFail($id);
         $this->authorizeStudentAccess($student);
 
-        // Validate the request
-        $validated = $request->validate([
-            // Personal
-            'phone' => 'nullable|string|max:20',
-            'date_of_birth' => 'nullable|date',
-            'gender' => 'nullable|in:male,female,other',
-            'profile_image' => 'nullable|image|max:2048',
-            'admission_number' => 'nullable|string|max:100',
-            'student_number' => 'nullable|string|max:100',
-            'enrollment_status' => 'nullable|in:active,expelled,graduated,suspended,transferred,withdrawn,dropped',
+        $validated = $request->validate(SaveStudent::updateRules());
 
-            // Address
-            'address' => 'nullable|string',
-            'city' => 'nullable|string|max:100',
-            'state' => 'nullable|string|max:100',
-            'country' => 'nullable|string|max:100',
-
-            // Parent
-            'parent_name' => 'nullable|string|max:255',
-            'parent_phone' => 'nullable|string|max:20',
-            'parent_email' => 'nullable|email|max:255',
-            'parent_occupation' => 'nullable|string|max:255',
-
-            // Guardian
-            'guardian_name' => 'nullable|string|max:255',
-            'guardian_phone' => 'nullable|string|max:20',
-            'guardian_email' => 'nullable|email|max:255',
-            'guardian_relationship' => 'nullable|string|max:100',
-
-            // Additional
-            'medical_conditions' => 'nullable|string',
-            'allergies' => 'nullable|string',
-            'special_needs' => 'nullable|string',
-            'notes' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
         try {
-            DB::transaction(function () use ($request, $validated, $id) {
-                // 1. Find the student details
-                $studentDetails = StudentDetails::where('user_id', $id)
-                    ->orWhere('student_id', $id)
-                    ->firstOrFail();
+            $this->saveStudent->update($student, $validated, $request->file('profile_image'));
 
-                // 2. Update student details (excluding parent fields and the raw upload)
-                $studentData = collect($validated)
-                    ->except(['parent_name', 'parent_phone', 'parent_email', 'parent_occupation', 'profile_image'])
-                    ->toArray();
-
-                $studentData['is_active'] = $request->boolean('is_active');
-
-                // Handle profile photo upload: replace and delete the old file if a new one was sent
-                if ($request->hasFile('profile_image')) {
-                    if ($studentDetails->profile_photo && Storage::disk('public')->exists($studentDetails->profile_photo)) {
-                        Storage::disk('public')->delete($studentDetails->profile_photo);
-                    }
-
-                    $studentData['profile_photo'] = $this->imageCompressor->store(
-                        $request->file('profile_image'),
-                        'students/photos',
-                    );
-                }
-
-                // Update student details
-                $studentDetails->update($studentData);
-
-                // If the photo changed for a student already synced to a
-                // device, push the update immediately rather than waiting
-                // for the device's next connect event.
-                if ($request->hasFile('profile_image')) {
-                    $this->resyncPhotoIfAlreadySynced($studentDetails);
-                }
-
-                // 3. Handle Parent User and Parent Details
-                if (! empty($validated['parent_name']) || ! empty($validated['parent_email']) || ! empty($validated['parent_phone'])) {
-
-                    // Check if parent already exists
-                    if ($studentDetails->parent_id) {
-                        // Update existing parent
-                        $parent = User::findOrFail($studentDetails->parent_id);
-
-                        if ($parent) {
-                            $parent->update([
-                                'name' => $validated['parent_name'] ?? $parent->name,
-                                'email' => $validated['parent_email'] ?? $parent->email,
-                            ]);
-                        } else {
-                            // Parent user was deleted, create new
-                            $parent = User::create([
-                                'name' => $validated['parent_name'] ?? 'Parent',
-                                'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
-                                'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
-                            ]);
-                            $parent->syncRoles('Parent');
-                            $studentDetails->parent_id = $parent->id;
-                            $studentDetails->save();
-                        }
-                    } else {
-                        // Create new parent user
-                        $parent = User::create([
-                            'name' => $validated['parent_name'] ?? 'Parent',
-                            'email' => $validated['parent_email'] ?? 'parent_'.time().'@example.com',
-                            'password' => Hash::make($validated['parent_phone'] ?? 'password123'),
-                        ]);
-                        $parent->syncRoles('Parent');
-
-                        // Link parent to student
-                        $studentDetails->parent_id = $parent->id;
-                        $studentDetails->save();
-                    }
-
-                    // 4. Update or Create Parent Details
-                    if ($parent) {
-                        ParentDetails::updateOrCreate(
-                            ['parent_id' => $parent->id],
-                            [
-                                'parent_phone' => $validated['parent_phone'] ?? null,
-                                'parent_occupation' => $validated['parent_occupation'] ?? null,
-                            ]
-                        );
-                    }
-                } else {
-                    // If no parent details provided, remove parent association if exists
-                    if ($studentDetails->parent_id) {
-                        // Optional: Delete parent user and details
-                        // $parent = User::find($studentDetails->parent_id);
-                        // if ($parent) {
-                        //     $parent->parentDetails()->delete();
-                        //     $parent->delete();
-                        // }
-                        $studentDetails->parent_id = null;
-                        $studentDetails->save();
-                    }
-                }
-            });
-
-            return redirect()->back()
-                ->with('success', 'Student updated successfully!');
+            return redirect()->back()->with('success', 'Student updated successfully!');
         } catch (Exception $e) {
             Log::error('Student update failed: '.$e->getMessage());
 
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Failed to update student: '.$e->getMessage());
         }
     }
@@ -457,48 +135,5 @@ class StudentController extends Controller
         $studentInstitutionId = StudentDetails::where('student_id', $student->id)->value('institution_id');
 
         abort_unless($studentInstitutionId && $studentInstitutionId === currentInstitution()?->id, 403);
-    }
-
-    /**
-     * Push the student's updated photo (and current info) to their
-     * institution's active device(s), but only if they were already synced
-     * - a student who was never synced will pick up the new photo the same
-     * way they'd pick up anything else: manual sync or the device's next
-     * connect event.
-     */
-    private function resyncPhotoIfAlreadySynced(StudentDetails $studentDetails): void
-    {
-        $student = User::findORFail($studentDetails->student_id);
-
-        if (! $student || ! $student->zkteco_synced) {
-            return;
-        }
-
-        $devices = Devices::whereInstitutionId($studentDetails->institution_id)
-            ->where('is_active', true)
-            ->get();
-
-        if ($devices->isEmpty()) {
-            return;
-        }
-
-        $this->photoResolver->withLocalPath($studentDetails->profile_photo, function (?string $photoPath) use ($devices, $student, $studentDetails) {
-            foreach ($devices as $device) {
-                $this->syncService->addUserToDevice($device->serial_number, [
-                    'pin' => (string) $student->id,
-                    'name' => $student->name,
-                    'privilege' => 0,
-                    'card' => $studentDetails->student_number ?? '',
-                    'password' => $studentDetails->admission_number ?? '',
-                    'app_user_id' => $student->id,
-                    'photo_path' => $photoPath,
-                ]);
-            }
-        });
-
-        Log::info('Re-synced student photo to device(s) after edit', [
-            'student_id' => $student->id,
-            'device_count' => $devices->count(),
-        ]);
     }
 }

@@ -8,45 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Institution\Models\Institution;
 use Modules\Student\Models\StudentDetails;
+use Modules\Subject\Actions\SaveSubject;
 use Modules\Subject\Models\Subject;
 
 class SubjectController extends Controller
 {
     use Sortable;
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        abort_unless(Auth::user()->can('view subject'), 403);
-
-        $query = Subject::with('institution');
-        $this->scopeToViewer($query);
-
-        $query = $this->applySort(
-            $query,
-            sortable: ['name', 'code'],
-            defaultColumn: 'name',
-            defaultDirection: 'asc',
-        );
-
-        $subjects = $query->paginate(10)->withQueryString();
-
-        return view('subject::index', compact('subjects'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        abort_unless(Auth::user()->can('create subject'), 403);
-
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
-        return view('subject::create', compact('institutions'));
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -55,9 +22,12 @@ class SubjectController extends Controller
     {
         abort_unless(Auth::user()->can('create subject'), 403);
 
-        $validated = $this->validated($request);
+        $validated = $request->validate(SaveSubject::rules());
 
-        Subject::create($validated);
+        SaveSubject::handle(
+            $validated + ['is_compulsory' => $request->boolean('is_compulsory'), 'is_active' => $request->boolean('is_active', true)],
+            $this->institutionId(),
+        );
 
         return redirect()->route('subject.index')->with('success', 'Subject created successfully!');
     }
@@ -82,19 +52,6 @@ class SubjectController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        abort_unless(Auth::user()->can('edit subject'), 403);
-
-        $subject = $this->scopedSubject($id);
-        $institutions = isAdmin() ? Institution::all() : collect([currentInstitution()])->filter();
-
-        return view('subject::edit', compact('subject', 'institutions'));
-    }
-
-    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, $id)
@@ -102,9 +59,13 @@ class SubjectController extends Controller
         abort_unless(Auth::user()->can('edit subject') || Auth::user()->can('update subject'), 403);
 
         $subject = $this->scopedSubject($id);
-        $validated = $this->validated($request);
+        $validated = $request->validate(SaveSubject::rules());
 
-        $subject->update($validated);
+        SaveSubject::handle(
+            $validated + ['is_compulsory' => $request->boolean('is_compulsory'), 'is_active' => $request->boolean('is_active', true)],
+            $this->institutionId($subject),
+            $subject,
+        );
 
         return redirect()->route('subject.show', $subject->id)->with('success', 'Subject updated!');
     }
@@ -122,22 +83,18 @@ class SubjectController extends Controller
         return redirect()->route('subject.index')->with('success', 'Subject removed!');
     }
 
-    private function validated(Request $request): array
+    /**
+     * The school a subject belongs to. Never a client-submitted one for a
+     * non-admin - it's always whichever institution is currently active for
+     * them.
+     */
+    private function institutionId(?Subject $subject = null): int
     {
-        $validated = $request->validate([
-            'institution_id' => ['nullable', 'exists:institutions,id'],
-            'name' => 'required|string|max:255',
-            'code' => 'nullable|string|max:50',
-        ]);
+        $institutionId = $subject?->institution_id ?? currentInstitution()?->id;
 
-        $validated['is_compulsory'] = $request->boolean('is_compulsory');
-        $validated['is_active'] = $request->boolean('is_active', true);
+        abort_unless($institutionId, 422, 'No institution selected.');
 
-        $validated['institution_id'] = isAdmin() ? $validated['institution_id'] : currentInstitution()?->id;
-
-        abort_unless($validated['institution_id'], 422, 'No institution selected.');
-
-        return $validated;
+        return $institutionId;
     }
 
     private function scopeToViewer($query): void

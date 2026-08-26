@@ -18,7 +18,8 @@
                     One platform, every school office
                 </x-frontend.badge>
 
-                <h1 class="mt-6 text-4xl font-semibold tracking-tight text-balance text-zinc-900 sm:text-5xl dark:text-white">
+                <h1
+                    class="mt-6 text-4xl font-semibold tracking-tight text-balance text-zinc-900 sm:text-5xl dark:text-white">
                     Run admissions, attendance, fees and exams —
                     <span class="text-indigo-600 dark:text-indigo-400">without the spreadsheets.</span>
                 </h1>
@@ -30,7 +31,7 @@
 
                 <div class="mt-8 flex flex-wrap items-center gap-4">
                     <flux:button :href="route('register')" variant="primary" wire:navigate>
-                        Get started free
+                        Get started
                     </flux:button>
                     <flux:button href="#how-it-works" variant="outline">
                         See how it works
@@ -43,7 +44,8 @@
 
                 <div class="mt-10 flex flex-wrap gap-2">
                     @foreach (['Admissions', 'Attendance', 'Fees & Payments', 'Exams & Report Cards', 'Timetable', 'Parent Portal'] as $module)
-                        <span class="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-white/10 dark:text-zinc-400">
+                        <span
+                            class="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-white/10 dark:text-zinc-400">
                             {{ $module }}
                         </span>
                     @endforeach
@@ -51,7 +53,8 @@
             </div>
 
             <div class="relative" data-animate="right" style="--reveal-delay:120ms">
-                <div class="rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl shadow-zinc-900/10 dark:border-white/10 dark:bg-zinc-900">
+                <div
+                    class="rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl shadow-zinc-900/10 dark:border-white/10 dark:bg-zinc-900">
                     <div class="flex items-center gap-1.5 px-3 py-2.5">
                         <span class="size-2.5 rounded-full bg-red-400"></span>
                         <span class="size-2.5 rounded-full bg-amber-400"></span>
@@ -97,11 +100,13 @@
                     </div>
                 </div>
 
-                <div class="animate-float absolute -left-6 top-8 hidden items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-lg sm:flex dark:border-white/10 dark:bg-zinc-800">
+                <div
+                    class="animate-float absolute -left-6 top-8 hidden items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-lg sm:flex dark:border-white/10 dark:bg-zinc-800">
                     <flux:icon icon="finger-print" class="size-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-medium text-zinc-700 dark:text-zinc-200">Attendance synced</span>
                 </div>
-                <div class="animate-float-delayed absolute -right-4 bottom-6 hidden items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-lg sm:flex dark:border-white/10 dark:bg-zinc-800">
+                <div
+                    class="animate-float-delayed absolute -right-4 bottom-6 hidden items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-lg sm:flex dark:border-white/10 dark:bg-zinc-800">
                     <flux:icon icon="chat-bubble-left-right" class="size-4 text-emerald-600 dark:text-emerald-400" />
                     <span class="text-xs font-medium text-zinc-700 dark:text-zinc-200">Parent verified</span>
                 </div>
@@ -119,12 +124,42 @@
 
             @php
                 $homeFeatures = [
-                    ['icon' => 'academic-cap', 'title' => 'Students & Admissions', 'body' => "Enroll students, keep guardian and address details in one place, and give every learner a single academic profile that follows them through the school."],
-                    ['icon' => 'finger-print', 'title' => 'Biometric Attendance', 'body' => 'Connect ZKTeco biometric devices for tap-in attendance that syncs automatically — no manual registers to reconcile at the end of the day.'],
-                    ['icon' => 'banknotes', 'title' => 'Fees & M-Pesa Payments', 'body' => "Bill fees per term, track balances per student, and accept M-Pesa payments directly so the finance office isn't chasing paper receipts."],
-                    ['icon' => 'clipboard-document-check', 'title' => 'Exams & Report Cards', 'body' => 'Record marks, compute grades, and generate report cards that teachers, parents and administrators can all trust.'],
-                    ['icon' => 'calendar-days', 'title' => 'Timetable & Classes', 'body' => 'Build class timetables, assign subjects and teachers, and keep every lesson slot conflict-free across the term.'],
-                    ['icon' => 'chat-bubble-left-right', 'title' => 'Parent Portal & Alerts', 'body' => 'Parents get a secure self-service assistant for results, attendance and fee balances — verified by a one-time code, every time.'],
+                    [
+                        'icon' => 'academic-cap',
+                        'title' => 'Students & Admissions',
+                        'body' =>
+                            'Enroll students, keep guardian and address details in one place, and give every learner a single academic profile that follows them through the school.',
+                    ],
+                    [
+                        'icon' => 'finger-print',
+                        'title' => 'Biometric Attendance',
+                        'body' =>
+                            'Connect ZKTeco biometric devices for tap-in attendance that syncs automatically — no manual registers to reconcile at the end of the day.',
+                    ],
+                    [
+                        'icon' => 'banknotes',
+                        'title' => 'Fees & M-Pesa Payments',
+                        'body' =>
+                            "Bill fees per term, track balances per student, and accept M-Pesa payments directly so the finance office isn't chasing paper receipts.",
+                    ],
+                    [
+                        'icon' => 'clipboard-document-check',
+                        'title' => 'Exams & Report Cards',
+                        'body' =>
+                            'Record marks, compute grades, and generate report cards that teachers, parents and administrators can all trust.',
+                    ],
+                    [
+                        'icon' => 'calendar-days',
+                        'title' => 'Timetable & Classes',
+                        'body' =>
+                            'Build class timetables, assign subjects and teachers, and keep every lesson slot conflict-free across the term.',
+                    ],
+                    [
+                        'icon' => 'chat-bubble-left-right',
+                        'title' => 'Parent Portal & Alerts',
+                        'body' =>
+                            'Parents get a secure self-service assistant for results, attendance and fee balances — verified by a one-time code, every time.',
+                    ],
                 ];
             @endphp
 
@@ -157,7 +192,8 @@
                     goes live.
                 </x-frontend.step>
 
-                <x-frontend.step number="3" title="Bring in students, staff & classes" data-animate style="--reveal-delay:160ms">
+                <x-frontend.step number="3" title="Bring in students, staff & classes" data-animate
+                    style="--reveal-delay:160ms">
                     Add students, teachers, classes and subjects, or import the ones you already track elsewhere.
                 </x-frontend.step>
 
@@ -177,8 +213,10 @@
             </x-frontend.section-heading>
 
             <div class="mt-16 grid gap-6 lg:grid-cols-3">
-                <x-frontend.role-card icon="building-office-2" title="Administrators" data-animate style="--reveal-delay:0ms">
-                    <x-frontend.check-item>Approve enrollments and oversee every module from one dashboard</x-frontend.check-item>
+                <x-frontend.role-card icon="building-office-2" title="Administrators" data-animate
+                    style="--reveal-delay:0ms">
+                    <x-frontend.check-item>Approve enrollments and oversee every module from one
+                        dashboard</x-frontend.check-item>
                     <x-frontend.check-item>Manage staff accounts, roles and permissions</x-frontend.check-item>
                     <x-frontend.check-item>See school-wide attendance, fees and exam reports</x-frontend.check-item>
                 </x-frontend.role-card>
@@ -189,9 +227,11 @@
                     <x-frontend.check-item>Keep student academic records up to date</x-frontend.check-item>
                 </x-frontend.role-card>
 
-                <x-frontend.role-card icon="device-phone-mobile" title="Parents" data-animate style="--reveal-delay:180ms">
+                <x-frontend.role-card icon="device-phone-mobile" title="Parents" data-animate
+                    style="--reveal-delay:180ms">
                     <x-frontend.check-item>Check results, attendance and fee balances instantly</x-frontend.check-item>
-                    <x-frontend.check-item>Verified securely with a one-time code — no account needed</x-frontend.check-item>
+                    <x-frontend.check-item>Verified securely with a one-time code — no account
+                        needed</x-frontend.check-item>
                     <x-frontend.check-item>Available right from the chat assistant, any time</x-frontend.check-item>
                 </x-frontend.role-card>
             </div>
@@ -205,26 +245,30 @@
                 <p class="text-sm font-semibold tracking-wide text-indigo-600 uppercase dark:text-indigo-400">
                     Parent self-service
                 </p>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-balance text-zinc-900 sm:text-4xl dark:text-white">
+                <h2
+                    class="mt-3 text-3xl font-semibold tracking-tight text-balance text-zinc-900 sm:text-4xl dark:text-white">
                     A real assistant, not a demo
                 </h2>
                 <p class="mt-4 text-lg text-pretty text-zinc-600 dark:text-zinc-400">
                     Every page on this site — including this one — has the same assistant your parents will use.
-                    Click the chat bubble in the corner and try a command like <code class="rounded bg-zinc-200 px-1.5 py-0.5 text-sm dark:bg-white/10">/result</code>
+                    Click the chat bubble in the corner and try a command like <code
+                        class="rounded bg-zinc-200 px-1.5 py-0.5 text-sm dark:bg-white/10">/result</code>
                     or <code class="rounded bg-zinc-200 px-1.5 py-0.5 text-sm dark:bg-white/10">/fees</code>.
                 </p>
 
                 <dl class="mt-10 grid grid-cols-3 gap-4 border-t border-zinc-200 pt-8 dark:border-white/10">
-                    <x-frontend.stat :value="config('chatbot.otp_length').'-digit'" label="one-time codes" />
-                    <x-frontend.stat :value="config('chatbot.otp_expiry_minutes').' min'" label="code expiry" />
+                    <x-frontend.stat :value="config('chatbot.otp_length') . '-digit'" label="one-time codes" />
+                    <x-frontend.stat :value="config('chatbot.otp_expiry_minutes') . ' min'" label="code expiry" />
                     <x-frontend.stat :value="$verifiedCommandCount" label="self-service commands" />
                 </dl>
             </div>
 
             <div class="relative" data-animate="right">
-                <div class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900">
+                <div
+                    class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-zinc-900">
                     <div class="flex items-center gap-2 border-b border-zinc-100 pb-3 dark:border-white/10">
-                        <span class="flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+                        <span
+                            class="flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
                             <flux:icon icon="chat-bubble-left-right" class="size-4" />
                         </span>
                         <span class="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -233,7 +277,8 @@
                     </div>
 
                     <div class="mt-3 flex justify-start">
-                        <div class="max-w-[85%] rounded-2xl bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:bg-white/10 dark:text-zinc-100">
+                        <div
+                            class="max-w-[85%] rounded-2xl bg-zinc-100 px-3 py-2 text-sm text-zinc-800 dark:bg-white/10 dark:text-zinc-100">
                             Hi! I'm the school assistant. Type / to see what I can help with.
                         </div>
                     </div>
@@ -264,16 +309,19 @@
             </x-frontend.section-heading>
 
             <div class="mt-16 grid gap-6 sm:grid-cols-3">
-                <x-frontend.feature-card icon="lock-closed" title="Private by design" data-animate style="--reveal-delay:0ms">
+                <x-frontend.feature-card icon="lock-closed" title="Private by design" data-animate
+                    style="--reveal-delay:0ms">
                     Every institution's students, staff and records live in their own isolated workspace on the
                     platform.
                 </x-frontend.feature-card>
 
-                <x-frontend.feature-card icon="shield-check" title="Granular roles" data-animate style="--reveal-delay:80ms">
+                <x-frontend.feature-card icon="shield-check" title="Granular roles" data-animate
+                    style="--reveal-delay:80ms">
                     Fine-grained permissions mean staff only ever see what their role allows them to.
                 </x-frontend.feature-card>
 
-                <x-frontend.feature-card icon="finger-print" title="Verified parent access" data-animate style="--reveal-delay:160ms">
+                <x-frontend.feature-card icon="finger-print" title="Verified parent access" data-animate
+                    style="--reveal-delay:160ms">
                     Every sensitive request from a parent is verified with a one-time emailed code before any
                     data is shared.
                 </x-frontend.feature-card>
@@ -287,7 +335,7 @@
             <x-frontend.cta-band heading="Ready to bring your school onto one platform?"
                 description="Create your account and set up your school's workspace today.">
                 <flux:button :href="route('register')" variant="primary" wire:navigate>
-                    Get started free
+                    Get started
                 </flux:button>
                 <flux:button :href="route('login')" variant="ghost" wire:navigate>
                     Log in
