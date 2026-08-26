@@ -10,12 +10,18 @@ use App\Http\Controllers\SyncDeviceController;
 use App\Http\Controllers\SyncStudentToDeviceController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HasInstitution;
+use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'frontend.home')->name('home');
 Route::view('/about', 'frontend.about')->name('about');
 Route::view('/services', 'frontend.services')->name('services');
-Route::view('/plans', 'frontend.plans')->name('plans');
+// Priced from the plans table rather than the template, so an admin
+// editing a plan changes the public page too - the same data the /api/plans
+// endpoint serves.
+Route::get('/plans', fn () => view('frontend.plans', [
+    'plans' => Plan::query()->active()->orderBy('price')->orderBy('name')->get(),
+]))->name('plans');
 Route::view('/contact', 'frontend.contact')->name('contact');
 // make sure to add the EnsureAccountIsActive middleware to all routes
 

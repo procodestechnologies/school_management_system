@@ -36,9 +36,12 @@
         @enderror
     </div>
 
-    <div class="flex items-end">
+    <div class="flex items-end gap-6">
         <flux:checkbox name="is_active" value="1" label="Active"
             {{ old('is_active', $plan->is_active ?? true) ? 'checked' : '' }} />
+
+        <flux:checkbox name="is_featured" value="1" label="Most popular"
+            {{ old('is_featured', $plan->is_featured ?? false) ? 'checked' : '' }} />
     </div>
 
     <div class="md:col-span-2">

@@ -85,9 +85,11 @@ class PlanController extends Controller
             'features' => 'array',
             'features.*' => 'string|in:'.implode(',', array_keys(Plan::FEATURES)),
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_featured'] = $request->boolean('is_featured');
         $validated['slug'] = $plan?->slug ?? Str::slug($validated['name']).'-'.Str::random(6);
 
         return $validated;
