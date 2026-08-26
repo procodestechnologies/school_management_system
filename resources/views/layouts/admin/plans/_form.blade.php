@@ -42,6 +42,10 @@
 
         <flux:checkbox name="is_featured" value="1" label="Most popular"
             {{ old('is_featured', $plan->is_featured ?? false) ? 'checked' : '' }} />
+
+        <flux:checkbox name="is_custom_priced" value="1" label="Quoted price"
+            description="Shows &quot;Custom&quot; instead of the amount, and sends buyers to contact us."
+            {{ old('is_custom_priced', $plan->is_custom_priced ?? false) ? 'checked' : '' }} />
     </div>
 
     <div class="md:col-span-2">

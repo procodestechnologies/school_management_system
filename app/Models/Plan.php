@@ -64,6 +64,7 @@ class Plan extends Model
         'features',
         'is_active',
         'is_featured',
+        'is_custom_priced',
     ];
 
     protected function casts(): array
@@ -74,6 +75,7 @@ class Plan extends Model
             'price' => 'decimal:2',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
+            'is_custom_priced' => 'boolean',
         ];
     }
 
@@ -118,27 +120,49 @@ class Plan extends Model
     }
 
     /**
-     * The price as a pricing page shows it. A plan costing nothing reads
-     * "Free" rather than "KES 0", which looks like a missing value.
+     * The price as a pricing page shows it.
+     *
+     * A quoted plan reads "Custom" whatever number is on the row - an
+     * Enterprise tier parked at 0.00 until someone fixes its rate must not
+     * advertise itself as free. Only a plan that genuinely costs nothing
+     * says "Free", which beats "KES 0" for looking like a missing value.
      */
     public function priceLabel(): string
     {
+        if ($this->is_custom_priced) {
+            return 'Custom';
+        }
+
         return (float) $this->price === 0.0
             ? 'Free'
             : self::CURRENCY.' '.number_format((float) $this->price);
     }
 
     /**
-     * What the price is per, for the small print beside it. Null on a
-     * one-off charge, where "/lifetime" would read strangely.
+     * What the price is per, for the small print beside it. Absent on a
+     * quoted plan (there is no published rate for it to be "per" anything)
+     * and on a one-off charge, where "/lifetime" would read strangely.
      */
     public function periodLabel(): ?string
     {
+        if ($this->is_custom_priced) {
+            return null;
+        }
+
         return match ($this->billing_cycle) {
             'monthly' => '/month',
             'yearly' => '/year',
             default => null,
         };
+    }
+
+    /**
+     * Whether a school can sign itself up for this plan, or has to be
+     * quoted first. Drives which way the pricing page's button points.
+     */
+    public function isSelfServe(): bool
+    {
+        return ! $this->is_custom_priced;
     }
 
     /**

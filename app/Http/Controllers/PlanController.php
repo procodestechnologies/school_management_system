@@ -19,6 +19,7 @@ class PlanController extends Controller
     public function index()
     {
         $plans = Plan::orderBy('name')->get();
+        dd($plans);
 
         return view('layouts::admin.plans.index', compact('plans'));
     }
@@ -86,10 +87,12 @@ class PlanController extends Controller
             'features.*' => 'string|in:'.implode(',', array_keys(Plan::FEATURES)),
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
+            'is_custom_priced' => 'boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_featured'] = $request->boolean('is_featured');
+        $validated['is_custom_priced'] = $request->boolean('is_custom_priced');
         $validated['slug'] = $plan?->slug ?? Str::slug($validated['name']).'-'.Str::random(6);
 
         return $validated;

@@ -24,8 +24,13 @@
                     'lg:grid-cols-3' => $plans->count() !== 2,
                 ])>
                     @foreach ($plans as $plan)
+                        {{-- A quoted plan has no price to sign up against, so it
+                             points at a person instead of the register form. --}}
                         <x-frontend.pricing-card :name="$plan->name" :price="$plan->priceLabel()" :period="$plan->periodLabel()" :description="$plan->description"
-                            :featured="$plan->is_featured" :ctaHref="route('register')" ctaLabel="Get started" :data-animate="$plan->is_featured ? 'scale' : true"
+                            :featured="$plan->is_featured"
+                            :ctaHref="$plan->isSelfServe() ? route('register') : route('contact')"
+                            :ctaLabel="$plan->isSelfServe() ? 'Get started' : 'Talk to us'"
+                            :data-animate="$plan->is_featured ? 'scale' : true"
                             style="--reveal-delay:{{ $loop->index * 90 }}ms">
                             @forelse ($plan->inclusions() as $inclusion)
                                 <x-frontend.check-item>{{ $inclusion }}</x-frontend.check-item>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Plan;
+use Database\Seeders\PremiumPlanSeeder;
 
 function makePlan(array $overrides = []): Plan
 {
@@ -63,7 +64,7 @@ test('the public shape carries nothing beyond what a pricing page needs', functi
     // Named explicitly: a column added to the plans table later must not
     // appear here until someone puts it in PlanResource on purpose.
     expect(array_keys($data))->toBe([
-        'id', 'slug', 'name', 'description', 'price', 'currency', 'billing_cycle', 'is_featured', 'modules', 'features',
+        'id', 'slug', 'name', 'description', 'price', 'currency', 'is_custom_priced', 'billing_cycle', 'is_featured', 'modules', 'features',
     ]);
 });
 
@@ -158,4 +159,89 @@ test('a free plan reads as free, and a page with no plans says so', function () 
     $this->get(route('plans'))
         ->assertOk()
         ->assertSee("We're putting together pricing for the coming term.", false);
+});
+
+test('a quoted plan reads Custom, even though its price sits at zero like a free one', function () {
+    // The crux: both rows are 0.00. Only the flag separates a tier nobody
+    // has priced yet from a tier that genuinely costs nothing.
+    $enterprise = makePlan([
+        'name' => 'Enterprise',
+        'price' => 0,
+        'is_custom_priced' => true,
+        'billing_cycle' => 'monthly',
+    ]);
+    $basic = makePlan(['name' => 'Basic', 'price' => 0]);
+
+    expect($enterprise->priceLabel())->toBe('Custom')
+        ->and($basic->priceLabel())->toBe('Free')
+        // No published rate means nothing for a period to be "per".
+        ->and($enterprise->periodLabel())->toBeNull()
+        ->and($basic->periodLabel())->toBe('/month')
+        ->and($enterprise->isSelfServe())->toBeFalse()
+        ->and($basic->isSelfServe())->toBeTrue();
+});
+
+test('the pricing page sends a quoted plan to contact, and a free one to register', function () {
+    makePlan(['name' => 'Enterprise', 'price' => 0, 'is_custom_priced' => true]);
+    makePlan(['name' => 'Basic', 'price' => 0]);
+
+    $html = $this->get(route('plans'))->assertOk()->getContent();
+
+    expect($html)->toContain('Custom')
+        ->toContain('Free')
+        // Never promise a free Enterprise tier.
+        ->and(substr_count($html, 'Free'))->toBe(1)
+        ->and($html)->toContain('Talk to us')
+        ->and($html)->toContain('Get started')
+        ->and($html)->toContain(route('contact'));
+});
+
+test('the api says whether a price is quoted, so a frontend can render Custom too', function () {
+    makePlan(['name' => 'Enterprise', 'price' => 0, 'is_custom_priced' => true]);
+
+    $data = $this->getJson('/api/plans')->assertOk()->json('data.0');
+
+    expect($data['is_custom_priced'])->toBeTrue()
+        ->and($data['price'])->toBe(0);
+});
+
+test('the premium seeder grants every module and feature, and never duplicates itself', function () {
+    $this->seed(PremiumPlanSeeder::class);
+
+    $premium = Plan::where('name', 'Premium')->firstOrFail();
+    $originalSlug = $premium->slug;
+
+    expect($premium->modules)->toBe(Plan::MODULES)
+        ->and($premium->features)->toBe(array_keys(Plan::FEATURES))
+        ->and($premium->is_active)->toBeTrue()
+        // Priced on application rather than at an invented figure.
+        ->and($premium->priceLabel())->toBe('Custom')
+        ->and($premium->isSelfServe())->toBeFalse();
+
+    $this->seed(PremiumPlanSeeder::class);
+
+    expect(Plan::where('name', 'Premium')->count())->toBe(1)
+        // Re-seeding must not move the slug a public URL is built from.
+        ->and(Plan::where('name', 'Premium')->firstOrFail()->slug)->toBe($originalSlug);
+});
+
+test('re-seeding leaves a price the business has since set alone', function () {
+    $this->seed(PremiumPlanSeeder::class);
+
+    // Someone fixes a real rate on the admin screen.
+    Plan::where('name', 'Premium')->firstOrFail()->update([
+        'price' => 9000,
+        'is_custom_priced' => false,
+        'is_featured' => true,
+    ]);
+
+    $this->seed(PremiumPlanSeeder::class);
+
+    $premium = Plan::where('name', 'Premium')->firstOrFail();
+
+    expect($premium->priceLabel())->toBe('KES 9,000')
+        ->and($premium->is_custom_priced)->toBeFalse()
+        ->and($premium->is_featured)->toBeTrue()
+        // Inclusions still refresh, so a new module joins on the next run.
+        ->and($premium->modules)->toBe(Plan::MODULES);
 });

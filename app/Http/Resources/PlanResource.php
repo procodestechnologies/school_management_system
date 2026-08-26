@@ -35,6 +35,9 @@ class PlanResource extends JsonResource
             // parse before it could format it.
             'price' => (float) $this->price,
             'currency' => Plan::CURRENCY,
+            // True when the price is quoted rather than published, so a
+            // frontend renders "Custom" instead of the (meaningless) figure.
+            'is_custom_priced' => (bool) $this->is_custom_priced,
             'billing_cycle' => $this->billing_cycle,
             // Which card a pricing page badges as "Most popular".
             'is_featured' => (bool) $this->is_featured,
