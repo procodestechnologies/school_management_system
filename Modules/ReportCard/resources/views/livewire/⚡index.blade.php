@@ -1,11 +1,13 @@
 <?php
 
+use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\ReportCard\Models\ReportCard;
+use Modules\ReportCard\Services\ReportCardSender;
 use Modules\Student\Models\StudentDetails;
 
 new #[Title('Report Cards')] class extends Component
@@ -53,6 +55,47 @@ new #[Title('Report Cards')] class extends Component
 
         $this->sort = $column;
         $this->direction = 'asc';
+    }
+
+    /**
+     * Send one report card to its parent now.
+     *
+     * The nightly run is the normal path; this is the hand crank for when
+     * it didn't fire, or a parent lost the link. It sends whatever the
+     * report says as it stands - no waiting a day, and no re-checking that
+     * every subject is marked, since whoever pressed the button is looking
+     * at the report.
+     */
+    public function send(int $id, ReportCardSender $sender): void
+    {
+        abort_unless(auth()->user()->can('edit reportcard'), 403);
+
+        $reportCard = $this->scoped()->findOrFail($id);
+
+        $outcome = $sender->send($reportCard);
+
+        unset($this->reportCards);
+
+        if (! $outcome['sent']) {
+            Flux::toast(text: $outcome['reason'], variant: 'danger');
+
+            return;
+        }
+
+        $channels = collect(['email' => $outcome['email'], 'SMS' => $outcome['sms']])
+            ->filter()
+            ->keys();
+
+        if ($channels->isEmpty()) {
+            Flux::toast(text: $outcome['reason'], variant: 'danger');
+
+            return;
+        }
+
+        Flux::toast(
+            text: 'Sent to '.$reportCard->student?->name.'\'s parent by '.$channels->join(' and ').'.',
+            variant: 'success',
+        );
     }
 
     #[Computed]
@@ -150,10 +193,32 @@ new #[Title('Report Cards')] class extends Component
                             <flux:badge :color="$reportCard->isSent() ? 'emerald' : 'amber'">
                                 {{ $reportCard->isSent() ? 'Sent' : 'Ready' }}
                             </flux:badge>
+
+                            {{-- When it went out, so a director can see at a glance
+                                 whether the nightly run actually fired. --}}
+                            @if ($reportCard->sent_at)
+                                <flux:text class="mt-1 block text-xs text-zinc-500">
+                                    {{ $reportCard->sent_at->diffForHumans() }}
+                                </flux:text>
+                            @endif
                         </flux:table.cell>
                         <flux:table.cell>
                             <flux:button href="{{ route('reportcard.show', $reportCard->id) }}" icon="eye"
                                 variant="primary" color="emerald" wire:navigate>view</flux:button>
+
+                            @can('edit reportcard')
+                                <flux:button type="button" icon="paper-airplane" variant="primary" color="blue"
+                                    wire:click="send({{ $reportCard->id }})" wire:loading.attr="disabled"
+                                    wire:target="send({{ $reportCard->id }})"
+                                    wire:confirm="{{ $reportCard->isSent()
+                                        ? 'Send this report card to the parent again? The previous download link stops working.'
+                                        : 'Send this report card to the parent now, by email and SMS?' }}">
+                                    <span wire:loading.remove wire:target="send({{ $reportCard->id }})">
+                                        {{ $reportCard->isSent() ? 'resend' : 'send' }}
+                                    </span>
+                                    <span wire:loading wire:target="send({{ $reportCard->id }})">sending…</span>
+                                </flux:button>
+                            @endcan
                         </flux:table.cell>
                     </flux:table.row>
                 @empty
