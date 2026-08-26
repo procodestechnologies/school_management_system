@@ -168,6 +168,8 @@ class Institution extends Model
      *  - trial:      never subscribed, still inside the free window
      *  - lapsed:     expired or trial over - the gate is closing/closed
      *
+     * `days` is whole days from today, negative once the date is past.
+     *
      * @return array{state: string, plan: ?Plan, date: ?Carbon, days: ?int}
      */
     public function billingStatus(): array
@@ -179,7 +181,7 @@ class Institution extends Model
                 'state' => $expires ? 'subscribed' : 'lifetime',
                 'plan' => $this->plan,
                 'date' => $expires,
-                'days' => $expires ? now()->startOfDay()->diffInDays($expires->copy()->startOfDay(), false) : null,
+                'days' => $expires ? (int) now()->startOfDay()->diffInDays($expires->copy()->startOfDay(), false) : null,
             ];
         }
 
@@ -192,7 +194,7 @@ class Institution extends Model
             'state' => $onTrial ? 'trial' : 'lapsed',
             'plan' => $this->plan ?? $this->selectedPlan,
             'date' => $onTrial ? $trialEnds : $this->subscription_expires_at,
-            'days' => $trialEnds ? now()->startOfDay()->diffInDays($trialEnds->copy()->startOfDay(), false) : null,
+            'days' => $trialEnds ? (int) now()->startOfDay()->diffInDays($trialEnds->copy()->startOfDay(), false) : null,
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\PaystackService;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Modules\Institution\Actions\SaveInstitution;
 use Modules\Institution\Models\Institution;
 
@@ -253,4 +254,125 @@ test('a director who already runs a school is not sent back through onboarding',
     ]);
 
     $this->actingAs($director)->get(route('onboarding.plan'))->assertRedirect(route('dashboard'));
+});
+
+test('the setup fee does not discount the first plan payment', function () {
+    $director = onboardingDirector();
+    $plan = onboardingPlan(['price' => 2500]);
+
+    paySetupFee($director, $plan);
+
+    $institution = app(SaveInstitution::class)->create([
+        'name' => 'Sample School',
+        'code' => 'SS-'.uniqid(),
+        'type' => 'School',
+        'email' => 'head@sample.test',
+        'phone' => '0712345678',
+        'county' => 'Nairobi',
+        'city' => 'Nairobi',
+        'postal_address' => 'P.O. Box 1',
+        'physical_address' => 'Somewhere Road',
+    ], $director);
+
+    // The KES 5,000 setup fee is on this school's ledger, but it bought
+    // setup - not a period of service - so the plan still costs full price.
+    expect($institution->payments()->sum('amount'))->toEqual(5000.0)
+        ->and($institution->amountPaidThisWindow())->toBe(0.0)
+        ->and($institution->amountDueForPlan($plan))->toBe(2500.0);
+});
+
+test('the banner counts down to renewal, and only once it is close', function () {
+    $director = onboardingDirector();
+    $plan = onboardingPlan();
+
+    $institution = Institution::create([
+        'user_id' => $director->id,
+        'name' => 'Banner School',
+        'code' => 'BN-'.uniqid(),
+        'type' => 'School',
+        'is_active' => true,
+        'status' => 'active',
+        'is_approved' => true,
+        'approved_at' => now()->subMonths(2),
+        'subscription_plan' => $plan->id,
+        'subscription_started_at' => now()->subMonth(),
+        'subscription_expires_at' => now()->addDays(30),
+    ]);
+
+    // A month out, the banner stays quiet - shown daily for a month it
+    // would stop being read long before renewal.
+    expect($institution->billingStatus()['state'])->toBe('subscribed')
+        ->and($institution->billingStatus()['days'])->toBe(30);
+
+    $institution->update(['subscription_expires_at' => now()->addDays(5)]);
+    expect($institution->fresh()->billingStatus()['days'])->toBe(5);
+
+    // Lapsed once the date is behind us.
+    $institution->update(['subscription_expires_at' => now()->subDay()]);
+    expect($institution->fresh()->billingStatus()['state'])->toBe('lapsed');
+});
+
+test('a school that has never subscribed is on trial until the window closes', function () {
+    $director = onboardingDirector();
+    $plan = onboardingPlan();
+
+    $institution = Institution::create([
+        'user_id' => $director->id,
+        'name' => 'Trial School',
+        'code' => 'TR-'.uniqid(),
+        'type' => 'School',
+        'is_active' => true,
+        'status' => 'active',
+        'is_approved' => true,
+        'approved_at' => now()->subDays(3),
+        'selected_plan_id' => $plan->id,
+    ]);
+
+    $status = $institution->billingStatus();
+
+    expect($status['state'])->toBe('trial')
+        // Named after the plan they chose at onboarding, even though no
+        // subscription has been paid for yet.
+        ->and($status['plan']?->id)->toBe($plan->id)
+        ->and($status['days'])->toBe(11);
+
+    // Past the free window with nothing paid, they are lapsed.
+    $institution->update(['approved_at' => now()->subDays(20)]);
+
+    expect($institution->fresh()->billingStatus()['state'])->toBe('lapsed');
+});
+
+test('an admin sets the setup fee, and it is what onboarding then charges', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('Admin');
+
+    Livewire::actingAs($admin->refresh())
+        ->test('pages::admin.site-settings')
+        ->set('setupFee', '7500')
+        ->call('saveSetupFee')
+        ->assertHasNoErrors();
+
+    expect(Setting::setupFee())->toBe(7500.0);
+
+    $director = onboardingDirector();
+    $plan = onboardingPlan();
+    fakePaystack();
+
+    $this->actingAs($director)->post(route('onboarding.pay'), ['plan_id' => $plan->id]);
+
+    expect((float) Payment::firstOrFail()->amount)->toBe(7500.0);
+});
+
+test('the setup fee refuses a negative amount', function () {
+    $admin = User::factory()->create();
+    $admin->assignRole('Admin');
+
+    Livewire::actingAs($admin->refresh())
+        ->test('pages::admin.site-settings')
+        ->set('setupFee', '-100')
+        ->call('saveSetupFee')
+        ->assertHasErrors(['setupFee']);
+
+    // Unchanged by the rejected save.
+    expect(Setting::setupFee())->toBe(5000.0);
 });
