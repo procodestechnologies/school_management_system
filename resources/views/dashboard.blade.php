@@ -8,6 +8,8 @@
 <x-layouts::app :title="__('Dashboard')">
     <div class="flex h-full w-full flex-1 flex-col gap-6">
 
+        <x-billing-banner />
+
         <div class="flex flex-col gap-1">
             <flux:heading size="xl">Welcome back, {{ explode(' ', auth()->user()->name)[0] }}</flux:heading>
             <flux:text class="text-zinc-500">

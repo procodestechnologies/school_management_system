@@ -2,6 +2,8 @@
 
 namespace Modules\Institution\Actions;
 
+use App\Models\Payment;
+use App\Models\Plan;
 use App\Models\User;
 use App\Services\ImageCompressionService;
 use Illuminate\Http\UploadedFile;
@@ -107,7 +109,45 @@ class SaveInstitution
             $owner->assignRole('Director');
         }
 
+        $this->claimOnboardingPayment($institution, $owner);
+
         return $institution;
+    }
+
+    /**
+     * Hand the school the setup fee its director already paid, and record
+     * the plan they picked on the way in.
+     *
+     * The payment was taken before this row existed, so until now it has
+     * been sitting with a null institution_id. Claiming it here is what
+     * stops it being spent twice: the same director registering a second
+     * school finds nothing unclaimed and is asked to pay again.
+     *
+     * The chosen plan is remembered, not activated. They have paid to be
+     * set up, not for a period of service - the trial covers the gap until
+     * the first subscription charge.
+     */
+    private function claimOnboardingPayment(Institution $institution, User $owner): void
+    {
+        $payment = Payment::query()
+            ->unclaimedSetupFee()
+            ->where('initiated_by', $owner->id)
+            ->oldest()
+            ->first();
+
+        // Falls back to the session for the no-fee case, where there was
+        // no payment to carry the choice.
+        $planId = $payment?->plan_id ?? session('onboarding.plan_id');
+
+        if ($payment) {
+            $payment->update(['institution_id' => $institution->id]);
+        }
+
+        if ($planId && Plan::whereKey($planId)->exists()) {
+            $institution->forceFill(['selected_plan_id' => $planId])->save();
+        }
+
+        session()->forget('onboarding.plan_id');
     }
 
     /**

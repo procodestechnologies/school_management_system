@@ -5,6 +5,7 @@ use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DevicesController;
 use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\SyncDeviceController;
 use App\Http\Controllers\SyncStudentToDeviceController;
@@ -29,6 +30,14 @@ Route::view('/contact', 'frontend.contact')->name('contact');
 // token. Kept outside /dashboard so the payment-gate middleware never
 // touches it either.
 Route::post('billing/webhook', [BillingController::class, 'webhook'])->name('billing.webhook');
+
+// Onboarding sits outside HasInstitution on purpose: that middleware is
+// what sends a director here, so gating these with it would loop.
+Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
+    Route::get('onboarding/plan', [OnboardingController::class, 'plan'])->name('onboarding.plan');
+    Route::post('onboarding/pay', [OnboardingController::class, 'pay'])->name('onboarding.pay');
+    Route::get('onboarding/callback', [OnboardingController::class, 'callback'])->name('onboarding.callback');
+});
 
 Route::middleware(['auth', 'verified',  HasInstitution::class])->prefix('dashboard')->group(function () {
     Route::get('', DashboardController::class)->name('dashboard');
