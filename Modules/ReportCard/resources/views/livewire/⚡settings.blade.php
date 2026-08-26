@@ -38,11 +38,10 @@ new #[Title('Report Card Settings')] class extends Component
 
     public string $remark = '';
 
-    // Defaults loader, for the school-wide scale. `defaultScheme` only
-    // applies when the chosen system is CBC.
-    public string $defaultSystem = '844';
-
-    public string $defaultScheme = Curriculum::SCHEME_RUBRIC;
+    // Which standard scale the "load" button installs. Preselected from
+    // the chosen curriculum, but always editable - a school may well want
+    // to load a scale its curriculum record doesn't yet name.
+    public string $defaultScale = GradingScaleDefaults::SCALE_844;
 
     // Template
     public string $opening_text = '';
@@ -70,6 +69,25 @@ new #[Title('Report Card Settings')] class extends Component
     {
         $this->curriculumId = '';
         $this->loadTemplate();
+        $this->syncDefaultScale();
+    }
+
+    public function updatedCurriculumId(): void
+    {
+        $this->syncDefaultScale();
+    }
+
+    /**
+     * Point the standard-scale picker at whatever the chosen curriculum
+     * says it grades on, so loading it is one click. Left editable: a
+     * curriculum whose system was guessed wrong on import shouldn't force
+     * the wrong scale on the school.
+     */
+    private function syncDefaultScale(): void
+    {
+        unset($this->curriculum, $this->curricula, $this->gradingBands);
+
+        $this->defaultScale = GradingScaleDefaults::keyFor($this->curriculum);
     }
 
     public function addBand(): void
@@ -104,9 +122,9 @@ new #[Title('Report Card Settings')] class extends Component
     }
 
     /**
-     * Fill a curriculum's scale in from the standard one for the system it
-     * runs on. Refuses to run over an existing scale: a school that has
-     * already tuned its bands shouldn't lose that to a stray click.
+     * Fill the selected scale in from one of the standard ones. Refuses to
+     * run over an existing scale: a school that has already tuned its bands
+     * shouldn't lose that to a stray click.
      */
     public function loadDefaults(): void
     {
@@ -125,10 +143,8 @@ new #[Title('Report Card Settings')] class extends Component
         }
 
         $curriculum = $this->curriculum;
-        $system = $curriculum?->system ?? $this->defaultSystem;
-        $scheme = $curriculum ? $curriculum->gradingScheme() : $this->defaultScheme;
 
-        foreach (GradingScaleDefaults::forSystem($system, $scheme) as $band) {
+        foreach (GradingScaleDefaults::forKey($this->defaultScale) as $band) {
             GradingBand::create($band + [
                 'institution_id' => $institution->id,
                 'curriculum_id' => $curriculum?->id,
@@ -137,10 +153,10 @@ new #[Title('Report Card Settings')] class extends Component
 
         unset($this->gradingBands);
 
-        $label = GradingScaleDefaults::labelFor($system, $scheme);
+        $label = GradingScaleDefaults::labelForKey($this->defaultScale);
 
         Flux::toast(
-            text: 'The standard '.$label.' has been loaded. Edit any band that differs at your school.',
+            text: 'Loaded the '.$label.' scale. Edit any band that differs at your school.',
             variant: 'success',
         );
     }
@@ -290,9 +306,10 @@ new #[Title('Report Card Settings')] class extends Component
         <flux:card class="mb-6">
             <flux:heading size="lg" class="mb-2">Grading Scale</flux:heading>
             <flux:text class="mb-4 text-zinc-500">
-                The percentage bands each result's grade is worked out from. A school running both curricula keeps a
-                scale for each: pick the curriculum below, and classes on it are marked against its bands. The
-                school-wide scale is the fallback for classes with no curriculum set.
+                The percentage bands each result's grade is worked out from. 8-4-4 marks A to E; CBC marks against
+                expectations, either in four bands or on KJSEA's eight levels. Each curriculum keeps its own scale —
+                pick one below and classes on it are marked against its bands. The school-wide scale is the fallback
+                for classes with no curriculum set.
             </flux:text>
 
             <div class="mb-4 flex flex-wrap items-end gap-2">
@@ -315,12 +332,24 @@ new #[Title('Report Card Settings')] class extends Component
             </div>
 
             @if ($this->curriculum)
-                <flux:badge color="blue" class="mb-4">
-                    {{ $this->curriculum->name }} · {{ $this->curriculum->systemLabel() }}
-                    @if ($this->curriculum->schemeLabel())
-                        · {{ $this->curriculum->schemeLabel() }}
+                <div class="mb-4">
+                    <flux:badge color="blue">
+                        {{ $this->curriculum->name }} · {{ $this->curriculum->gradingLabel() }}
+                    </flux:badge>
+
+                    @if ($this->curriculum->looksMisconfigured())
+                        <flux:callout variant="warning" class="mt-3">
+                            <flux:callout.text>
+                                “{{ $this->curriculum->name }}” is named for one system but is set to grade on
+                                <strong>{{ $this->curriculum->systemLabel() }}</strong>. Marks on it will be graded
+                                {{ $this->curriculum->isCbc() ? 'against expectations' : 'A to E' }}. If that is not
+                                what you want, change its system on the
+                                <a href="{{ route('curriculum.index') }}" class="underline" wire:navigate>curriculum
+                                    page</a>.
+                            </flux:callout.text>
+                        </flux:callout>
                     @endif
-                </flux:badge>
+                </div>
             @endif
 
             @if ($this->gradingBands->isNotEmpty())
@@ -357,28 +386,15 @@ new #[Title('Report Card Settings')] class extends Component
                     </flux:text>
 
                     <div class="flex flex-wrap items-end gap-2">
-                        @if (! $this->curriculum)
-                            <flux:select wire:model.live="defaultSystem" label="Standard scale">
-                                <flux:select.option value="844">8-4-4 (A - E)</flux:select.option>
-                                <flux:select.option value="cbc">CBC</flux:select.option>
-                            </flux:select>
-
-                            @if ($defaultSystem === 'cbc')
-                                <flux:select wire:model="defaultScheme" label="CBC scale">
-                                    @foreach (\Modules\Curriculum\Models\Curriculum::SCHEMES as $value => $label)
-                                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            @endif
-                        @endif
+                        <flux:select wire:model.live="defaultScale" label="Standard scale" class="min-w-72">
+                            @foreach (\Modules\ReportCard\Support\GradingScaleDefaults::options() as $value => $label)
+                                <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
 
                         <flux:button type="button" variant="primary" icon="sparkles" wire:click="loadDefaults">
-                            @if ($this->curriculum)
-                                Load the standard
-                                {{ \Modules\ReportCard\Support\GradingScaleDefaults::labelFor($this->curriculum->system, $this->curriculum->gradingScheme()) }}
-                            @else
-                                Load it
-                            @endif
+                            Load into
+                            {{ $this->curriculum ? $this->curriculum->name : 'the school-wide scale' }}
                         </flux:button>
                     </div>
                 </div>

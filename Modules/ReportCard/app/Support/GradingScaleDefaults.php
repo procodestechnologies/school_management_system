@@ -20,6 +20,70 @@ use Modules\Curriculum\Models\Curriculum;
 class GradingScaleDefaults
 {
     /**
+     * Keys are `system:variant` throughout, and none is a bare number:
+     * PHP silently casts a numeric string array key to an int, so a plain
+     * '844' would come back out of array_keys() as int 844 and fail any
+     * strict comparison against the constant.
+     */
+    public const SCALE_844 = '844:letters';
+
+    public const SCALE_CBC_RUBRIC = 'cbc:rubric';
+
+    public const SCALE_CBC_KJSEA = 'cbc:kjsea';
+
+    /**
+     * The standard scales a school can load, as one flat list.
+     *
+     * Flat because these are three different ways of grading, not a system
+     * with a sub-setting: 8-4-4 marks A-E and has no variants, while CBC
+     * marks against expectations in either four bands or KJSEA's eight
+     * levels. Presenting them as one choice is what they are to the person
+     * picking - "which scale does this school mark on".
+     *
+     * @return array<string, string>
+     */
+    public static function options(): array
+    {
+        return [
+            self::SCALE_844 => '8-4-4 — A to E',
+            self::SCALE_CBC_RUBRIC => 'CBC — 4-Band Rubric (EE / ME / AE / BE)',
+            self::SCALE_CBC_KJSEA => 'CBC — KJSEA 8 Levels (EE1 to BE2)',
+        ];
+    }
+
+    /**
+     * The bands behind one of those options.
+     *
+     * @return array<int, array{min_percentage: float, max_percentage: float, grade: string, points: int, remark: string}>
+     */
+    public static function forKey(string $key): array
+    {
+        return match ($key) {
+            self::SCALE_CBC_RUBRIC => self::cbcRubric(),
+            self::SCALE_CBC_KJSEA => self::kjsea(),
+            default => self::eightFourFour(),
+        };
+    }
+
+    public static function labelForKey(string $key): string
+    {
+        return self::options()[$key] ?? self::options()[self::SCALE_844];
+    }
+
+    /**
+     * Which option a curriculum already says it grades on - the one to
+     * preselect so the common case is a single click.
+     */
+    public static function keyFor(?Curriculum $curriculum): string
+    {
+        if (! $curriculum?->isCbc()) {
+            return self::SCALE_844;
+        }
+
+        return $curriculum->isKjsea() ? self::SCALE_CBC_KJSEA : self::SCALE_CBC_RUBRIC;
+    }
+
+    /**
      * 8-4-4: twelve letter grades, each worth the KCSE grade points used
      * to work out a mean grade.
      *

@@ -10,6 +10,8 @@ use Modules\Examinations\Models\Examination;
 use Modules\Institution\Models\Institution;
 use Modules\ReportCard\Models\GradingBand;
 use Modules\ReportCard\Models\ReportCard;
+use Modules\ReportCard\Services\ReportCardGenerationService;
+use Modules\ReportCard\Services\ReportCardPdfService;
 use Modules\ReportCard\Support\GradingScaleDefaults;
 use Modules\Result\Models\Result;
 use Modules\Student\Models\StudentDetails;
@@ -184,7 +186,7 @@ test('the term is taken from the class when all its marks sit in one term', func
     expect(ReportCard::where('student_id', $student->id)->firstOrFail()->term)->toBe('Second Term');
 });
 
-test('a class spanning two terms generates nothing until an examination says which term', function () {
+test('a class spanning two terms reports on the current one, and the examination filter has no say in it', function () {
     [$director, $institution, $class] = rcgSchool();
 
     $first = rcgExam($institution, $class, 'First Term');
@@ -197,19 +199,57 @@ test('a class spanning two terms generates nothing until an examination says whi
     Livewire::actingAs($director)
         ->test('result::index')
         ->set('classId', (string) $class->id)
+        // Filtering the table down to a first-term paper must not drag the
+        // report back into first term: an examination is one subject, and a
+        // report card covers the whole term.
+        ->set('examinationId', (string) $first->id)
         ->call('generateReportCards');
 
-    expect(ReportCard::count())->toBe(0);
+    expect(ReportCard::count())->toBe(1);
 
-    // Naming the paper resolves the ambiguity, and only that term is reported.
-    Livewire::actingAs($director)
-        ->test('result::index')
-        ->set('classId', (string) $class->id)
-        ->set('examinationId', (string) $second->id)
-        ->call('generateReportCards');
+    $reportCard = ReportCard::firstOrFail();
 
-    expect(ReportCard::count())->toBe(1)
-        ->and(ReportCard::firstOrFail()->term)->toBe('Second Term');
+    expect($reportCard->term)->toBe('Second Term')
+        ->and($reportCard->term_number)->toBe(2)
+        // Marked out of 100 in second term, so the second-term figure only.
+        ->and((float) $reportCard->mean_percentage)->toBe(40.0);
+});
+
+test('the report card sets this term against the one before it, and reaches back a year for term 1', function () {
+    [, $institution, $class] = rcgSchool();
+
+    $student = rcgLearner($institution, $class);
+
+    // Last year's third term, already reported on.
+    $lastYear = rcgExam($institution, $class, 'Third Term', 2025);
+    rcgMark($institution, $class, $lastYear, $student, 50);
+
+    $thisYear = rcgExam($institution, $class, 'First Term', 2026);
+    rcgMark($institution, $class, $thisYear, $student, 80);
+
+    $generator = app(ReportCardGenerationService::class);
+    $generator->forClass($class, 'Third Term', 2025);
+    $generator->forClass($class, 'First Term', 2026);
+
+    $current = ReportCard::where('academic_year', 2026)->firstOrFail();
+    $previous = ReportCard::where('academic_year', 2025)->firstOrFail();
+
+    expect($previous->term_number)->toBe(3)
+        ->and($current->term_number)->toBe(1)
+        ->and((float) $previous->mean_percentage)->toBe(50.0)
+        ->and((float) $current->mean_percentage)->toBe(80.0);
+
+    // The comparison the PDF prints: term 1 looks back into last year
+    // rather than finding nothing before it.
+    $history = (function () use ($current) {
+        $method = new ReflectionMethod(ReportCardPdfService::class, 'termHistory');
+
+        return $method->invoke(app(ReportCardPdfService::class), $current);
+    })();
+
+    expect($history)->toHaveCount(2)
+        ->and($history->first()->id)->toBe($previous->id)
+        ->and($history->last()->id)->toBe($current->id);
 });
 
 test('generating nothing happens without a class selected', function () {
