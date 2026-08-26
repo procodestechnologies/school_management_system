@@ -19,9 +19,7 @@ class PlanController extends Controller
     public function index()
     {
         $plans = Plan::orderBy('name')->get();
-        dd($plans);
-
-        return view('layouts::admin.plans.index', compact('plans'));
+           return view('layouts::admin.plans.index', compact('plans'));
     }
 
     /**
