@@ -304,7 +304,23 @@ new #[Title('Report Card Settings')] class extends Component
         </flux:card>
     @else
         <flux:card class="mb-6">
-            <flux:heading size="lg" class="mb-2">Grading Scale</flux:heading>
+            @php
+                $previewParams = array_filter([
+                    'institution_id' => $this->institution->id,
+                    'curriculum_id' => $this->curriculum?->id,
+                ]);
+            @endphp
+
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <flux:heading size="lg">Grading Scale</flux:heading>
+
+                {{-- Opens in its own tab: it is a streamed PDF, so it can't
+                     render inside the Livewire page. --}}
+                <flux:button href="{{ route('reportcard.settings.preview', $previewParams) }}" target="_blank"
+                    icon="document-magnifying-glass" size="sm">
+                    Preview report card
+                </flux:button>
+            </div>
             <flux:text class="mb-4 text-zinc-500">
                 The percentage bands each result's grade is worked out from. 8-4-4 marks A to E. CBC marks against
                 expectations on the eight KJSEA levels, and each level names its band — EE1 and EE2 are both EE — so a
@@ -417,7 +433,14 @@ new #[Title('Report Card Settings')] class extends Component
         </flux:card>
 
         <flux:card>
-            <flux:heading size="lg" class="mb-2">Report Card Template</flux:heading>
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <flux:heading size="lg">Report Card Template</flux:heading>
+
+                <flux:button href="{{ route('reportcard.settings.preview', $previewParams) }}" target="_blank"
+                    icon="document-magnifying-glass" size="sm">
+                    Preview report card
+                </flux:button>
+            </div>
             <flux:text class="mb-4 text-zinc-500">
                 Customize the opening and closing text on generated report cards. Available placeholders:
                 <code>@{{student_name}}</code>, <code>@{{institution_name}}</code>,

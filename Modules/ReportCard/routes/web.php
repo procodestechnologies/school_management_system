@@ -20,6 +20,9 @@ Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () 
     Route::post('report-cards/settings/grading-bands', [ReportSettingsController::class, 'storeGradingBand'])->name('reportcard.gradingbands.store');
     Route::post('report-cards/settings/grading-bands/defaults', [ReportSettingsController::class, 'loadDefaultGradingBands'])->name('reportcard.gradingbands.defaults');
     Route::delete('report-cards/settings/grading-bands/{gradingBand}', [ReportSettingsController::class, 'destroyGradingBand'])->name('reportcard.gradingbands.destroy');
+    // Declared before the {reportcard} show route further down, which would
+    // otherwise swallow "report-cards/settings/preview".
+    Route::get('report-cards/settings/preview', [ReportSettingsController::class, 'preview'])->name('reportcard.settings.preview');
     Route::delete('report-card/{reportCard}/delete', [ReportCardController::class, 'destroy'])->name('reportcard.destroy');
     Route::livewire('report-cards', 'reportcard::index')->name('reportcard.index');
     Route::get('report-cards/{reportcard}', [ReportCardController::class, 'show'])->name('reportcard.show');

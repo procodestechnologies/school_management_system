@@ -5,6 +5,7 @@ namespace Modules\ReportCard\Services;
 use Illuminate\Support\Collection;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
+use Modules\ReportCard\Models\GradingBand;
 use Modules\ReportCard\Models\ReportCard;
 use Modules\ReportCard\Support\SubjectRow;
 use Modules\Result\Models\Result;
@@ -134,12 +135,29 @@ class ReportSheetBuilder
     }
 
     /**
-     * The highest points value the scale in use can award - 8 on CBC's
-     * achievement levels, 12 on 8-4-4. The report prints the mean against
-     * it, since "6.5" says nothing without knowing what it is out of.
+     * The highest points value the scale in use can award. The report
+     * prints the mean against it, since "6.5" says nothing without knowing
+     * what it is out of.
+     *
+     * Read off the bands themselves rather than inferred from the
+     * curriculum, because the curriculum doesn't always know: a school
+     * marking CBC on its school-wide scale has no curriculum attached at
+     * all, and would otherwise be told its levels were out of 12. Bands a
+     * school has hand-tuned to some other ceiling come out right too.
+     *
+     * The curriculum is only the fallback for a scale whose bands carry no
+     * points at all.
+     *
+     * @param  Collection<int, GradingBand>  $scaleBands
      */
-    public function pointsCeiling(?Curriculum $curriculum): int
+    public function pointsCeiling(Collection $scaleBands, ?Curriculum $curriculum = null): int
     {
+        $highest = (int) $scaleBands->max('points');
+
+        if ($highest > 0) {
+            return $highest;
+        }
+
         return $curriculum?->isCbc() ? 8 : 12;
     }
 

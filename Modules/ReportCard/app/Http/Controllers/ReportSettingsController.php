@@ -3,12 +3,14 @@
 namespace Modules\ReportCard\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
 use Modules\ReportCard\Models\GradingBand;
 use Modules\ReportCard\Models\ReportTemplate;
+use Modules\ReportCard\Services\ReportCardPreviewService;
 use Modules\ReportCard\Support\GradingScaleDefaults;
 
 class ReportSettingsController extends Controller
@@ -115,6 +117,32 @@ class ReportSettingsController extends Controller
 
         return redirect()->route('reportcard.settings', $this->redirectParams($institution, $curriculum))
             ->with('success', 'The standard '.$label.' has been loaded. Edit any band that differs at your school.');
+    }
+
+    /**
+     * A sample report card, rendered through the real template with the
+     * school's own bands and wording, streamed inline so it opens in the
+     * browser rather than landing in a downloads folder.
+     *
+     * Read-only: nothing is created, and nothing is written to disk.
+     */
+    public function preview(Request $request, ReportCardPreviewService $preview)
+    {
+        abort_unless(Auth::user()->can('edit reportcard'), 403);
+
+        $institution = $this->resolveInstitution($request);
+        abort_unless($institution, 404);
+
+        $validated = $request->validate([
+            'curriculum_id' => 'nullable|exists:curricula,id',
+        ]);
+
+        $curriculum = $this->resolveCurriculum($institution, $validated['curriculum_id'] ?? null);
+
+        return Pdf::loadView(
+            'reportcard::pdf.report-card',
+            $preview->viewData($institution, $curriculum),
+        )->setPaper('a4')->stream('sample-report-card.pdf');
     }
 
     /**

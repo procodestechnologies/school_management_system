@@ -230,7 +230,7 @@ test('the report sheet totals a subject across its papers and shows an unassesse
         // Level 8 for the 90% and level 6 for the 60%.
         ->and($summary['mean_points'])->toBe(7.0)
         ->and($summary['band']?->grade)->toBe('EE2')
-        ->and($builder->pointsCeiling($curriculum))->toBe(8);
+        ->and($builder->pointsCeiling(GradingBandService::scaleFor($institution, $curriculum->id), $curriculum))->toBe(8);
 });
 
 test('a kjsea report card renders to a pdf carrying the learner, the levels and the scale key', function () {

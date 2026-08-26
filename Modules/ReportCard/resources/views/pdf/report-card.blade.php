@@ -33,6 +33,18 @@
             color: #1f2937;
         }
 
+        .preview-notice {
+            margin: 0 0 10px 0;
+            padding: 6px 8px;
+            border: 1px solid #f59e0b;
+            background-color: #fef3c7;
+            color: #92400e;
+            font-size: 9px;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 0.04em;
+        }
+
         .letterhead {
             width: 100%;
             border-bottom: 2px solid #111827;
@@ -248,6 +260,12 @@
 </head>
 
 <body>
+    {{-- Only ever set by the settings preview. A real report card never
+         carries this, so there is no way to mistake one for the other. --}}
+    @if (!empty($previewNotice))
+        <p class="preview-notice">{{ $previewNotice }}</p>
+    @endif
+
     <table class="letterhead">
         <tr>
             <td style="width: 70px;">

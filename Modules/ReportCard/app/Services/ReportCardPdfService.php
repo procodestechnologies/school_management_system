@@ -6,9 +6,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Modules\Curriculum\Models\Curriculum;
-use Modules\ReportCard\Models\GradingBand;
 use Modules\ReportCard\Models\ReportCard;
 use Modules\ReportCard\Models\ReportTemplate;
+use Modules\ReportCard\Support\InstitutionLogo;
+use Modules\ReportCard\Support\ReportCardProse;
 use Modules\ReportCard\Support\TermResolver;
 use Modules\Student\Models\StudentDetails;
 
@@ -47,26 +48,17 @@ class ReportCardPdfService
 
         $template = ReportTemplate::where('institution_id', $institution->id)->first();
 
-        $tokens = [
+        $prose = ReportCardProse::render($template, [
             '{{student_name}}' => $student->name,
             '{{institution_name}}' => $institution->name,
             '{{class_name}}' => $reportCard->schoolClass?->name ?? '',
             '{{term}}' => $reportCard->term,
             '{{mean_percentage}}' => $meanPercentage !== null ? number_format($meanPercentage, 2).'%' : '—',
             '{{mean_grade}}' => $meanGrade ?? '—',
-        ];
+        ]);
 
-        $search = array_keys($tokens);
-        $replace = array_map('e', array_values($tokens));
-
-        $defaultOpening = "Dear Parent/Guardian, please find below {$tokens['{{student_name}}']}'s report card for {$tokens['{{term}}']}.";
-        $defaultClosing = 'Thank you for your continued partnership in your child\'s education.';
-
-        $openingHtml = nl2br(str_replace($search, $replace, e($template?->opening_text ?: $defaultOpening)));
-        $closingHtml = nl2br(str_replace($search, $replace, e($template?->closing_text ?: $defaultClosing)));
-
-        $logoDataUri = $this->logoDataUri($institution);
         $termHistory = $this->termHistory($reportCard);
+        $scaleBands = GradingBandService::scaleFor($institution, $curriculumId);
 
         $pdf = Pdf::loadView('reportcard::pdf.report-card', [
             'institution' => $institution,
@@ -76,15 +68,15 @@ class ReportCardPdfService
             'rows' => $rows,
             'summary' => $summary,
             'curriculum' => $curriculum,
-            'pointsCeiling' => $builder->pointsCeiling($curriculum),
-            'scaleBands' => $this->scaleBands($institution, $curriculumId),
+            'pointsCeiling' => $builder->pointsCeiling($scaleBands, $curriculum),
+            'scaleBands' => $scaleBands,
             'meanPercentage' => $meanPercentage,
             'meanGrade' => $meanGrade,
-            'openingHtml' => $openingHtml,
-            'closingHtml' => $closingHtml,
+            'openingHtml' => $prose['opening'],
+            'closingHtml' => $prose['closing'],
             'signatoryName' => $template?->signatory_name,
             'signatoryTitle' => $template?->signatory_title,
-            'logoDataUri' => $logoDataUri,
+            'logoDataUri' => InstitutionLogo::dataUri($institution),
             'termHistory' => $termHistory,
         ])->setPaper('a4');
 
@@ -136,48 +128,5 @@ class ReportCardPdfService
         return StudentDetails::where('student_id', $reportCard->student_id)
             ->where('institution_id', $reportCard->institution_id)
             ->first();
-    }
-
-    /**
-     * The scale the report was marked against, printed as a key beneath it
-     * so a parent can read what EE2 or B+ actually means without being sent
-     * to look it up.
-     *
-     * @return Collection<int, GradingBand>
-     */
-    private function scaleBands($institution, ?int $curriculumId): Collection
-    {
-        $bands = GradingBand::where('institution_id', $institution->id)
-            ->when(
-                $curriculumId,
-                fn ($query) => $query->where('curriculum_id', $curriculumId),
-                fn ($query) => $query->whereNull('curriculum_id'),
-            )
-            ->orderByDesc('min_percentage')
-            ->get();
-
-        // Same fallback GradingBandService grades by: a curriculum with no
-        // scale of its own is marked on the school-wide one, so that is
-        // the key to print.
-        if ($bands->isEmpty() && $curriculumId) {
-            $bands = GradingBand::where('institution_id', $institution->id)
-                ->whereNull('curriculum_id')
-                ->orderByDesc('min_percentage')
-                ->get();
-        }
-
-        return $bands;
-    }
-
-    private function logoDataUri($institution): ?string
-    {
-        if (! $institution->logo || ! Storage::disk('public')->exists($institution->logo)) {
-            return null;
-        }
-
-        $mime = Storage::disk('public')->mimeType($institution->logo);
-        $contents = Storage::disk('public')->get($institution->logo);
-
-        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 }

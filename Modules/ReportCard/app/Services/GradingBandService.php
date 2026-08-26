@@ -2,6 +2,7 @@
 
 namespace Modules\ReportCard\Services;
 
+use Illuminate\Support\Collection;
 use Modules\Classes\Models\SchoolClass;
 use Modules\Curriculum\Models\Curriculum;
 use Modules\Institution\Models\Institution;
@@ -69,6 +70,40 @@ class GradingBandService
             ->pluck('id');
 
         return $curricula->count() === 1 ? (int) $curricula->first() : null;
+    }
+
+    /**
+     * A whole scale, top band first - the key a report prints beneath its
+     * marks so a parent can read what EE2 or B+ actually means.
+     *
+     * Falls back the same way resolveBand does: a curriculum with no scale
+     * of its own is marked on the school-wide one, so that is the key to
+     * show for it.
+     *
+     * @return Collection<int, GradingBand>
+     */
+    public static function scaleFor(Institution $institution, ?int $curriculumId): Collection
+    {
+        $bands = self::orderedBands($institution, $curriculumId);
+
+        return ($bands->isEmpty() && $curriculumId)
+            ? self::orderedBands($institution, null)
+            : $bands;
+    }
+
+    /**
+     * @return Collection<int, GradingBand>
+     */
+    private static function orderedBands(Institution $institution, ?int $curriculumId): Collection
+    {
+        return GradingBand::where('institution_id', $institution->id)
+            ->when(
+                $curriculumId,
+                fn ($query) => $query->where('curriculum_id', $curriculumId),
+                fn ($query) => $query->whereNull('curriculum_id'),
+            )
+            ->orderByDesc('min_percentage')
+            ->get();
     }
 
     private static function lookup(Institution $institution, float $percentage, ?int $curriculumId): ?GradingBand
